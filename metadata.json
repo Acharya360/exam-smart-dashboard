@@ -1,0 +1,6 @@
+{
+  "name": "ExamTrack - University Examination Management & Task Tracker",
+  "description": "Enterprise Exam Department Track Dashboard & Task Management System with Role-Based Access Control (CoE/DyCoE/ACoE vs Coordinators), SheetJS Excel import, and automated task workflows.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
