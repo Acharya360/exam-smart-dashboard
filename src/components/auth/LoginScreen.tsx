@@ -95,9 +95,6 @@ export const LoginScreen: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-300">
                   Password
                 </label>
-                <span className="text-[11px] text-slate-500">
-                  Default: <code className="text-indigo-400 font-mono">Admin@123</code>
-                </span>
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -137,96 +134,7 @@ export const LoginScreen: React.FC = () => {
             </div>
           </form>
 
-          {/* Quick Login Persona Selector */}
-          <div className="mt-6 pt-6 border-t border-slate-800">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Instant Demo Persona Logins</span>
-              </span>
-              <span className="text-[10px] text-slate-500">1-click test</span>
-            </div>
-
-            <div className="space-y-1.5">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('coe@sspu.ac.in')}
-                className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-800/60 hover:bg-indigo-900/30 border border-slate-700/60 hover:border-indigo-500/50 text-left transition-all group"
-              >
-                <div>
-                  <div className="text-xs font-semibold text-slate-200 group-hover:text-indigo-300 flex items-center gap-2">
-                    <span>Dr. Rajesh Sharma</span>
-                    <span className="font-mono text-[10px] text-slate-400">coe@sspu.ac.in</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    Controller of Examinations (CoE) · Super Admin
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  COE
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('DyCoe@sspu.ac.in')}
-                className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-800/60 hover:bg-indigo-900/30 border border-slate-700/60 hover:border-indigo-500/50 text-left transition-all group"
-              >
-                <div>
-                  <div className="text-xs font-semibold text-slate-200 group-hover:text-indigo-300 flex items-center gap-2">
-                    <span>Dr. Anita Verma</span>
-                    <span className="font-mono text-[10px] text-slate-400">DyCoe@sspu.ac.in</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    Deputy Controller of Examinations (DyCoE) · Super Admin
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  DYCOE
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('Acoe@sspu.ac.in')}
-                className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-800/60 hover:bg-indigo-900/30 border border-slate-700/60 hover:border-indigo-500/50 text-left transition-all group"
-              >
-                <div>
-                  <div className="text-xs font-semibold text-slate-200 group-hover:text-indigo-300 flex items-center gap-2">
-                    <span>Prof. Vikram Patel</span>
-                    <span className="font-mono text-[10px] text-slate-400">Acoe@sspu.ac.in</span>
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    Assistant Controller of Examinations (ACoE) · Super Admin
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                  ACOE
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('sarah.jenkins@university.edu')}
-                className="w-full flex items-center justify-between p-2 rounded-lg bg-slate-800/60 hover:bg-emerald-900/30 border border-slate-700/60 hover:border-emerald-500/50 text-left transition-all group"
-              >
-                <div>
-                  <div className="text-xs font-semibold text-slate-200 group-hover:text-emerald-300">
-                    Prof. Sarah Jenkins
-                  </div>
-                  <div className="text-[10px] text-slate-400">
-                    Exam Coordinator (Construction Engg & Mgmt)
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono font-medium px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                  COORDINATOR
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Security badge footer */}
+          {/* Security badge footer */}
         <div className="mt-4 text-center flex items-center justify-center gap-1.5 text-xs text-slate-500">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
           <span>PostgreSQL Row-Level Security (RLS) Enforced</span>
