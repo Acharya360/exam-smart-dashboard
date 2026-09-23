@@ -1,3 +1,4 @@
+export const SUPABASE_SQL_MIGRATION = 
 -- ============================================================================
 --EXAM DEPARTMENT TRACK DASHBOARD & TASK MANAGEMENT SYSTEM
 --PostgreSQL Schema & Supabase Row - Level Security(RLS) Migration
@@ -251,3 +252,5 @@ VALUES
   (coord_id, 'coord@sspu.edu.in', 'Prof. D. Patel', 'COORDINATOR', 'School of Engineering', '1234567890', 'Exam Coordinator');
 END $$;
 
+
+;
