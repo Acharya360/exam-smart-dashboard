@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { db } from './services/db';
@@ -33,31 +28,41 @@ import {
 } from 'lucide-react';
 
 function MainApp() {
-  const { currentUser, isSuperAdmin, isCoordinator, getUserPrograms, isLoggedIn } = useAuth();
+  const { currentUser, isSuperAdmin, isCoordinator, isLoggedIn } = useAuth();
 
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [schedules, setSchedules] = useState<ExamSchedule[]>([]);
   const [tasks, setTasks] = useState<ExamTask[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalTab, setProfileModalTab] = useState<'profile' | 'password' | 'duties'>('profile');
+  
+  // Mobile sidebar state
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Jump from exam table to its tasks
   const [focusedScheduleId, setFocusedScheduleId] = useState<string | null>(null);
 
-  // Sync state from local database
-  const refreshData = () => {
-    setSchedules(db.getSchedules());
-    setTasks(db.getTasks());
-    setPrograms(db.getPrograms());
-    setUsers(db.getUsers());
+  // Sync state from database
+  const refreshData = async () => {
+    if (!isLoggedIn) return;
+    const fetchedSchedules = await db.getSchedules();
+    const fetchedTasks = await db.getTasks();
+    const fetchedPrograms = await db.getPrograms();
+    const fetchedUsers = await db.getUsers();
+    
+    setSchedules(fetchedSchedules);
+    setTasks(fetchedTasks);
+    setPrograms(fetchedPrograms);
+    setUsers(fetchedUsers);
   };
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [isLoggedIn]);
 
   // If not logged in, gate access with the dedicated Login Screen
   if (!isLoggedIn) {
@@ -65,9 +70,11 @@ function MainApp() {
   }
 
   // Filtered schedules for the active user based on RBAC:
-  // Super Admins: all schedules
-  // Coordinators: only schedules matching their assigned/alternate program codes
-  const userProgs = getUserPrograms();
+  const userProgs = {
+    primary: programs.filter((p) => p.primary_coordinator_id === currentUser.id),
+    alternate: programs.filter((p) => p.alternate_coordinator_id === currentUser.id),
+    all: isSuperAdmin ? programs : programs.filter((p) => p.primary_coordinator_id === currentUser.id || p.alternate_coordinator_id === currentUser.id)
+  };
   const userProgCodes = new Set(userProgs.all.map((p) => p.program_code));
 
   const accessibleSchedules = isSuperAdmin
@@ -99,81 +106,64 @@ function MainApp() {
     setIsProfileModalOpen(true);
   };
 
-  const handleUpdateTaskStatus = (taskId: string, status: TaskStatus, notes?: string) => {
-    const updated = db.updateTaskStatus(taskId, status, notes);
-    setTasks([...updated]);
+  const handleUpdateTaskStatus = async (taskId: string, status: TaskStatus, notes?: string) => {
+    await db.updateTaskStatus(taskId, status, notes);
+    await refreshData();
   };
 
-  const handleEscalateTask = (taskId: string, reason: string) => {
-    const updated = db.escalateTask(taskId, reason);
-    setTasks([...updated]);
+  const handleEscalateTask = async (taskId: string, reason: string) => {
+    await db.escalateTask(taskId, reason);
+    await refreshData();
   };
 
-  const handleAddTask = (task: ExamTask) => {
-    const updated = db.addTask(task);
-    setTasks([...updated]);
+  const handleAddTask = async (task: ExamTask) => {
+    await db.addTask(task);
+    await refreshData();
   };
 
-  const handleGenerateDefaultTasks = (schedule: ExamSchedule) => {
-    const newTasks = db.generateDefaultTasksForSchedule(schedule);
-    const existing = db.getTasks();
-    const merged = [...newTasks, ...existing];
-    db.saveTasks(merged);
-    setTasks(merged);
+  const handleGenerateDefaultTasks = async (schedule: ExamSchedule) => {
+    await db.generateDefaultTasksForSchedule(schedule);
+    await refreshData();
   };
 
-  const handleCommitSchedules = (newSchedules: ExamSchedule[], autoGen: boolean) => {
-    const updated = db.addSchedules(newSchedules);
-    setSchedules([...updated]);
+  const handleCommitSchedules = async (newSchedules: ExamSchedule[], autoGen: boolean) => {
+    await db.addSchedules(newSchedules);
 
     if (autoGen) {
-      let currentTasks = db.getTasks();
-      newSchedules.forEach((sched) => {
-        const generated = db.generateDefaultTasksForSchedule(sched);
-        currentTasks = [...generated, ...currentTasks];
-      });
-      db.saveTasks(currentTasks);
-      setTasks(currentTasks);
+      for (const sched of newSchedules) {
+        await db.generateDefaultTasksForSchedule(sched);
+      }
     }
+    await refreshData();
   };
 
-  const handleCommitPrograms = (newPrograms: Program[], newUsers: UserProfile[]) => {
-    if (newUsers.length > 0) {
-      const existingUsers = db.getUsers();
-      const mergedUsers = [...existingUsers, ...newUsers];
-      db.saveUsers(mergedUsers);
-      setUsers(mergedUsers);
+  const handleCommitPrograms = async (newPrograms: Program[], newUsers: UserProfile[]) => {
+    // Handling mass uploads is currently unsupported in SupabaseDBService as we didn't write batch users sync
+    // In production, this should trigger an edge function to create Supabase Auth users.
+    // We'll sync programs at least.
+    for (const p of newPrograms) {
+      await db.addOrUpdateProgram(p);
     }
-
-    const existingProgs = db.getPrograms();
-    const map = new Map<string, Program>();
-    existingProgs.forEach((p) => map.set(p.program_code, p));
-    newPrograms.forEach((p) => map.set(p.program_code, p));
-    const merged = Array.from(map.values());
-    db.savePrograms(merged);
-    setPrograms(merged);
+    await refreshData();
   };
 
-  const handleUpdateProgram = (prog: Program) => {
-    db.addOrUpdateProgram(prog);
-    setPrograms(db.getPrograms());
+  const handleUpdateProgram = async (prog: Program) => {
+    await db.addOrUpdateProgram(prog);
+    await refreshData();
   };
 
-  const handleDeleteProgram = (progId: string) => {
-    db.deleteProgram(progId);
-    setPrograms(db.getPrograms());
+  const handleDeleteProgram = async (progId: string) => {
+    await db.deleteProgram(progId);
+    await refreshData();
   };
 
-  const handleAddProgram = (prog: Program) => {
-    db.addOrUpdateProgram(prog);
-    setPrograms(db.getPrograms());
+  const handleAddProgram = async (prog: Program) => {
+    await db.addOrUpdateProgram(prog);
+    await refreshData();
   };
 
-  const handleResetDB = () => {
-    if (confirm('Reset examination database to sample state matching university specifications?')) {
-      db.resetToDefaults();
-      refreshData();
-    }
+  const handleResetDB = async () => {
+    await db.resetToDefaults();
   };
 
   const handleSelectScheduleForTasks = (schedule: ExamSchedule) => {
@@ -189,11 +179,14 @@ function MainApp() {
         onNavigate={(view) => {
           if (view !== 'tasks') setFocusedScheduleId(null);
           setCurrentView(view);
+          setIsSidebarOpen(false); // Close sidebar on mobile after navigation
         }}
         onResetDB={handleResetDB}
         pendingTasksCount={pendingTasksCount}
         onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
         onOpenProfileModal={handleOpenProfileModal}
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
       />
 
       {/* Main Viewport */}
@@ -205,6 +198,7 @@ function MainApp() {
           escalatedTasksCount={escalatedTasksCount}
           onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
           onOpenProfileModal={handleOpenProfileModal}
+          onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         />
 
         {/* Dynamic Content Body */}
@@ -213,21 +207,21 @@ function MainApp() {
           <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                {currentUser.full_name.charAt(0)}
+                {currentUser?.full_name?.charAt(0) || '?'}
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900 text-sm">{currentUser.full_name}</span>
+                  <span className="font-bold text-slate-900 text-sm">{currentUser?.full_name}</span>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    {currentUser.role}
+                    {currentUser?.role}
                   </span>
                   <span className="text-slate-400">·</span>
-                  <span className="text-slate-600 font-medium">{currentUser.title}</span>
+                  <span className="text-slate-600 font-medium">{currentUser?.title}</span>
                 </div>
                 <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
-                  <span className="font-mono text-slate-600">{currentUser.email}</span>
+                  <span className="font-mono text-slate-600">{currentUser?.email}</span>
                   <span>·</span>
-                  <span>{currentUser.department || 'Examination Department'}</span>
+                  <span>{currentUser?.department || 'Examination Department'}</span>
                   <span>·</span>
                   <span className="text-slate-600 font-medium">
                     {isSuperAdmin
@@ -238,10 +232,10 @@ function MainApp() {
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 mt-2 sm:mt-0">
               <button
                 onClick={() => handleOpenProfileModal('profile')}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors shadow-2xs"
+                className="flex items-center justify-center flex-1 sm:flex-none gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors shadow-2xs"
                 title="View and edit your personal profile and account settings"
               >
                 <User className="w-3.5 h-3.5 text-slate-600" />
@@ -251,7 +245,7 @@ function MainApp() {
               {isSuperAdmin && (
                 <button
                   onClick={() => setIsPasswordModalOpen(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
+                  className="flex items-center justify-center flex-1 sm:flex-none gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
                   title="Staff Password Governance (Super Admin duty)"
                 >
                   <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
@@ -264,14 +258,11 @@ function MainApp() {
           {/* VIEW: DASHBOARD */}
           {currentView === 'dashboard' && (
             <div className="space-y-6">
-              {/* Executive Metrics Grid */}
               <MetricsGrid
                 schedules={accessibleSchedules}
                 tasks={accessibleTasks}
                 isCoordinatorView={!isSuperAdmin}
               />
-
-              {/* Master Exam Timetable Table with Advanced Multi-field Search & Filters */}
               <ExamTable
                 schedules={accessibleSchedules}
                 tasks={tasks}

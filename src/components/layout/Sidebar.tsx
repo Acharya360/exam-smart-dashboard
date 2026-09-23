@@ -22,6 +22,8 @@ interface SidebarProps {
   pendingTasksCount: number;
   onOpenPasswordModal: () => void;
   onOpenProfileModal: (tab?: 'profile' | 'password' | 'duties') => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -31,12 +33,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingTasksCount,
   onOpenPasswordModal,
   onOpenProfileModal,
+  isOpen,
+  onClose
 }) => {
   const { isSuperAdmin, currentUser, getUserPrograms, logout } = useAuth();
   const userProgs = getUserPrograms();
 
   return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 select-none">
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-40 bg-slate-900/80 backdrop-blur-sm md:hidden"
+          onClick={onClose}
+        />
+      )}
+      
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Brand & Organization */}
       <div className="p-4 border-b border-slate-800/80">
         <div className="flex items-center justify-between">
@@ -243,5 +256,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
     </aside>
+    </>
   );
 };

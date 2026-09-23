@@ -87,7 +87,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
     COORDINATOR: 'bg-emerald-100 text-emerald-800 border-emerald-300',
   };
 
-  const handleProfileSubmit = (e: React.FormEvent) => {
+  const handleProfileSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setProfileSuccessMsg(null);
     setProfileErrorMsg(null);
@@ -97,7 +97,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       return;
     }
 
-    const res = updateProfile({
+    const res = await updateProfile({
       full_name: fullName.trim(),
       title: title.trim(),
       department: department.trim(),
@@ -112,7 +112,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
     }
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordSuccessMsg(null);
     setPasswordErrorMsg(null);
@@ -137,7 +137,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       return;
     }
 
-    const res = changeOwnPassword(currentPassword, newPassword);
+    const res = await changeOwnPassword(currentPassword, newPassword);
 
     if (res.success) {
       setPasswordSuccessMsg('Your password has been changed successfully. Please remember your new credentials.');

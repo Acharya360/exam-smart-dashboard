@@ -16,7 +16,8 @@ import {
   Briefcase,
   Lock,
   Mail,
-  Building2
+  Building2,
+  Menu
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -25,6 +26,7 @@ interface HeaderProps {
   escalatedTasksCount: number;
   onOpenPasswordModal: () => void;
   onOpenProfileModal: (tab?: 'profile' | 'password' | 'duties') => void;
+  onMenuToggle?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -32,7 +34,8 @@ export const Header: React.FC<HeaderProps> = ({
   onNavigate, 
   escalatedTasksCount,
   onOpenPasswordModal,
-  onOpenProfileModal
+  onOpenProfileModal,
+  onMenuToggle
 }) => {
   const { currentUser, getUserRoleLabel, isSuperAdmin, logout, getUserPrograms } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -80,6 +83,13 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Zone 1 & 2: Institutional Brand & Contextual Breadcrumb */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2.5">
+          <button 
+            onClick={onMenuToggle}
+            className="p-1 -ml-1 mr-1 text-slate-500 hover:text-slate-900 md:hidden rounded-lg hover:bg-slate-100 transition-colors"
+            aria-label="Toggle Menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
           <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs">
             <GraduationCap className="w-5 h-5" />
           </div>

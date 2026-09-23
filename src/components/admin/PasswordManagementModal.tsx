@@ -65,7 +65,7 @@ export const PasswordManagementModal: React.FC<PasswordManagementModalProps> = (
     setConfirmPassword(generated);
   };
 
-  const handlePasswordSubmit = (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
@@ -82,7 +82,7 @@ export const PasswordManagementModal: React.FC<PasswordManagementModalProps> = (
       return;
     }
 
-    const res = changeUserPassword(selectedUser.id, newPassword);
+    const res = await changeUserPassword(selectedUser.id, newPassword);
     if (res.success) {
       setSuccessMessage(
         `Password successfully updated for ${selectedUser.full_name} (${selectedUser.email}). New password is active immediately.`

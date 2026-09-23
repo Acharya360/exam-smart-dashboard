@@ -22,27 +22,25 @@ export const LoginScreen: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setIsLoading(true);
 
-    setTimeout(() => {
-      const result = login(email.trim(), password);
-      if (!result.success) {
-        setErrorMessage(result.error || 'Authentication failed. Please verify credentials.');
-      }
-      setIsLoading(false);
-    }, 200);
+    const result = await login(email.trim(), password);
+    if (!result.success) {
+      setErrorMessage(result.error || 'Authentication failed. Please verify credentials.');
+    }
+    setIsLoading(false);
   };
 
-  const handleQuickLogin = (demoEmail: string) => {
+  const handleQuickLogin = async (demoEmail: string) => {
     const targetUser = users.find((u) => u.email.toLowerCase() === demoEmail.toLowerCase());
     const demoPassword = targetUser?.password || 'Admin@123';
     setEmail(demoEmail);
     setPassword(demoPassword);
     setErrorMessage(null);
-    login(demoEmail, demoPassword);
+    await login(demoEmail, demoPassword);
   };
 
   return (
