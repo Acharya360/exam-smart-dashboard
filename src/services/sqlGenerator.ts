@@ -17,6 +17,7 @@ CREATE TABLE public.profiles (
     role user_role_enum NOT NULL DEFAULT 'COORDINATOR',
     department TEXT,
     phone TEXT,
+    title TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -217,4 +218,33 @@ WITH CHECK (
   assigned_to = auth.uid() OR
   alternate_user_id = auth.uid()
 );
+
+-- ============================================================================
+-- 6. SEED DEFAULT USERS (Run this only once for fresh setup)
+-- ============================================================================
+
+DO $$
+DECLARE
+  coe_id uuid := gen_random_uuid();
+  dycoe_id uuid := gen_random_uuid();
+  acoe_id uuid := gen_random_uuid();
+  coord_id uuid := gen_random_uuid();
+BEGIN
+  -- Insert into auth.users (Authentication identities)
+  -- Default password for all is: Admin@123
+  INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, confirmation_token, email_change, email_change_token_new, recovery_token)
+  VALUES 
+  (coe_id, '00000000-0000-0000-0000-000000000000', 'coe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', ''),
+  (dycoe_id, '00000000-0000-0000-0000-000000000000', 'dycoe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', ''),
+  (acoe_id, '00000000-0000-0000-0000-000000000000', 'acoe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', ''),
+  (coord_id, '00000000-0000-0000-0000-000000000000', 'coord@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', '');
+
+  -- Insert into public.profiles (App-specific user details)
+  INSERT INTO public.profiles (id, email, full_name, role, department, phone, title)
+  VALUES 
+  (coe_id, 'coe@sspu.edu.in', 'Dr. A. Sharma', 'COE', 'Examination Department', '1234567890', 'Controller of Examinations'),
+  (dycoe_id, 'dycoe@sspu.edu.in', 'Prof. B. Verma', 'DYCOE', 'Examination Department', '1234567890', 'Deputy Controller'),
+  (acoe_id, 'acoe@sspu.edu.in', 'Dr. C. Gupta', 'ACOE', 'Examination Department', '1234567890', 'Asst. Controller'),
+  (coord_id, 'coord@sspu.edu.in', 'Prof. D. Patel', 'COORDINATOR', 'School of Engineering', '1234567890', 'Exam Coordinator');
+END $$;
 `;
