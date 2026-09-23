@@ -237,28 +237,52 @@
 
   DO $$
   DECLARE
-    coe_id uuid := gen_random_uuid();
-    dycoe_id uuid := gen_random_uuid();
-    acoe_id uuid := gen_random_uuid();
-    coord_id uuid := gen_random_uuid();
+    v_coe_id uuid;
+    v_dycoe_id uuid;
+    v_acoe_id uuid;
+    v_coord_id uuid;
   BEGIN
-    -- Delete existing users to allow fresh recreation
-    DELETE FROM auth.users WHERE email IN ('coe@sspu.edu.in', 'dycoe@sspu.edu.in', 'acoe@sspu.edu.in', 'coord@sspu.edu.in');
+    -- 1. Get or Create COE
+    SELECT id INTO v_coe_id FROM auth.users WHERE email = 'coe@sspu.edu.in';
+    IF v_coe_id IS NULL THEN
+      v_coe_id := gen_random_uuid();
+      INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, confirmation_token, email_change, email_change_token_new, recovery_token)
+      VALUES (v_coe_id, '00000000-0000-0000-0000-000000000000', 'coe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', '');
+    END IF;
 
-    -- Insert into auth.users (Authentication identities)
-    -- Default password for all is: Admin@123
-    INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, confirmation_token, email_change, email_change_token_new, recovery_token)
-    VALUES 
-    (coe_id, '00000000-0000-0000-0000-000000000000', 'coe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', ''),
-    (dycoe_id, '00000000-0000-0000-0000-000000000000', 'dycoe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', ''),
-    (acoe_id, '00000000-0000-0000-0000-000000000000', 'acoe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', ''),
-    (coord_id, '00000000-0000-0000-0000-000000000000', 'coord@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', '');
+    -- 2. Get or Create DYCOE
+    SELECT id INTO v_dycoe_id FROM auth.users WHERE email = 'dycoe@sspu.edu.in';
+    IF v_dycoe_id IS NULL THEN
+      v_dycoe_id := gen_random_uuid();
+      INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, confirmation_token, email_change, email_change_token_new, recovery_token)
+      VALUES (v_dycoe_id, '00000000-0000-0000-0000-000000000000', 'dycoe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', '');
+    END IF;
+
+    -- 3. Get or Create ACOE
+    SELECT id INTO v_acoe_id FROM auth.users WHERE email = 'acoe@sspu.edu.in';
+    IF v_acoe_id IS NULL THEN
+      v_acoe_id := gen_random_uuid();
+      INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, confirmation_token, email_change, email_change_token_new, recovery_token)
+      VALUES (v_acoe_id, '00000000-0000-0000-0000-000000000000', 'acoe@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', '');
+    END IF;
+
+    -- 4. Get or Create COORDINATOR
+    SELECT id INTO v_coord_id FROM auth.users WHERE email = 'coord@sspu.edu.in';
+    IF v_coord_id IS NULL THEN
+      v_coord_id := gen_random_uuid();
+      INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, confirmation_token, email_change, email_change_token_new, recovery_token)
+      VALUES (v_coord_id, '00000000-0000-0000-0000-000000000000', 'coord@sspu.edu.in', crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider": "email", "providers": ["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', '');
+    END IF;
+
+    -- Clean up public.profiles if they exist to avoid duplicate key errors on insert
+    DELETE FROM public.profiles WHERE id IN (v_coe_id, v_dycoe_id, v_acoe_id, v_coord_id);
 
     -- Insert into public.profiles (App-specific user details)
     INSERT INTO public.profiles (id, email, full_name, role, department, phone, title)
     VALUES 
-    (coe_id, 'coe@sspu.edu.in', 'Dr. A. Sharma', 'COE', 'Examination Department', '1234567890', 'Controller of Examinations'),
-    (dycoe_id, 'dycoe@sspu.edu.in', 'Prof. B. Verma', 'DYCOE', 'Examination Department', '1234567890', 'Deputy Controller'),
-    (acoe_id, 'acoe@sspu.edu.in', 'Dr. C. Gupta', 'ACOE', 'Examination Department', '1234567890', 'Asst. Controller'),
-    (coord_id, 'coord@sspu.edu.in', 'Prof. D. Patel', 'COORDINATOR', 'School of Engineering', '1234567890', 'Exam Coordinator');
+    (v_coe_id, 'coe@sspu.edu.in', 'Dr. A. Sharma', 'COE', 'Examination Department', '1234567890', 'Controller of Examinations'),
+    (v_dycoe_id, 'dycoe@sspu.edu.in', 'Prof. B. Verma', 'DYCOE', 'Examination Department', '1234567890', 'Deputy Controller'),
+    (v_acoe_id, 'acoe@sspu.edu.in', 'Dr. C. Gupta', 'ACOE', 'Examination Department', '1234567890', 'Asst. Controller'),
+    (v_coord_id, 'coord@sspu.edu.in', 'Prof. D. Patel', 'COORDINATOR', 'School of Engineering', '1234567890', 'Exam Coordinator');
   END $$;
+
