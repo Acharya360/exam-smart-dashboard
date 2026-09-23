@@ -230,6 +230,9 @@ DECLARE
   acoe_id uuid := gen_random_uuid();
   coord_id uuid := gen_random_uuid();
 BEGIN
+  -- Delete existing users to allow fresh recreation
+  DELETE FROM auth.users WHERE email IN ('coe@sspu.edu.in', 'dycoe@sspu.edu.in', 'acoe@sspu.edu.in', 'coord@sspu.edu.in');
+
   -- Insert into auth.users (Authentication identities)
   -- Default password for all is: Admin@123
   INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, confirmation_token, email_change, email_change_token_new, recovery_token)
