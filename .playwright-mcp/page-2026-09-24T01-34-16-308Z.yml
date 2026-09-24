@@ -1,0 +1,20 @@
+- generic [ref=f25e2]:
+  - main [ref=f25e3]:
+    - generic [ref=f25e4]:
+      - link [ref=f25e5] [cursor=pointer]:
+        - /url: https://astro.build
+        - img "Astro Homepage" [ref=f25e6]
+      - heading "To get started, open the src/pages directory in your project." [level=1] [ref=f25e7]:
+        - text: To get started, open the
+        - code [ref=f25e8]:
+          - generic [ref=f25e9]: src/pages
+        - text: directory in your project.
+      - generic [ref=f25e10]:
+        - link "Read our docs" [ref=f25e11] [cursor=pointer]:
+          - /url: https://docs.astro.build
+        - link "Join our Discord" [ref=f25e12] [cursor=pointer]:
+          - /url: https://astro.build/chat
+  - link [ref=f25e15] [cursor=pointer]:
+    - /url: https://astro.build/blog/astro-6-beta/
+    - heading "What's New in Astro 6.0?" [level=2] [ref=f25e18]
+    - paragraph [ref=f25e19]: Redesigned dev server, fonts, live collections, built-in CSP support, and more! Click to explore Astro 6.0's new features.

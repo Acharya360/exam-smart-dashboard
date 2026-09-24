@@ -1,0 +1,47 @@
+- generic [active] [ref=f22e1]:
+  - link "Skip to content":
+    - /url: "#geist-skip-nav"
+  - generic [ref=f22e3]:
+    - banner [ref=f22e4]:
+      - link "Vercel logo":
+        - /url: /home
+        - button "Vercel Logo":
+          - img "Vercel Logo"
+      - navigation [ref=f22e5]:
+        - navigation [ref=f22e6]:
+          - link [ref=f22e7] [cursor=pointer]:
+            - /url: /signup?next=%2Fsso-api%3Furl%3Dhttps%253A%252F%252Funiversityerp-frontend-j606rj70j-keshav-jankar.vercel.app%252F%26nonce%3Df867308361f37f43c827b0add8781f2011f5af55a53ea4fd96ff82b10eb6d645
+            - paragraph [ref=f22e9]: Sign Up
+    - main [ref=f22e10]:
+      - generic [ref=f22e12]:
+        - heading "Log in to Vercel" [level=1] [ref=f22e15]
+        - generic [ref=f22e16]:
+          - generic [ref=f22e17]:
+            - textbox "Email Address" [ref=f22e19]
+            - button "Continue with Email" [ref=f22e20] [cursor=pointer]
+          - generic [ref=f22e24]:
+            - button "Continue with Google" [ref=f22e25] [cursor=pointer]:
+              - generic [ref=f22e29]:
+                - generic [ref=f22e30]: Continue with
+                - text: Google
+            - button "Continue with GitHub" [ref=f22e31] [cursor=pointer]:
+              - generic [ref=f22e35]:
+                - generic [ref=f22e36]: Continue with
+                - text: GitHub
+            - button "Continue with ChatGPT" [ref=f22e37] [cursor=pointer]:
+              - generic [ref=f22e41]:
+                - generic [ref=f22e42]: Continue with
+                - text: ChatGPT
+            - button "Continue with SAML SSO" [ref=f22e44] [cursor=pointer]
+            - button "Continue with Passkey" [ref=f22e49] [cursor=pointer]
+            - button "Show other options" [ref=f22e54] [cursor=pointer]
+        - paragraph [ref=f22e57]:
+          - text: Don't have an account?
+          - link "Sign Up" [ref=f22e58] [cursor=pointer]:
+            - /url: /signup?next=%2Fsso-api%3Furl%3Dhttps%253A%252F%252Funiversityerp-frontend-j606rj70j-keshav-jankar.vercel.app%252F%26nonce%3Df867308361f37f43c827b0add8781f2011f5af55a53ea4fd96ff82b10eb6d645
+      - generic [ref=f22e61]:
+        - link "Terms" [ref=f22e62] [cursor=pointer]:
+          - /url: /legal/terms
+        - link "Privacy Policy" [ref=f22e63] [cursor=pointer]:
+          - /url: /legal/privacy-policy
+  - alert [ref=f22e64]
