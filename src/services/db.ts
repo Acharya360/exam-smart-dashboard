@@ -284,9 +284,16 @@ class SupabaseDBService {
   }
 
   async addOrUpdateProgram(program: Program): Promise<void> {
+    const payload: any = { ...program };
+    // If the frontend generated a fake id (e.g. for new programs), remove it so Postgres can generate a valid UUID
+    if (payload.id && payload.id.startsWith('prog-')) {
+      delete payload.id;
+    }
+    
     const { error } = await supabase
       .from('programs')
-      .upsert({ ...program, updated_at: new Date().toISOString() });
+      .upsert(payload, { onConflict: 'program_code' });
+      
     if (error) console.error('Error saving program:', error);
   }
 
@@ -321,12 +328,28 @@ class SupabaseDBService {
           school_name: sched.cm_school_name || 'General School',
         };
       });
-      await supabase.from('programs').insert(newProgramRecords);
+      const { error: progError } = await supabase.from('programs').insert(newProgramRecords);
+      if (progError) console.error("Error creating missing programs during schedule import:", progError);
     }
 
     const recordsToInsert = newSchedules.map(s => {
       const copy = { ...s };
       if (copy.id && copy.id.startsWith('sched-')) delete (copy as any).id; // Remove fake ids
+      
+      // Ensure exam_date is in YYYY-MM-DD format for Postgres DATE column
+      if (copy.exam_date && !/^\d{4}-\d{2}-\d{2}$/.test(copy.exam_date)) {
+        const parts = copy.exam_date.split(/[\/\-]/);
+        if (parts.length === 3) {
+          let y = parts[2];
+          let m = parts[1];
+          let d = parts[0];
+          if (y.length === 2) y = '20' + y;
+          else if (parts[0].length === 4) {
+            y = parts[0]; m = parts[1]; d = parts[2];
+          }
+          copy.exam_date = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+      }
       return copy;
     });
 
@@ -337,6 +360,7 @@ class SupabaseDBService {
       
     if (error) {
       console.error('Error adding schedules:', error);
+      alert(`Database rejected the import: ${error.message}`);
       return [];
     }
     return data as ExamSchedule[];
