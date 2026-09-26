@@ -266,6 +266,21 @@ function MainApp() {
                 tasks={accessibleTasks}
                 isCoordinatorView={!isSuperAdmin}
               />
+              {/* Optional: we can remove ExamTable from Dashboard now or leave it for quick overview */}
+              <ExamTable
+                schedules={accessibleSchedules}
+                tasks={tasks}
+                programs={programs}
+                isCoordinatorView={!isSuperAdmin}
+                onSelectScheduleForTasks={handleSelectScheduleForTasks}
+                onGenerateTasks={handleGenerateDefaultTasks}
+              />
+            </div>
+          )}
+
+          {/* VIEW: SCHEDULED EXAMS LIST */}
+          {currentView === 'scheduledExams' && (
+            <div className="space-y-6">
               <ExamTable
                 schedules={accessibleSchedules}
                 tasks={tasks}

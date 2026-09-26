@@ -12,7 +12,8 @@ import {
   Layers,
   KeyRound,
   LogOut,
-  UserCheck
+  UserCheck,
+  CalendarDays
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -136,6 +137,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {pendingTasksCount}
             </span>
           )}
+        </button>
+
+        {/* Scheduled Exams Viewer */}
+        <button
+          onClick={() => onNavigate('scheduledExams')}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+            currentView === 'scheduledExams'
+              ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+              : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <CalendarDays className="w-4 h-4" />
+            <span>Scheduled Exams List</span>
+          </div>
         </button>
 
         <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 px-3 pt-4 pb-1 font-mono">
