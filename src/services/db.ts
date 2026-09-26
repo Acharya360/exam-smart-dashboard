@@ -109,19 +109,50 @@ class SupabaseDBService {
         import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
       );
 
-      const { data: authData, error: authError } = await serviceClient.auth.signUp({
-        email: payload.email.trim().toLowerCase(),
-        password: payload.password,
-        options: {
-          data: {
+      // Try admin.createUser first to bypass rate limits (requires service_role key)
+      let authData: any = null;
+      let authError: any = null;
+      
+      const hasServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY && 
+                            import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY !== import.meta.env.VITE_SUPABASE_ANON_KEY;
+                            
+      if (hasServiceKey) {
+        const { data, error } = await serviceClient.auth.admin.createUser({
+          email: payload.email.trim().toLowerCase(),
+          password: payload.password,
+          email_confirm: true,
+          user_metadata: {
             full_name: payload.full_name,
             role: payload.role,
           }
-        }
-      });
+        });
+        authData = data;
+        authError = error;
+      }
 
-      if (authError || !authData.user) {
-        return { success: false, error: authError?.message || 'Failed to create auth user.' };
+      // Fallback to normal signUp if admin API failed or no service key
+      if (!hasServiceKey || authError) {
+        const { data, error } = await serviceClient.auth.signUp({
+          email: payload.email.trim().toLowerCase(),
+          password: payload.password,
+          options: {
+            data: {
+              full_name: payload.full_name,
+              role: payload.role,
+            }
+          }
+        });
+        authData = data;
+        authError = error;
+      }
+
+      if (authError || !authData?.user) {
+        // If it's a rate limit error, provide a clearer message
+        const errorMsg = authError?.message || 'Failed to create auth user.';
+        if (errorMsg.toLowerCase().includes('rate limit')) {
+          return { success: false, error: 'Email rate limit exceeded. Please add VITE_SUPABASE_SERVICE_ROLE_KEY in .env to bypass limits using Admin API, or try again later.' };
+        }
+        return { success: false, error: errorMsg };
       }
 
       // Step 2: Insert profile record
