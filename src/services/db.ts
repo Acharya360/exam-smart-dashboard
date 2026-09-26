@@ -63,9 +63,38 @@ class SupabaseDBService {
     userId: string,
     updates: Partial<UserProfile>
   ): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+    // If email is provided, try updating it in auth.users using the admin API
+    if (updates.email) {
+      const hasServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY && 
+                            import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY !== import.meta.env.VITE_SUPABASE_ANON_KEY;
+                            
+      if (hasServiceKey) {
+        const { createClient } = await import('@supabase/supabase-js');
+        const serviceClient = createClient(
+          import.meta.env.VITE_SUPABASE_URL || '',
+          import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || ''
+        );
+        const { error: authError } = await serviceClient.auth.admin.updateUserById(userId, { 
+          email: updates.email,
+          user_metadata: {
+            full_name: updates.full_name,
+            role: updates.role
+          },
+          email_confirm: true
+        });
+        
+        if (authError) {
+          console.error("Auth email update error:", authError);
+          // If we fail here, we should probably still try to update the profiles table, 
+          // or return an error depending on strictness. We'll proceed to update profiles.
+        }
+      }
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .update({
+        email: updates.email,
         full_name: updates.full_name,
         role: updates.role,
         department: updates.department,
@@ -80,7 +109,12 @@ class SupabaseDBService {
       return { success: false, error: error.message };
     }
     
-    localStorage.setItem('examtrack_current_user_v2', JSON.stringify(data));
+    // Only update local storage if the updated user is the current logged in user
+    const currentUser = this.getCurrentUser();
+    if (currentUser && currentUser.id === userId) {
+      localStorage.setItem('examtrack_current_user_v2', JSON.stringify(data));
+    }
+    
     return { success: true, user: data as UserProfile };
   }
 

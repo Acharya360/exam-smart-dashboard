@@ -496,6 +496,7 @@ interface EditUserModalProps {
 
 const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onUpdated }) => {
   const [formData, setFormData] = useState<Partial<UserProfile>>({
+    email: user.email,
     full_name: user.full_name,
     role: user.role,
     department: user.department || '',
@@ -528,6 +529,12 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onUpdated 
 
     if (!formData.full_name) {
       setError('Full name is required.');
+      setIsSubmitting(false);
+      return;
+    }
+    
+    if (!formData.email) {
+      setError('Email address is required.');
       setIsSubmitting(false);
       return;
     }
@@ -579,12 +586,13 @@ const EditUserModal: React.FC<EditUserModalProps> = ({ user, onClose, onUpdated 
           )}
 
           <div>
-            <label className="block text-[11px] font-semibold text-slate-700 mb-1">Email Address</label>
+            <label className="block text-[11px] font-semibold text-slate-700 mb-1">Email Address *</label>
             <input
               type="email"
-              value={user.email}
-              disabled
-              className="w-full px-3 py-2 text-xs border border-slate-200 bg-slate-50 text-slate-500 rounded-lg cursor-not-allowed"
+              value={formData.email}
+              onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
+              className="w-full px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
+              required
             />
           </div>
 
