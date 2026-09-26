@@ -1,0 +1,38 @@
+- generic [active] [ref=f19e1]:
+  - generic [ref=f19e4]:
+    - link "Skip to content" [ref=f19e6] [cursor=pointer]:
+      - /url: "#main"
+    - banner [ref=f19e9]:
+      - generic [ref=f19e10]:
+        - link "Supabase Back to organization home" [ref=f19e12] [cursor=pointer]:
+          - /url: /dashboard/organizations
+          - img "Supabase" [ref=f19e13]
+          - generic [ref=f19e14]: Back to organization home
+        - generic [ref=f19e15]:
+          - button "Feedback" [ref=f19e16] [cursor=pointer]
+          - generic [ref=f19e18]:
+            - button [ref=f19e19] [cursor=pointer]:
+              - paragraph [ref=f19e24]: Search...
+              - generic [ref=f19e26]: Ctrl K
+            - button "Help" [ref=f19e27] [cursor=pointer]
+            - button "Advisor Center" [ref=f19e34] [cursor=pointer]
+          - button [ref=f19e39] [cursor=pointer]
+    - generic [ref=f19e44]:
+      - generic [ref=f19e48]:
+        - generic [ref=f19e49]:
+          - navigation
+        - button "Sidebar control" [ref=f19e52] [cursor=pointer]
+      - main [ref=f19e59]:
+        - generic [ref=f19e61]:
+          - generic [ref=f19e65]:
+            - heading "Integrations" [level=4] [ref=f19e67]
+            - generic [ref=f19e68]:
+              - menu "Sidebar" [disabled] [ref=f19e70]:
+                - list [ref=f19e71]:
+                  - generic [ref=f19e72]: Explore
+              - menu "Sidebar" [disabled] [ref=f19e79]:
+                - list [ref=f19e80]:
+                  - generic [ref=f19e81]: Installed
+          - separator [disabled] [ref=f19e87]
+          - main [ref=f19e98]
+  - alert [ref=f19e99]

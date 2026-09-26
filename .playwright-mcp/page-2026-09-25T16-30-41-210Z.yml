@@ -1,0 +1,16 @@
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - heading "Examination Department Portal" [level=2] [ref=e11]
+    - paragraph [ref=e12]: Central Examination Directorate & Timetable Governance System. Enter authorized university credentials.
+  - generic [ref=e14]:
+    - generic [ref=e15]:
+      - generic [ref=e16]:
+        - generic [ref=e17]: Institutional Email Address
+        - textbox "e.g. coe@sspu.ac.in" [ref=e22]
+      - generic [ref=e23]:
+        - generic [ref=e24]: Password
+        - generic [ref=e26]:
+          - textbox "••••••••••••" [ref=e30]
+          - button [ref=e31]
+      - button "Sign In to Examination Portal" [ref=e36]
+    - generic [ref=e40]: PostgreSQL Row-Level Security (RLS) Enforced

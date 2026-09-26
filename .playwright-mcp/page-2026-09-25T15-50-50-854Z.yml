@@ -1,0 +1,157 @@
+- generic [active] [ref=f37e1]:
+  - generic [ref=f37e4]:
+    - link "Skip to content" [ref=f37e6] [cursor=pointer]:
+      - /url: "#main"
+    - banner [ref=f37e9]:
+      - generic [ref=f37e10]:
+        - generic [ref=f37e11]:
+          - link "Supabase Back to organization home" [ref=f37e12] [cursor=pointer]:
+            - /url: /dashboard/organizations
+            - img "Supabase" [ref=f37e13]
+            - generic [ref=f37e14]: Back to organization home
+          - button "Connect" [disabled] [ref=f37e22]
+        - generic [ref=f37e27]:
+          - button "Feedback" [ref=f37e28] [cursor=pointer]
+          - generic [ref=f37e30]:
+            - button [ref=f37e31] [cursor=pointer]:
+              - paragraph [ref=f37e36]: Search...
+              - generic [ref=f37e38]: Ctrl K
+            - button "Help" [ref=f37e39] [cursor=pointer]
+            - button "Advisor Center" [ref=f37e46] [cursor=pointer]
+            - button "SQL Editor" [ref=f37e51] [cursor=pointer]
+            - button "AI Assistant" [ref=f37e56] [cursor=pointer]
+          - button [ref=f37e64] [cursor=pointer]
+    - generic [ref=f37e69]:
+      - generic [ref=f37e73]:
+        - navigation [ref=f37e75]:
+          - list [ref=f37e77]:
+            - listitem [ref=f37e78]:
+              - link "Project Overview" [ref=f37e79] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen
+            - listitem [ref=f37e82]:
+              - button "Table Editor" [disabled]
+            - listitem [ref=f37e83]:
+              - button "SQL Editor" [disabled]
+          - list [ref=f37e85]:
+            - listitem [ref=f37e86]:
+              - button "Database" [disabled]
+            - listitem [ref=f37e87]:
+              - button "Authentication" [disabled]
+            - listitem [ref=f37e88]:
+              - button "Storage" [disabled]
+            - listitem [ref=f37e89]:
+              - link "Edge Functions" [ref=f37e90] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/functions
+            - listitem [ref=f37e96]:
+              - button "Realtime" [disabled]
+          - list [ref=f37e98]:
+            - listitem [ref=f37e99]:
+              - button "Advisors" [disabled]
+            - listitem [ref=f37e100]:
+              - button "Observability" [disabled]
+            - listitem [ref=f37e101]:
+              - link "Logs" [ref=f37e102] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/logs
+            - listitem [ref=f37e104]:
+              - button "Integrations" [disabled]
+          - list [ref=f37e106]:
+            - listitem [ref=f37e107]:
+              - link "Project Settings" [ref=f37e108] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/settings/general
+        - button "Sidebar control" [ref=f37e114] [cursor=pointer]
+      - main [ref=f37e121]:
+        - generic [ref=f37e123]:
+          - generic [ref=f37e127]:
+            - heading "Authentication" [level=4] [ref=f37e129]
+            - menu "Sidebar" [disabled] [ref=f37e132]:
+              - list [ref=f37e133]:
+                - generic [ref=f37e136]:
+                  - generic [ref=f37e137]: Manage
+                  - generic [ref=f37e141]:
+                    - link [disabled] [ref=f37e142] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/users
+                      - menuitem "Users" [disabled] [ref=f37e143]
+                    - link [disabled] [ref=f37e148] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/oauth-apps
+                      - menuitem "OAuth Apps" [disabled] [ref=f37e149]
+                - generic [ref=f37e157]:
+                  - generic [ref=f37e158]: Notifications
+                  - link [disabled] [ref=f37e163] [cursor=pointer]:
+                    - /url: /dashboard/project/woqhizacenduogpxglen/auth/templates
+                    - menuitem "Emails" [disabled] [ref=f37e164]
+                - generic [ref=f37e172]:
+                  - generic [ref=f37e173]: Configuration
+                  - generic [ref=f37e177]:
+                    - link [disabled] [ref=f37e178] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/database/policies
+                      - menuitem "Policies" [disabled] [ref=f37e179]:
+                        - generic "Policies" [ref=f37e182]
+                    - link [disabled] [ref=f37e188] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/providers
+                      - menuitem "Sign In / Providers" [disabled] [ref=f37e189]
+                    - link [disabled] [ref=f37e194] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/oauth-server
+                      - menuitem "OAuth Server Beta" [disabled] [ref=f37e195]:
+                        - generic [ref=f37e198]:
+                          - generic [ref=f37e199]: OAuth Server
+                          - generic [ref=f37e200]: Beta
+                    - link [disabled] [ref=f37e201] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/sessions
+                      - menuitem "Sessions" [disabled] [ref=f37e202]
+                    - link [disabled] [ref=f37e207] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/rate-limits
+                      - menuitem "Rate Limits" [disabled] [ref=f37e208]
+                    - link [disabled] [ref=f37e213] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/mfa
+                      - menuitem "Multi-Factor" [disabled] [ref=f37e214]
+                    - link [disabled] [ref=f37e219] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/url-configuration
+                      - menuitem "URL Configuration" [disabled] [ref=f37e220]
+                    - link [disabled] [ref=f37e225] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/protection
+                      - menuitem "Attack Protection" [disabled] [ref=f37e226]
+                    - link [disabled] [ref=f37e231] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/hooks
+                      - menuitem "Auth Hooks Beta" [disabled] [ref=f37e232]:
+                        - generic [ref=f37e235]:
+                          - generic [ref=f37e236]: Auth Hooks
+                          - generic [ref=f37e237]: Beta
+                    - link [disabled] [ref=f37e238] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/audit-logs
+                      - menuitem "Audit Logs" [disabled] [ref=f37e239]
+                    - link [disabled] [ref=f37e244] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/performance
+                      - menuitem "Performance" [disabled] [ref=f37e245]
+          - separator [disabled] [ref=f37e250]
+          - main [ref=f37e261]:
+            - generic [ref=f37e262]:
+              - heading "Users" [level=3] [ref=f37e265]
+              - generic [ref=f37e266]:
+                - generic [ref=f37e267]:
+                  - generic [ref=f37e268]:
+                    - combobox [ref=f37e273] [cursor=pointer]:
+                      - generic: Email address
+                    - group [ref=f37e276]:
+                      - textbox "Search by email" [ref=f37e277]
+                  - button "All columns" [ref=f37e279] [cursor=pointer]
+                  - button "Sorted by user ID" [disabled] [ref=f37e285]
+                - generic [ref=f37e290]:
+                  - button "Refresh" [ref=f37e291] [cursor=pointer]
+                  - button "Add user" [ref=f37e298] [cursor=pointer]
+              - grid [ref=f37e309]:
+                - row [ref=f37e310]:
+                  - columnheader [ref=f37e311]
+                  - columnheader [ref=f37e312]:
+                    - paragraph [ref=f37e315]: UID
+                  - columnheader [ref=f37e317]:
+                    - paragraph [ref=f37e320]: Display name
+                  - columnheader [ref=f37e322]:
+                    - paragraph [ref=f37e325]: Email
+                  - columnheader [ref=f37e327]:
+                    - paragraph [ref=f37e330]: Phone
+                  - columnheader [ref=f37e332]:
+                    - paragraph [ref=f37e335]: Providers
+                  - columnheader [ref=f37e337]:
+                    - paragraph [ref=f37e340]: Provider type
+              - generic [ref=f37e347]: Loading...
+  - alert [ref=f37e352]: Users | Authentication | Supabase

@@ -1,0 +1,206 @@
+- generic [active] [ref=f64e1]:
+  - generic [ref=f64e4]:
+    - link "Skip to content" [ref=f64e6] [cursor=pointer]:
+      - /url: "#main"
+    - banner [ref=f64e9]:
+      - generic [ref=f64e10]:
+        - generic [ref=f64e11]:
+          - link "Supabase Back to organization home" [ref=f64e12] [cursor=pointer]:
+            - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+            - img "Supabase" [ref=f64e13]
+            - generic [ref=f64e14]: Back to organization home
+          - generic [ref=f64e15]:
+            - generic [ref=f64e19]:
+              - link "acharya360erp's Org Free" [ref=f64e20] [cursor=pointer]:
+                - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+                - generic [ref=f64e31]: acharya360erp's Org
+                - generic [ref=f64e32]: Free
+              - button "Show organizations" [ref=f64e33] [cursor=pointer]
+            - generic [ref=f64e38]:
+              - generic [ref=f64e42]:
+                - link "acharya360erp's Project" [ref=f64e43] [cursor=pointer]:
+                  - /url: /dashboard/project/woqhizacenduogpxglen
+                - button "Show organization projects" [ref=f64e48] [cursor=pointer]
+              - generic [ref=f64e56]:
+                - link "main Production" [ref=f64e57] [cursor=pointer]:
+                  - /url: /dashboard/project/woqhizacenduogpxglen
+                  - generic "main" [ref=f64e58]
+                  - generic [ref=f64e59]: Production
+                - button "Show project branches" [ref=f64e60] [cursor=pointer]
+          - button "Connect" [ref=f64e66] [cursor=pointer]
+        - generic [ref=f64e71]:
+          - button "Feedback" [ref=f64e72] [cursor=pointer]
+          - generic [ref=f64e74]:
+            - button [ref=f64e75] [cursor=pointer]:
+              - paragraph [ref=f64e80]: Search...
+              - generic [ref=f64e82]: Ctrl K
+            - button "Help" [ref=f64e83] [cursor=pointer]
+            - button "Advisor Center" [ref=f64e90] [cursor=pointer]
+            - button "SQL Editor" [ref=f64e95] [cursor=pointer]
+            - button "AI Assistant" [ref=f64e100] [cursor=pointer]
+          - button [ref=f64e108] [cursor=pointer]:
+            - img "acharya360erp" [ref=f64e110]
+    - generic [ref=f64e111]:
+      - generic [ref=f64e115]:
+        - navigation [ref=f64e117]:
+          - list [ref=f64e119]:
+            - listitem [ref=f64e120]:
+              - link "Project Overview" [ref=f64e121] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen
+            - listitem [ref=f64e124]:
+              - link "Table Editor" [ref=f64e125] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/editor
+            - listitem [ref=f64e128]:
+              - link "SQL Editor" [ref=f64e129] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/sql
+          - list [ref=f64e133]:
+            - listitem [ref=f64e134]:
+              - link "Database" [ref=f64e135] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/database/schemas
+            - listitem [ref=f64e140]:
+              - link "Authentication" [ref=f64e141] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/auth/users
+            - listitem [ref=f64e144]:
+              - link "Storage" [ref=f64e145] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/storage/files
+            - listitem [ref=f64e148]:
+              - link "Edge Functions" [ref=f64e149] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/functions
+            - listitem [ref=f64e155]:
+              - link "Realtime" [ref=f64e156] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/realtime/inspector
+          - list [ref=f64e160]:
+            - listitem [ref=f64e161]:
+              - link "Advisors" [ref=f64e162] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/advisors/security
+            - listitem [ref=f64e166]:
+              - link "Observability" [ref=f64e167] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/observability
+            - listitem [ref=f64e176]:
+              - link "Logs" [ref=f64e177] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/logs
+            - listitem [ref=f64e179]:
+              - link "Integrations" [ref=f64e180] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/integrations
+          - list [ref=f64e185]:
+            - listitem [ref=f64e186]:
+              - link "Project Settings" [ref=f64e187] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/settings/general
+        - button "Sidebar control" [ref=f64e193] [cursor=pointer]
+      - main [ref=f64e200]:
+        - generic [ref=f64e202]:
+          - generic [ref=f64e206]:
+            - heading "Integrations" [level=4] [ref=f64e208]
+            - complementary [ref=f64e210]:
+              - link "Explore all" [disabled] [ref=f64e211] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/integrations
+              - generic [ref=f64e219]: Installed · 2
+              - link "Data API" [disabled] [ref=f64e220] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/integrations/data_api/overview
+              - link "Vault" [disabled] [ref=f64e227] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/integrations/vault/overview
+              - generic [ref=f64e241]: Resources
+              - link "Integrations docs" [disabled] [ref=f64e242] [cursor=pointer]:
+                - /url: https://supabase.com/docs/guides/integrations
+              - link "Build an integration" [disabled] [ref=f64e250] [cursor=pointer]:
+                - /url: https://supabase.com/docs/guides/integrations/build-a-supabase-oauth-integration
+          - separator [disabled] [ref=f64e257]
+          - main [ref=f64e268]:
+            - generic [ref=f64e270]:
+              - navigation "breadcrumb" [ref=f64e271]:
+                - list [ref=f64e272]:
+                  - listitem [ref=f64e273]:
+                    - link "Integrations" [ref=f64e274] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/integrations
+                  - listitem [aria-hidden] [ref=f64e275]
+                  - listitem [ref=f64e278]:
+                    - link "Data API" [disabled] [ref=f64e279]
+                    - generic [ref=f64e280]: Installed
+              - generic [ref=f64e281]:
+                - link "Docs" [ref=f64e282] [cursor=pointer]:
+                  - /url: https://supabase.com/docs/guides/api
+                - button "Installed" [disabled]
+            - generic [ref=f64e292]:
+              - generic [ref=f64e302]:
+                - generic [ref=f64e303]:
+                  - heading "Data API" [level=1] [ref=f64e304]
+                  - generic [ref=f64e305]: Official
+                - generic [ref=f64e307]: Auto-generate an API directly from your database schema
+              - navigation [ref=f64e310]:
+                - menu [ref=f64e311]:
+                  - listitem [ref=f64e312]:
+                    - link "Overview" [ref=f64e313] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/integrations/data_api/overview
+                  - listitem [ref=f64e314]:
+                    - link "Settings" [ref=f64e315] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/integrations/data_api/settings
+                  - listitem [ref=f64e316]:
+                    - link "Docs" [ref=f64e317] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/integrations/data_api/docs
+            - generic [ref=f64e322]:
+              - generic [ref=f64e323]:
+                - generic [ref=f64e324]:
+                  - generic [ref=f64e325]:
+                    - generic [ref=f64e327]:
+                      - button [ref=f64e329] [cursor=pointer]:
+                        - paragraph [ref=f64e332]: 2 of 24 schemas exposed
+                      - generic [ref=f64e337]:
+                        - generic [ref=f64e338]: Exposed schemas
+                        - generic [ref=f64e340]: Select schemas to include in the Data API. Schemas must be included before tables can be exposed.
+                    - generic [ref=f64e342]:
+                      - button [ref=f64e344] [cursor=pointer]:
+                        - paragraph [ref=f64e347]: 20 of 332 tables exposed
+                      - generic [ref=f64e352]:
+                        - generic [ref=f64e353]: Exposed tables
+                        - generic [ref=f64e355]: Toggle Data API access for individual tables.
+                    - generic [ref=f64e357]:
+                      - button [ref=f64e359] [cursor=pointer]:
+                        - paragraph [ref=f64e362]: 1 of 1 functions exposed
+                      - generic [ref=f64e367]:
+                        - generic [ref=f64e368]: Exposed functions
+                        - generic [ref=f64e370]: Toggle Data API access for individual functions.
+                    - generic [ref=f64e373]:
+                      - generic [ref=f64e375]:
+                        - switch [checked] [ref=f64e376] [cursor=pointer]
+                        - checkbox [checked] [aria-hidden]
+                      - generic [ref=f64e377]:
+                        - generic [ref=f64e378]: Automatically expose new tables
+                        - generic [ref=f64e380]: Grants privileges to Data API roles by default, exposing new tables. We recommend disabling this to control access manually.
+                  - generic [ref=f64e384]:
+                    - combobox [ref=f64e388]:
+                      - generic [ref=f64e389]:
+                        - generic [ref=f64e390]:
+                          - text: public
+                          - generic [ref=f64e391] [cursor=pointer]
+                        - generic [ref=f64e395]:
+                          - text: extensions
+                          - generic [ref=f64e396] [cursor=pointer]
+                        - combobox [expanded] [ref=f64e401]
+                    - generic [ref=f64e402]:
+                      - generic [ref=f64e403]: Extra search path
+                      - generic [ref=f64e405]: Extra schemas to add to the search path of every request.
+                  - generic [ref=f64e409]:
+                    - group [ref=f64e411]:
+                      - spinbutton "Max rows" [ref=f64e412]: "1000"
+                      - group [ref=f64e413]:
+                        - generic [ref=f64e414]: rows
+                    - generic [ref=f64e415]:
+                      - generic [ref=f64e416]: Max rows
+                      - generic [ref=f64e418]: The maximum number of rows returned from a view, table, or function. Limits payload size for accidental or malicious requests.
+                  - generic [ref=f64e422]:
+                    - group [ref=f64e424]:
+                      - spinbutton "Pool size" [ref=f64e425]
+                      - group [ref=f64e426]:
+                        - generic [ref=f64e427]: connections
+                    - generic [ref=f64e428]:
+                      - generic [ref=f64e429]: Pool size
+                      - generic [ref=f64e431]: Number of maximum connections to keep open in the Data API server's database pool. Unset to let it be configured automatically based on compute size.
+                - generic [ref=f64e434]:
+                  - button "Cancel" [disabled]
+                  - button "Save" [disabled]
+              - generic [ref=f64e438]:
+                - button "Harden Data API" [ref=f64e441] [cursor=pointer]
+                - generic [ref=f64e447]:
+                  - generic [ref=f64e448]: Harden Data API
+                  - generic [ref=f64e450]: Expose a custom schema instead of the public schema
+  - alert [ref=f64e451]: Integrations | Supabase

@@ -1,0 +1,171 @@
+- generic [active] [ref=f13e1]:
+  - generic [ref=f13e179]:
+    - link "Skip to content" [ref=f13e181] [cursor=pointer]:
+      - /url: "#main"
+    - banner [ref=f13e184]:
+      - generic [ref=f13e185]:
+        - generic [ref=f13e186]:
+          - link "Supabase Back to organization home" [ref=f13e187] [cursor=pointer]:
+            - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+            - img "Supabase" [ref=f13e188]
+            - generic [ref=f13e189]: Back to organization home
+          - generic [ref=f13e190]:
+            - generic [ref=f13e194]:
+              - link "acharya360erp's Org Free" [ref=f13e195] [cursor=pointer]:
+                - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+                - generic [ref=f13e206]: acharya360erp's Org
+                - generic [ref=f13e207]: Free
+              - button "Show organizations" [ref=f13e208] [cursor=pointer]
+            - generic [ref=f13e213]:
+              - generic [ref=f13e217]:
+                - link "acharya360erp's Project" [ref=f13e218] [cursor=pointer]:
+                  - /url: /dashboard/project/woqhizacenduogpxglen
+                - button "Show organization projects" [ref=f13e223] [cursor=pointer]
+              - generic [ref=f13e231]:
+                - link "main Production" [ref=f13e232] [cursor=pointer]:
+                  - /url: /dashboard/project/woqhizacenduogpxglen
+                  - generic "main" [ref=f13e233]
+                  - generic [ref=f13e234]: Production
+                - button "Show project branches" [ref=f13e235] [cursor=pointer]
+          - button "Connect" [ref=f13e241] [cursor=pointer]
+        - generic [ref=f13e246]:
+          - button "Feedback" [ref=f13e247] [cursor=pointer]
+          - generic [ref=f13e249]:
+            - button [ref=f13e250] [cursor=pointer]:
+              - paragraph [ref=f13e255]: Search...
+              - generic [ref=f13e257]: Ctrl K
+            - button "Help" [ref=f13e258] [cursor=pointer]
+            - button "Advisor Center" [ref=f13e265] [cursor=pointer]
+            - button "SQL Editor" [ref=f13e270] [cursor=pointer]
+            - button "AI Assistant" [ref=f13e275] [cursor=pointer]
+          - button [ref=f13e283] [cursor=pointer]:
+            - img "acharya360erp" [ref=f13e285]
+    - generic [ref=f13e286]:
+      - generic [ref=f13e290]:
+        - navigation [ref=f13e292]:
+          - list [ref=f13e294]:
+            - listitem [ref=f13e295]:
+              - link "Project Overview" [ref=f13e296] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen
+            - listitem [ref=f13e299]:
+              - link "Table Editor" [ref=f13e300] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/editor
+            - listitem [ref=f13e303]:
+              - link "SQL Editor" [ref=f13e304] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/sql
+          - list [ref=f13e308]:
+            - listitem [ref=f13e309]:
+              - link "Database" [ref=f13e310] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/database/schemas
+            - listitem [ref=f13e315]:
+              - link "Authentication" [ref=f13e316] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/auth/users
+            - listitem [ref=f13e319]:
+              - link "Storage" [ref=f13e320] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/storage/files
+            - listitem [ref=f13e323]:
+              - link "Edge Functions" [ref=f13e324] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/functions
+            - listitem [ref=f13e330]:
+              - link "Realtime" [ref=f13e331] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/realtime/inspector
+          - list [ref=f13e335]:
+            - listitem [ref=f13e336]:
+              - link "Advisors" [ref=f13e337] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/advisors/security
+            - listitem [ref=f13e341]:
+              - link "Observability" [ref=f13e342] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/observability
+            - listitem [ref=f13e351]:
+              - link "Logs" [ref=f13e352] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/logs
+            - listitem [ref=f13e354]:
+              - link "Integrations" [ref=f13e355] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/integrations
+          - list [ref=f13e360]:
+            - listitem [ref=f13e361]:
+              - link "Project Settings" [ref=f13e362] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/settings/general
+        - button "Sidebar control" [ref=f13e368] [cursor=pointer]
+      - main [ref=f13e375]:
+        - generic [ref=f13e377]:
+          - generic [ref=f13e381]:
+            - heading "SQL Editor" [level=4] [ref=f13e383]
+            - generic [ref=f13e385]:
+              - generic [ref=f13e386]:
+                - generic [ref=f13e387]:
+                  - generic [ref=f13e389]:
+                    - generic [ref=f13e390]: Search queries
+                    - textbox "Search queries..." [ref=f13e391]
+                    - button [ref=f13e392]
+                  - button "Create a new query" [ref=f13e399] [cursor=pointer]
+                - button "Shared" [ref=f13e404]
+                - button "Favorites" [ref=f13e410]
+                - generic [ref=f13e415]:
+                  - button "PRIVATE" [expanded] [ref=f13e416]
+                  - generic [ref=f13e422]:
+                    - paragraph [ref=f13e423]: No private queries created yet
+                    - paragraph [ref=f13e424]: Queries will be automatically saved once you start writing in the editor
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic "dummy_query_1"
+                        - generic:
+                          - generic "dummy_query_2"
+                        - generic:
+                          - generic "dummy_query_3"
+                        - generic:
+                          - generic "dummy_query_4"
+                - button "Logs" [ref=f13e427]
+                - generic [ref=f13e432]:
+                  - button "Reference" [expanded] [ref=f13e433]
+                  - generic [ref=f13e437]:
+                    - link "templates" [ref=f13e438] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/sql/templates
+                    - link "examples" [ref=f13e441] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/sql/examples
+              - link "View running queries" [ref=f13e446] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/observability/connections
+          - separator [ref=f13e448]
+          - main [ref=f13e459]:
+            - generic [ref=f13e460]:
+              - generic [ref=f13e461]:
+                - generic [ref=f13e462]:
+                  - button "Collapse sidebar" [ref=f13e463]
+                  - tablist [ref=f13e468]:
+                    - generic [ref=f13e470]:
+                      - tab "New" [selected] [ref=f13e471] [cursor=pointer]
+                      - button "Close new tab" [ref=f13e477] [cursor=pointer]
+                - status [ref=f13e482]
+              - generic [ref=f13e484]:
+                - generic [ref=f13e485]:
+                  - button "More actions" [ref=f13e486] [cursor=pointer]
+                  - generic [ref=f13e492]:
+                    - 'button "Query source: Database" [ref=f13e493] [cursor=pointer]':
+                      - generic [ref=f13e499]: Database
+                    - generic [ref=f13e503]:
+                      - button "Save" [disabled]:
+                        - generic [aria-hidden]:
+                          - generic: Ctrl S
+                      - button "Run" [ref=f13e504] [cursor=pointer]:
+                        - generic [ref=f13e507]: Ctrl ↵
+                - generic [ref=f13e508]:
+                  - code [ref=f13e516]:
+                    - generic [ref=f13e517]:
+                      - generic [ref=f13e520]: "1"
+                      - textbox "Editor content" [ref=f13e530]
+                      - generic: Hit CTRL+SHIFT+K to generate query or just start typing
+                  - separator [ref=f13e531]
+                  - generic [ref=f13e542]:
+                    - tablist [ref=f13e543]:
+                      - generic [ref=f13e544]:
+                        - tab "Results" [selected] [ref=f13e545] [cursor=pointer]
+                        - tab "Chart" [ref=f13e547] [cursor=pointer]
+                    - paragraph [ref=f13e550]:
+                      - text: Click
+                      - code [ref=f13e551]: Run
+                      - text: to execute your query
+  - alert [ref=f13e158]: SQL Editor | Supabase
+  - generic [ref=f13e552]:
+    - alert
+    - alert

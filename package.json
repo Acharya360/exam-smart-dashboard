@@ -27,6 +27,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@playwright/mcp": "^0.0.82",
+    "@playwright/test": "^1.63.0",
     "@types/express": "^4.17.21",
     "@types/node": "^22.14.0",
     "@types/react": "^19.3.0",

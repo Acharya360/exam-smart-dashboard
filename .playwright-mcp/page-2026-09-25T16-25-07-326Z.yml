@@ -1,0 +1,262 @@
+- generic:
+  - generic:
+    - generic:
+      - generic:
+        - generic [aria-hidden]:
+          - link:
+            - /url: "#main"
+            - generic: Skip to content
+        - generic [aria-hidden]:
+          - banner:
+            - generic:
+              - generic:
+                - link:
+                  - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+                  - generic: Back to organization home
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+                      - generic: acharya360erp's Org
+                      - generic: Free
+                    - button
+                  - generic:
+                    - generic:
+                      - link:
+                        - /url: /dashboard/project/woqhizacenduogpxglen
+                        - generic: acharya360erp's Project
+                      - button
+                    - generic:
+                      - link:
+                        - /url: /dashboard/project/woqhizacenduogpxglen
+                        - generic: main
+                        - generic: Production
+                      - button
+                - generic:
+                  - button:
+                    - generic: Connect
+              - generic:
+                - button:
+                  - generic: Feedback
+                - generic:
+                  - button:
+                    - generic:
+                      - paragraph: Search...
+                    - generic [aria-hidden]:
+                      - generic: Ctrl K
+                  - button:
+                    - generic: Help
+                  - generic:
+                    - button:
+                      - generic: Advisor Center
+                  - button:
+                    - generic: SQL Editor
+                  - button:
+                    - generic: AI Assistant
+                - button
+        - generic:
+          - generic [aria-hidden]:
+            - generic:
+              - generic:
+                - generic:
+                  - navigation:
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/editor
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/sql
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/database/schemas
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/auth/users
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/storage/files
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/functions
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/realtime/inspector
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/advisors/security
+                            - generic: Advisors
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/observability
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/logs
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/integrations
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/settings/general
+                - generic:
+                  - generic:
+                    - button
+          - generic:
+            - generic:
+              - generic:
+                - main:
+                  - generic:
+                    - generic:
+                      - generic [aria-hidden]:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - heading [level=4]: SQL Editor
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - generic:
+                                        - generic:
+                                          - generic: Search queries
+                                          - textbox:
+                                            - /placeholder: Search queries...
+                                          - button
+                                      - button
+                                    - generic:
+                                      - button:
+                                        - generic: Shared
+                                    - generic:
+                                      - button:
+                                        - generic: Favorites
+                                    - generic:
+                                      - button [expanded]:
+                                        - generic: PRIVATE
+                                      - generic:
+                                        - tree:
+                                          - generic: Untitled query
+                                    - generic:
+                                      - button:
+                                        - generic: Logs
+                                    - generic:
+                                      - button [expanded]:
+                                        - generic: Reference
+                                      - generic:
+                                        - link:
+                                          - /url: /dashboard/project/woqhizacenduogpxglen/sql/templates
+                                          - text: templates
+                                        - link:
+                                          - /url: /dashboard/project/woqhizacenduogpxglen/sql/examples
+                                          - text: examples
+                                  - generic:
+                                    - link:
+                                      - /url: /dashboard/project/woqhizacenduogpxglen/observability/connections
+                                      - generic: View running queries
+                      - separator [aria-hidden]
+                      - generic:
+                        - generic:
+                          - main:
+                            - generic:
+                              - generic:
+                                - generic [aria-hidden]:
+                                  - button:
+                                    - generic: Collapse sidebar
+                                  - tablist:
+                                    - generic:
+                                      - generic:
+                                        - generic:
+                                          - generic:
+                                            - tab [selected]:
+                                              - generic: Untitled query
+                                            - button
+                                          - separator
+                                      - button
+                                - status
+                              - generic [aria-hidden]:
+                                - generic:
+                                  - generic:
+                                    - generic: Unsaved edits
+                                    - button
+                                    - generic:
+                                      - button:
+                                        - generic: Database
+                                      - generic:
+                                        - button:
+                                          - generic: Save
+                                          - generic [aria-hidden]:
+                                            - generic: Ctrl S
+                                        - button:
+                                          - generic: Run
+                                          - generic [aria-hidden]:
+                                            - generic: Ctrl ↵
+                                  - generic:
+                                    - generic:
+                                      - generic:
+                                        - generic:
+                                          - generic:
+                                            - generic:
+                                              - generic:
+                                                - generic:
+                                                  - code:
+                                                    - generic:
+                                                      - generic [aria-hidden]:
+                                                        - generic [aria-hidden]:
+                                                          - generic: "1"
+                                                      - generic:
+                                                        - generic [aria-hidden]:
+                                                          - generic: SELECT id, email, role FROM public.profiles;
+                                                      - textbox: SELECT id, email, role FROM public.profiles;
+                                    - separator
+                                    - generic:
+                                      - generic:
+                                        - generic:
+                                          - tablist:
+                                            - generic:
+                                              - tab [selected]:
+                                                - generic: Results
+                                              - tab:
+                                                - generic: Chart
+                                            - generic:
+                                              - button:
+                                                - paragraph:
+                                                  - generic: 1 row
+                                                  - text: (Limited to only 100 rows)
+                                              - button:
+                                                - generic: Export
+                                          - grid:
+                                            - row:
+                                              - columnheader:
+                                                - generic: id
+                                              - columnheader:
+                                                - generic: email
+                                              - columnheader:
+                                                - generic: role
+                                            - row:
+                                              - gridcell:
+                                                - generic: fa2c2e56-345f-4834-8b31-9d4b6c9b35b9
+                                              - gridcell:
+                                                - generic: coe@sspu.edu.in
+                                              - gridcell:
+                                                - generic: COE
+  - generic:
+    - alert: SQL Editor | acharya360erp's Project | acharya360erp's Org | Supabase
+  - alertdialog [ref=f73e160]:
+    - generic [ref=f73e161]:
+      - heading "Potential issue detected" [level=2] [ref=f73e162]
+      - generic [ref=f73e163]:
+        - paragraph [ref=f73e164]: This query includes destructive operations. It may permanently change or remove data, tables, schemas, or other objects.
+        - paragraph [ref=f73e165]: Run this query only if you intend these changes and understand the risks.
+    - generic [ref=f73e166]:
+      - button "Cancel" [active] [ref=f73e167] [cursor=pointer]
+      - button "Run query" [ref=f73e168] [cursor=pointer]

@@ -334,3 +334,194 @@ export function downloadExamScheduleTemplate() {
   XLSX.utils.book_append_sheet(wb, ws, 'Exam_Schedule');
   XLSX.writeFile(wb, 'Exam_Schedule_Master_Template.xlsx');
 }
+
+// ============================================================================
+// COURSE MASTER EXCEL (LTPS & Marks Configuration)
+// ============================================================================
+
+export function downloadCourseMasterTemplate() {
+  const ws = XLSX.utils.json_to_sheet([
+    {
+      'Sr. No.': 1,
+      'CM_Course_Name': 'B.Tech. Construction Engineering & Management',
+      'Semester': 'I',
+      'PaperCode': 'APSC102',
+      'SM_Subject_Name': 'Applied Physics',
+      'L': 2,
+      'T': 0,
+      'P': 1,
+      'S': 1,
+      'Total Credits': 4,
+      'CAT Max Marks': 50,
+      'CAT Min Marks': 20,
+      'EST Max Marks': 50,
+      'EST Min Marks': 20,
+      'CAP Max Marks': 40,
+      'CAP Min Marks': 16,
+      'ESP Max Marks': 40,
+      'ESP Min Marks': 16,
+      'IA Max Marks': 20,
+      'IA Min Marks': 8,
+      'Total Marks': 200,
+      'Total Marks Min': 80
+    }
+  ]);
+  
+  // Auto-size columns
+  const colWidths = [
+    { wch: 8 }, { wch: 45 }, { wch: 10 }, { wch: 15 }, { wch: 30 },
+    { wch: 5 }, { wch: 5 }, { wch: 5 }, { wch: 5 }, { wch: 15 },
+    { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+    { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+    { wch: 15 }, { wch: 15 }
+  ];
+  ws['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Course_Master');
+  XLSX.writeFile(wb, 'Course_Master_Template.xlsx');
+}
+
+export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer) {
+  try {
+    const wb = XLSX.read(arrayBuffer, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rawData = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
+
+    const errors: string[] = [];
+    const validCourses: any[] = [];
+
+    rawData.forEach((row, index) => {
+      const rowNum = index + 2; // +1 for 0-index, +1 for header
+      
+      const courseName = (row['CM_Course_Name'] || '').toString().trim();
+      const semester = (row['Semester'] || '').toString().trim();
+      const paperCode = (row['PaperCode'] || '').toString().trim();
+      const subjectName = (row['SM_Subject_Name'] || '').toString().trim();
+
+      if (!courseName || !semester || !paperCode || !subjectName) {
+        errors.push(`Row ${rowNum}: Missing mandatory fields (Course Name, Semester, PaperCode, Subject Name).`);
+        return;
+      }
+
+      validCourses.push({
+        sr_no: parseInt(row['Sr. No.']) || 0,
+        cm_course_name: courseName,
+        semester: semester,
+        paper_code: paperCode,
+        sm_subject_name: subjectName,
+        l: parseInt(row['L']) || 0,
+        t: parseInt(row['T']) || 0,
+        p: parseInt(row['P']) || 0,
+        s: parseInt(row['S']) || 0,
+        total_credits: parseInt(row['Total Credits']) || 0,
+        cat_max_marks: parseInt(row['CAT Max Marks']) || 0,
+        cat_min_marks: parseInt(row['CAT Min Marks']) || 0,
+        est_max_marks: parseInt(row['EST Max Marks']) || 0,
+        est_min_marks: parseInt(row['EST Min Marks']) || 0,
+        cap_max_marks: parseInt(row['CAP Max Marks']) || 0,
+        cap_min_marks: parseInt(row['CAP Min Marks']) || 0,
+        esp_max_marks: parseInt(row['ESP Max Marks']) || 0,
+        esp_min_marks: parseInt(row['ESP Min Marks']) || 0,
+        ia_max_marks: parseInt(row['IA Max Marks']) || 0,
+        ia_min_marks: parseInt(row['IA Min Marks']) || 0,
+        total_marks: parseInt(row['Total Marks']) || 0,
+        total_marks_min: parseInt(row['Total Marks Min']) || 0,
+      });
+    });
+
+    return { success: true, data: validCourses, errors };
+  } catch (error: any) {
+    return { success: false, data: [], errors: ['Failed to parse Excel file: ' + error.message] };
+  }
+}
+
+// ============================================================================
+// STUDENT MARKS EXCEL
+// ============================================================================
+
+export function downloadStudentMarksTemplate() {
+  const ws = XLSX.utils.json_to_sheet([
+    {
+      'ID': 1,
+      'PRN': '123',
+      'Name of the Student': 'Keshav',
+      'CM_Course_Name': 'B.Tech. Construction Engineering & Management',
+      'Semester': 'I',
+      'PaperCode': 'APSC102',
+      'SM_Subject_Name': 'Applied Physics',
+      'Academic_Year': '2026-27',
+      'Exam Year': 'Aug 2026',
+      'Assessment_Type': 'CA1',
+      'Theory': 3,
+      'Practical': 2,
+      'Skills': 4
+    }
+  ]);
+
+  // Auto-size columns
+  const colWidths = [
+    { wch: 5 }, { wch: 15 }, { wch: 25 }, { wch: 45 }, { wch: 10 },
+    { wch: 15 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 15 },
+    { wch: 10 }, { wch: 10 }, { wch: 10 }
+  ];
+  ws['!cols'] = colWidths;
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Student_Marks');
+  XLSX.writeFile(wb, 'Student_Marks_Template.xlsx');
+}
+
+export function parseStudentMarksExcel(arrayBuffer: ArrayBuffer) {
+  try {
+    const wb = XLSX.read(arrayBuffer, { type: 'array' });
+    const wsName = wb.SheetNames[0];
+    const ws = wb.Sheets[wsName];
+    const rawData = XLSX.utils.sheet_to_json<any>(ws, { defval: '' });
+
+    const errors: string[] = [];
+    const validMarks: any[] = [];
+
+    rawData.forEach((row, index) => {
+      const rowNum = index + 2;
+      
+      const prn = (row['PRN'] || '').toString().trim();
+      const studentName = (row['Name of the Student'] || '').toString().trim();
+      const courseName = (row['CM_Course_Name'] || '').toString().trim();
+      const semester = (row['Semester'] || '').toString().trim();
+      const paperCode = (row['PaperCode'] || '').toString().trim();
+      const subjectName = (row['SM_Subject_Name'] || '').toString().trim();
+      const academicYear = (row['Academic_Year'] || '').toString().trim();
+      const examYear = (row['Exam Year'] || '').toString().trim();
+      const assessmentType = (row['Assessment_Type'] || '').toString().trim().toUpperCase();
+
+      if (!prn || !courseName || !semester || !paperCode || !academicYear || !examYear || !assessmentType) {
+        errors.push(`Row ${rowNum}: Missing mandatory fields for PRN ${prn || 'Unknown'}.`);
+        return;
+      }
+
+      // Handle the typo in the template 'Practial' vs 'Practical'
+      const practicalVal = row['Practical'] !== undefined && row['Practical'] !== '' ? row['Practical'] : row['Practial'];
+
+      validMarks.push({
+        prn: prn,
+        student_name: studentName,
+        cm_course_name: courseName,
+        semester: semester,
+        paper_code: paperCode,
+        sm_subject_name: subjectName,
+        academic_year: academicYear,
+        exam_year: examYear,
+        assessment_type: assessmentType,
+        theory: parseInt(row['Theory']) || 0,
+        practical: parseInt(practicalVal) || 0,
+        skills: parseInt(row['Skills']) || 0,
+      });
+    });
+
+    return { success: true, data: validMarks, errors };
+  } catch (error: any) {
+    return { success: false, data: [], errors: ['Failed to parse Excel file: ' + error.message] };
+  }
+}

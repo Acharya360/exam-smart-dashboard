@@ -160,6 +160,60 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </button>
 
+        {/* User Management (Super Admin only) */}
+        {isSuperAdmin && (
+          <button
+            onClick={() => onNavigate('users')}
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+              currentView === 'users'
+                ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center gap-2.5">
+              <UserCheck className="w-4 h-4" />
+              <span>User Management</span>
+            </div>
+            <span className="text-[10px] text-indigo-300 bg-indigo-500/20 px-1 rounded font-mono">CoE</span>
+          </button>
+        )}
+
+        {/* Course Master Configuration */}
+        <button
+          onClick={() => onNavigate('courseMaster')}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+            currentView === 'courseMaster'
+              ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+              : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <Layers className="w-4 h-4" />
+            <span>Course Master Config</span>
+          </div>
+          {!isSuperAdmin && (
+            <span className="text-[10px] text-slate-400 bg-slate-800 px-1 rounded">Read</span>
+          )}
+        </button>
+
+        {/* Student Marks Import */}
+        <button
+          onClick={() => onNavigate('studentMarks')}
+          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+            currentView === 'studentMarks'
+              ? 'bg-indigo-600 text-white shadow-xs font-semibold'
+              : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <CheckSquare className="w-4 h-4" />
+            <span>Student Marks Import</span>
+          </div>
+          {!isSuperAdmin && (
+            <span className="text-[10px] text-slate-400 bg-slate-800 px-1 rounded">Read</span>
+          )}
+        </button>
+
         {/* Excel Upload (Super Admin only per RBAC matrix) */}
         {isSuperAdmin ? (
           <button
@@ -172,7 +226,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="flex items-center gap-2.5">
               <UploadCloud className="w-4 h-4" />
-              <span>Upload Excel Sheets</span>
+              <span>Upload Exam Schedules</span>
             </div>
             <span className="text-[10px] text-indigo-300 font-mono">XLSX</span>
           </button>
@@ -183,7 +237,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <div className="flex items-center gap-2.5">
               <UploadCloud className="w-4 h-4" />
-              <span>Upload Excel Sheets</span>
+              <span>Upload Exam Schedules</span>
             </div>
             <Lock className="w-3.5 h-3.5 text-slate-500" />
           </div>

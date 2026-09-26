@@ -1,0 +1,294 @@
+- generic [active]:
+  - generic [aria-hidden]:
+    - generic:
+      - generic:
+        - generic:
+          - link:
+            - /url: "#main"
+            - generic: Skip to content
+        - generic:
+          - banner:
+            - generic:
+              - generic:
+                - link:
+                  - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+                  - generic: Back to organization home
+                - generic:
+                  - generic:
+                    - link:
+                      - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+                      - generic: acharya360erp's Org
+                      - generic: Free
+                    - button
+                  - generic:
+                    - generic:
+                      - link:
+                        - /url: /dashboard/project/woqhizacenduogpxglen
+                        - generic: acharya360erp's Project
+                      - button
+                    - generic:
+                      - link:
+                        - /url: /dashboard/project/woqhizacenduogpxglen
+                        - generic: main
+                        - generic: Production
+                      - button
+                - generic:
+                  - button:
+                    - generic: Connect
+              - generic:
+                - button:
+                  - generic: Feedback
+                - generic:
+                  - button:
+                    - generic:
+                      - paragraph: Search...
+                    - generic [aria-hidden]:
+                      - generic: Ctrl K
+                  - button:
+                    - generic: Help
+                  - generic:
+                    - button:
+                      - generic: Advisor Center
+                  - button:
+                    - generic: SQL Editor
+                  - button:
+                    - generic: AI Assistant
+                - button
+        - generic:
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - navigation:
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/editor
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/sql
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/database/schemas
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/auth/users
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/storage/files
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/functions
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/realtime/inspector
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/advisors/security
+                            - generic: Advisors
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/observability
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/logs
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/integrations
+                    - generic:
+                      - list:
+                        - listitem:
+                          - link:
+                            - /url: /dashboard/project/woqhizacenduogpxglen/settings/general
+                - generic:
+                  - generic:
+                    - button
+          - generic:
+            - generic:
+              - generic:
+                - main:
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - generic:
+                            - generic:
+                              - generic:
+                                - heading [level=4]: Authentication
+                              - generic:
+                                - generic:
+                                  - menu [disabled]:
+                                    - list:
+                                      - generic:
+                                        - generic:
+                                          - generic:
+                                            - generic: Manage
+                                            - generic:
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/users
+                                                - menuitem [disabled]:
+                                                  - generic: Users
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/oauth-apps
+                                                - menuitem [disabled]:
+                                                  - generic: OAuth Apps
+                                      - generic:
+                                        - generic:
+                                          - generic:
+                                            - generic: Notifications
+                                            - generic:
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/templates
+                                                - menuitem [disabled]:
+                                                  - generic: Emails
+                                      - generic:
+                                        - generic:
+                                          - generic:
+                                            - generic: Configuration
+                                            - generic:
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/database/policies
+                                                - menuitem [disabled]:
+                                                  - generic: Policies
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/providers
+                                                - menuitem [disabled]:
+                                                  - generic: Sign In / Providers
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/passkeys
+                                                - menuitem [disabled]:
+                                                  - generic:
+                                                    - generic:
+                                                      - generic:
+                                                        - generic: Passkeys
+                                                        - generic: Beta
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/oauth-server
+                                                - menuitem [disabled]:
+                                                  - generic:
+                                                    - generic:
+                                                      - generic:
+                                                        - generic: OAuth Server
+                                                        - generic: Beta
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/sessions
+                                                - menuitem [disabled]:
+                                                  - generic: Sessions
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/rate-limits
+                                                - menuitem [disabled]:
+                                                  - generic: Rate Limits
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/mfa
+                                                - menuitem [disabled]:
+                                                  - generic: Multi-Factor
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/url-configuration
+                                                - menuitem [disabled]:
+                                                  - generic: URL Configuration
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/protection
+                                                - menuitem [disabled]:
+                                                  - generic: Attack Protection
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/hooks
+                                                - menuitem [disabled]:
+                                                  - generic:
+                                                    - generic:
+                                                      - generic:
+                                                        - generic: Auth Hooks
+                                                        - generic: Beta
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/audit-logs
+                                                - menuitem [disabled]:
+                                                  - generic: Audit Logs
+                                              - link [disabled]:
+                                                - /url: /dashboard/project/woqhizacenduogpxglen/auth/performance
+                                                - menuitem [disabled]:
+                                                  - generic: Performance
+                      - separator [disabled]
+                      - generic:
+                        - generic:
+                          - main:
+                            - generic:
+                              - generic:
+                                - generic:
+                                  - heading [level=3]: Users
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - combobox:
+                                      - generic: Email address
+                                    - group:
+                                      - textbox:
+                                        - /placeholder: Search by email
+                                  - button:
+                                    - generic: All columns
+                                  - button [disabled]:
+                                    - generic: Sorted by user ID
+                                - generic:
+                                  - button [disabled]
+                                  - button:
+                                    - generic: Add user
+                              - generic:
+                                - generic:
+                                  - generic:
+                                    - generic:
+                                      - grid:
+                                        - row:
+                                          - columnheader
+                                          - columnheader:
+                                            - generic:
+                                              - generic:
+                                                - paragraph: UID
+                                          - columnheader:
+                                            - generic:
+                                              - generic:
+                                                - paragraph: Display name
+                                          - columnheader:
+                                            - generic:
+                                              - generic:
+                                                - paragraph: Email
+                                          - columnheader:
+                                            - generic:
+                                              - generic:
+                                                - paragraph: Phone
+                                          - columnheader:
+                                            - generic:
+                                              - generic:
+                                                - paragraph: Providers
+                                          - columnheader:
+                                            - generic:
+                                              - generic:
+                                                - paragraph: Provider type
+                                        - generic:
+                                          - generic:
+                                            - paragraph: No users in your project
+                                            - paragraph: There are currently no users who signed up to your project
+                              - generic: Loading...
+  - generic:
+    - alert: Users | Authentication | acharya360erp's Project | acharya360erp's Org | Supabase
+  - dialog [ref=f43e467]:
+    - heading "Create a new user" [level=2] [ref=f43e469]
+    - generic [ref=f43e471]:
+      - generic [ref=f43e472]:
+        - generic [ref=f43e473]: Email address
+        - textbox "user@example.com" [disabled] [ref=f43e478]: coe@sspu.edu.in
+      - generic [ref=f43e479]:
+        - generic [ref=f43e480]: User Password
+        - textbox "••••••••" [disabled] [ref=f43e485]: Admin@123
+      - generic [ref=f43e486]:
+        - checkbox "Auto confirm user?" [checked] [ref=f43e487] [cursor=pointer]
+        - checkbox [checked] [aria-hidden]
+        - generic [ref=f43e488]: Auto confirm user?
+      - paragraph [ref=f43e490]: A confirmation email will not be sent when creating a user via this form.
+      - button "Create user" [disabled]
+    - button "Close" [ref=f43e493]

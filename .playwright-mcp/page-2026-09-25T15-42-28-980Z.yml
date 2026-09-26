@@ -1,0 +1,104 @@
+- generic [active] [ref=f10e1]:
+  - generic [ref=f10e4]:
+    - link "Skip to content" [ref=f10e6] [cursor=pointer]:
+      - /url: "#main"
+    - banner [ref=f10e9]:
+      - generic [ref=f10e10]:
+        - link "Supabase Back to organization home" [ref=f10e12] [cursor=pointer]:
+          - /url: /dashboard/organizations
+          - img "Supabase" [ref=f10e13]
+          - generic [ref=f10e14]: Back to organization home
+        - generic [ref=f10e15]:
+          - button "Feedback" [ref=f10e16] [cursor=pointer]
+          - generic [ref=f10e18]:
+            - button [ref=f10e19] [cursor=pointer]:
+              - paragraph [ref=f10e24]: Search...
+              - generic [ref=f10e26]: Ctrl K
+            - button "Help" [ref=f10e27] [cursor=pointer]
+            - button "Advisor Center" [ref=f10e34] [cursor=pointer]
+          - button [ref=f10e39] [cursor=pointer]
+    - generic [ref=f10e44]:
+      - generic [ref=f10e48]:
+        - generic [ref=f10e49]:
+          - navigation
+        - button "Sidebar control" [ref=f10e52] [cursor=pointer]
+      - main [ref=f10e59]:
+        - main [ref=f10e64]:
+          - generic [ref=f10e65]:
+            - generic [ref=f10e69]:
+              - generic [ref=f10e70]:
+                - heading "Welcome to your project" [level=1] [ref=f10e74]
+                - generic [ref=f10e79]:
+                  - generic [ref=f10e90]:
+                    - generic [ref=f10e91]: Status
+                    - generic [ref=f10e92]: Checking...
+                  - generic [ref=f10e99]:
+                    - generic [ref=f10e100]: Compute
+                    - paragraph [ref=f10e103]: Unknown
+                  - generic [ref=f10e104]: GitHub
+                  - link "Recent branch" [ref=f10e114] [cursor=pointer]:
+                    - /url: /dashboard/project/undefined/branches
+                  - link "Last migration" [ref=f10e125] [cursor=pointer]:
+                    - /url: /dashboard/project/undefined/database/migrations
+                  - link "Last backup" [ref=f10e136] [cursor=pointer]:
+                    - /url: /dashboard/project/undefined/database/backups/scheduled
+              - status [ref=f10e148]:
+                - generic [ref=f10e149]: Loading infrastructure...
+            - generic [ref=f10e153]:
+              - generic [ref=f10e155]:
+                - button "Drag to reorder section" [ref=f10e157]
+                - generic [ref=f10e167]:
+                  - generic [ref=f10e168]:
+                    - generic [ref=f10e169]:
+                      - generic [ref=f10e170]: "0"
+                      - generic [ref=f10e171]: Total Requests
+                    - button "Last 24 hours" [ref=f10e172] [cursor=pointer]
+                  - generic [ref=f10e177]:
+                    - button "Scroll right" [ref=f10e179] [cursor=pointer]
+                    - region "Horizontally scrollable content" [ref=f10e183]:
+                      - generic [ref=f10e184]:
+                        - generic [ref=f10e186]:
+                          - generic [ref=f10e189]:
+                            - heading [level=3] [ref=f10e190]:
+                              - link "Database requests" [ref=f10e191] [cursor=pointer]:
+                                - /url: /dashboard/project/undefined/editor
+                            - generic [ref=f10e192]: "0"
+                          - paragraph [ref=f10e200]: No data for selected period
+                        - generic [ref=f10e204]:
+                          - generic [ref=f10e207]:
+                            - heading [level=3] [ref=f10e208]:
+                              - link "Auth requests" [ref=f10e209] [cursor=pointer]:
+                                - /url: /dashboard/project/undefined/auth/users
+                            - generic [ref=f10e210]: "0"
+                          - paragraph [ref=f10e218]: No data for selected period
+                        - generic [ref=f10e222]:
+                          - generic [ref=f10e225]:
+                            - heading [level=3] [ref=f10e226]:
+                              - link "Storage requests" [ref=f10e227] [cursor=pointer]:
+                                - /url: /dashboard/project/undefined/storage/buckets
+                            - generic [ref=f10e228]: "0"
+                          - paragraph [ref=f10e236]: No data for selected period
+                        - generic [ref=f10e240]:
+                          - generic [ref=f10e243]:
+                            - heading [level=3] [ref=f10e244]:
+                              - link "Realtime requests" [ref=f10e245] [cursor=pointer]:
+                                - /url: /dashboard/project/undefined/realtime/inspector
+                            - generic [ref=f10e246]: "0"
+                          - paragraph [ref=f10e254]: No data for selected period
+              - generic [ref=f10e258]:
+                - button "Drag to reorder section" [ref=f10e260]
+                - generic [ref=f10e270]:
+                  - generic [ref=f10e271]:
+                    - heading "Advisor found no issues" [level=2] [ref=f10e272]
+                    - button "Ask Assistant" [ref=f10e273] [cursor=pointer]
+                  - paragraph [ref=f10e285]: No security or performance issues found
+              - generic [ref=f10e287]:
+                - button "Drag to reorder section" [ref=f10e289]
+                - generic [ref=f10e299]:
+                  - heading "Reports" [level=3] [ref=f10e301]
+                  - generic [ref=f10e303]:
+                    - heading "Build a custom report" [level=4] [ref=f10e304]
+                    - paragraph [ref=f10e305]: Keep track of your most important metrics
+                    - paragraph [ref=f10e306]: No charts set up yet in report
+              - status [ref=f10e307]
+  - alert [ref=f10e308]

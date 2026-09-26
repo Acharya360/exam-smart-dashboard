@@ -1,4 +1,4 @@
-import { ExamSchedule, ExamTask, Program, UserProfile } from '../types';
+import { CourseMaster, CreateUserPayload, ExamSchedule, ExamTask, Program, StudentMark, UserProfile } from '../types';
 import { supabase } from './supabaseClient';
 
 class SupabaseDBService {
@@ -91,6 +91,63 @@ class SupabaseDBService {
       return [];
     }
     return data as UserProfile[];
+  }
+
+  // User Management: Create new user (uses service-role via RPC or direct insert)
+  async createUser(payload: CreateUserPayload): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+    try {
+      // Step 1: Create auth user via Supabase's signUp (the user will be created but won't auto-sign-in the admin)
+      // For internal university ERP, we use a workaround: insert directly into profiles after creating auth user
+      // Note: This requires the service role or an edge function for production. 
+      // For now, we use supabase.auth.signUp which creates a user but doesn't sign out the current admin session.
+      
+      // We use a separate client instance to avoid signing out the current admin
+      const { createClient } = await import('@supabase/supabase-js');
+      const serviceClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL || '',
+        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+      );
+
+      const { data: authData, error: authError } = await serviceClient.auth.signUp({
+        email: payload.email.trim().toLowerCase(),
+        password: payload.password,
+        options: {
+          data: {
+            full_name: payload.full_name,
+            role: payload.role,
+          }
+        }
+      });
+
+      if (authError || !authData.user) {
+        return { success: false, error: authError?.message || 'Failed to create auth user.' };
+      }
+
+      // Step 2: Insert profile record
+      const profileData = {
+        id: authData.user.id,
+        email: payload.email.trim().toLowerCase(),
+        full_name: payload.full_name,
+        role: payload.role,
+        department: payload.department,
+        phone: payload.phone,
+        title: payload.title,
+      };
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .upsert(profileData)
+        .select()
+        .single();
+
+      if (profileError) {
+        return { success: false, error: profileError.message };
+      }
+
+      return { success: true, user: profile as UserProfile };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Unknown error creating user.' };
+    }
   }
 
   // Programs
@@ -227,6 +284,113 @@ class SupabaseDBService {
       return [];
     }
     return data as ExamTask[];
+  }
+
+  // ============================================================================
+  // Course Master CRUD
+  // ============================================================================
+
+  async getCourseMaster(): Promise<CourseMaster[]> {
+    const { data, error } = await supabase
+      .from('course_master')
+      .select('*')
+      .order('sr_no');
+    if (error) {
+      console.error('Error fetching course master:', error);
+      return [];
+    }
+    return data as CourseMaster[];
+  }
+
+  async upsertCourseMaster(courses: Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[]): Promise<{ inserted: number; updated: number; error?: string }> {
+    try {
+      const records = courses.map(c => ({
+        ...c,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { data, error } = await supabase
+        .from('course_master')
+        .upsert(records, { onConflict: 'cm_course_name,semester,paper_code' })
+        .select();
+
+      if (error) {
+        return { inserted: 0, updated: 0, error: error.message };
+      }
+
+      return { inserted: data?.length || 0, updated: 0 };
+    } catch (err: any) {
+      return { inserted: 0, updated: 0, error: err.message };
+    }
+  }
+
+  async deleteCourseMasterRecord(id: string): Promise<void> {
+    const { error } = await supabase.from('course_master').delete().eq('id', id);
+    if (error) console.error('Error deleting course master record:', error);
+  }
+
+  // ============================================================================
+  // Student Marks CRUD
+  // ============================================================================
+
+  async getStudentMarks(filters?: {
+    paper_code?: string;
+    cm_course_name?: string;
+    assessment_type?: string;
+    academic_year?: string;
+    prn?: string;
+  }): Promise<StudentMark[]> {
+    let query = supabase
+      .from('student_marks')
+      .select('*')
+      .order('prn')
+      .order('assessment_type');
+
+    if (filters?.paper_code) query = query.eq('paper_code', filters.paper_code);
+    if (filters?.cm_course_name) query = query.eq('cm_course_name', filters.cm_course_name);
+    if (filters?.assessment_type) query = query.eq('assessment_type', filters.assessment_type);
+    if (filters?.academic_year) query = query.eq('academic_year', filters.academic_year);
+    if (filters?.prn) query = query.eq('prn', filters.prn);
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching student marks:', error);
+      return [];
+    }
+    return data as StudentMark[];
+  }
+
+  async upsertStudentMarks(
+    marks: Omit<StudentMark, 'id' | 'uploaded_at' | 'updated_at'>[],
+    uploaderId?: string
+  ): Promise<{ total: number; error?: string }> {
+    try {
+      const records = marks.map(m => ({
+        ...m,
+        uploaded_by: uploaderId || m.uploaded_by || null,
+        updated_at: new Date().toISOString(),
+      }));
+
+      const { data, error } = await supabase
+        .from('student_marks')
+        .upsert(records, {
+          onConflict: 'prn,cm_course_name,semester,paper_code,sm_subject_name,academic_year,exam_year,assessment_type'
+        })
+        .select();
+
+      if (error) {
+        return { total: 0, error: error.message };
+      }
+
+      return { total: data?.length || 0 };
+    } catch (err: any) {
+      return { total: 0, error: err.message };
+    }
+  }
+
+  async deleteStudentMark(id: string): Promise<void> {
+    const { error } = await supabase.from('student_marks').delete().eq('id', id);
+    if (error) console.error('Error deleting student mark:', error);
   }
 
   // Current session user

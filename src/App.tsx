@@ -9,6 +9,9 @@ import { ExamTable } from './components/dashboard/ExamTable';
 import { TasksView } from './components/tasks/TasksView';
 import { ExcelUploader } from './components/upload/ExcelUploader';
 import { ProgramsManager } from './components/admin/ProgramsManager';
+import { UserManagement } from './components/admin/UserManagement';
+import { CourseMasterUI } from './components/admin/CourseMaster';
+import { StudentMarksImport } from './components/admin/StudentMarksImport';
 import { SqlSchemaViewer } from './components/schema/SqlSchemaViewer';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { PasswordManagementModal } from './components/admin/PasswordManagementModal';
@@ -318,6 +321,15 @@ function MainApp() {
               onAddProgram={handleAddProgram}
             />
           )}
+
+          {/* VIEW: USER MANAGEMENT */}
+          {currentView === 'users' && <UserManagement />}
+
+          {/* VIEW: COURSE MASTER */}
+          {currentView === 'courseMaster' && <CourseMasterUI />}
+
+          {/* VIEW: STUDENT MARKS IMPORT */}
+          {currentView === 'studentMarks' && <StudentMarksImport />}
 
           {/* VIEW: SQL & SUPABASE RLS SCHEMA */}
           {currentView === 'schema' && <SqlSchemaViewer />}

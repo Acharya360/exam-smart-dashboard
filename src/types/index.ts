@@ -119,3 +119,115 @@ export interface ExamScheduleRow {
   'Exam Type'?: string;
   [key: string]: unknown;
 }
+
+// ============================================================================
+// Course Master (LTPS & Marks Configuration)
+// ============================================================================
+
+export interface CourseMaster {
+  id: string;
+  sr_no: number;
+  cm_course_name: string;
+  semester: string;
+  paper_code: string;
+  sm_subject_name: string;
+  l: number;
+  t: number;
+  p: number;
+  s: number;
+  total_credits: number;
+  cat_max_marks: number;
+  cat_min_marks: number;
+  est_max_marks: number;
+  est_min_marks: number;
+  cap_max_marks: number;
+  cap_min_marks: number;
+  esp_max_marks: number;
+  esp_min_marks: number;
+  ia_max_marks: number;
+  ia_min_marks: number;
+  total_marks: number;
+  total_marks_min: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CourseMasterRow {
+  'Sr. No.'?: number | string;
+  CM_Course_Name?: string;
+  Semester?: number | string;
+  PaperCode?: string;
+  SM_Subject_Name?: string;
+  L?: number | string;
+  T?: number | string;
+  P?: number | string;
+  S?: number | string;
+  'Total Credits'?: number | string;
+  'CAT Max Marks'?: number | string;
+  'CAT Min Marks'?: number | string;
+  'EST Max Marks'?: number | string;
+  'EST Min Marks'?: number | string;
+  'CAP Max Marks'?: number | string;
+  'CAP Min Marks'?: number | string;
+  'ESP Max Marks'?: number | string;
+  'ESP Min Marks'?: number | string;
+  'IA Max Marks'?: number | string;
+  'IA Min Marks'?: number | string;
+  'Total Marks'?: number | string;
+  'Total Marks Min'?: number | string;
+  [key: string]: unknown;
+}
+
+// ============================================================================
+// Student Marks (Subject-wise, Component-wise)
+// ============================================================================
+
+export interface StudentMark {
+  id: string;
+  prn: string;
+  student_name: string;
+  cm_course_name: string;
+  semester: string;
+  paper_code: string;
+  sm_subject_name: string;
+  academic_year: string;
+  exam_year: string;
+  assessment_type: string;
+  theory: number;
+  practical: number;
+  skills: number;
+  uploaded_by?: string;
+  uploaded_at?: string;
+  updated_at?: string;
+}
+
+export interface StudentMarkRow {
+  PRN?: number | string;
+  'Name of the Student'?: string;
+  CM_Course_Name?: string;
+  Semester?: number | string;
+  PaperCode?: string;
+  SM_Subject_Name?: string;
+  Academic_Year?: string;
+  'Exam Year'?: string;
+  Assessment_Type?: string;
+  Theory?: number | string;
+  Practial?: number | string;  // Note: matches user's typo in template
+  Practical?: number | string;
+  Skills?: number | string;
+  [key: string]: unknown;
+}
+
+// ============================================================================
+// User Management (Create User Payload)
+// ============================================================================
+
+export interface CreateUserPayload {
+  email: string;
+  password: string;
+  full_name: string;
+  role: UserRole;
+  department: string;
+  phone: string;
+  title: string;
+}

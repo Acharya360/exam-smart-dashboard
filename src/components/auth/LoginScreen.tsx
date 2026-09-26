@@ -141,5 +141,6 @@ export const LoginScreen: React.FC = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };

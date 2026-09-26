@@ -1,4 +1,4 @@
-export const SUPABASE_SQL_MIGRATION = 
+export const SUPABASE_SQL_MIGRATION = `
 -- ============================================================================
 --EXAM DEPARTMENT TRACK DASHBOARD & TASK MANAGEMENT SYSTEM
 --PostgreSQL Schema & Supabase Row - Level Security(RLS) Migration
@@ -253,4 +253,4 @@ VALUES
 END $$;
 
 
-;
+`;

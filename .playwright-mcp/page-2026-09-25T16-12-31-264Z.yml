@@ -1,0 +1,55 @@
+- generic [active] [ref=f55e1]:
+  - generic [ref=f55e4]:
+    - link "Skip to content" [ref=f55e6] [cursor=pointer]:
+      - /url: "#main"
+    - banner [ref=f55e9]:
+      - generic [ref=f55e10]:
+        - link "Supabase Back to organization home" [ref=f55e12] [cursor=pointer]:
+          - /url: /dashboard/organizations
+          - img "Supabase" [ref=f55e13]
+          - generic [ref=f55e14]: Back to organization home
+        - generic [ref=f55e15]:
+          - button "Feedback" [ref=f55e16] [cursor=pointer]
+          - generic [ref=f55e18]:
+            - button [ref=f55e19] [cursor=pointer]:
+              - paragraph [ref=f55e24]: Search...
+              - generic [ref=f55e26]: Ctrl K
+            - button "Help" [ref=f55e27] [cursor=pointer]
+            - button "Advisor Center" [ref=f55e34] [cursor=pointer]
+          - button [ref=f55e39] [cursor=pointer]
+    - generic [ref=f55e44]:
+      - generic [ref=f55e48]:
+        - generic [ref=f55e49]:
+          - navigation
+        - button "Sidebar control" [ref=f55e52] [cursor=pointer]
+      - main [ref=f55e59]:
+        - generic [ref=f55e61]:
+          - separator [ref=f55e65]
+          - main [ref=f55e76]:
+            - generic [ref=f55e77]:
+              - generic [ref=f55e78]:
+                - generic [ref=f55e79]:
+                  - button "Collapse sidebar" [ref=f55e80]
+                  - tablist [ref=f55e85]:
+                    - button [ref=f55e87]
+                - status [ref=f55e90]
+              - generic [ref=f55e92]:
+                - generic [ref=f55e93]:
+                  - generic [ref=f55e94]:
+                    - generic [ref=f55e95]: Autosave enabled
+                    - button "Disable autosave" [ref=f55e96] [cursor=pointer]
+                  - button "More actions" [ref=f55e102] [cursor=pointer]
+                  - generic [ref=f55e108]:
+                    - generic [ref=f55e109]:
+                      - generic [ref=f55e110] [cursor=pointer]:
+                        - generic [ref=f55e111]: Source
+                        - button "Primary database" [ref=f55e112]
+                      - button "Role postgres" [ref=f55e120] [cursor=pointer]:
+                        - generic [ref=f55e122]:
+                          - generic [ref=f55e123]: Role
+                          - generic [ref=f55e124]: postgres
+                    - button "Limit 100 rows" [ref=f55e127] [cursor=pointer]
+                    - button "Run" [ref=f55e133] [cursor=pointer]:
+                      - generic [ref=f55e136]: Ctrl ↵
+                - separator [ref=f55e144]
+  - alert [ref=f55e158]

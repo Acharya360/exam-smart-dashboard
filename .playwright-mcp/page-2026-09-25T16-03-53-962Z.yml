@@ -1,0 +1,209 @@
+- generic [ref=f43e1]:
+  - generic [ref=f43e4]:
+    - link "Skip to content" [ref=f43e6] [cursor=pointer]:
+      - /url: "#main"
+    - banner [ref=f43e9]:
+      - generic [ref=f43e10]:
+        - generic [ref=f43e11]:
+          - link "Supabase Back to organization home" [ref=f43e12] [cursor=pointer]:
+            - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+            - img "Supabase" [ref=f43e13]
+            - generic [ref=f43e14]: Back to organization home
+          - generic [ref=f43e15]:
+            - generic [ref=f43e19]:
+              - link "acharya360erp's Org Free" [ref=f43e20] [cursor=pointer]:
+                - /url: /dashboard/org/ngmlsilfzkgncovmfwkj
+                - generic [ref=f43e31]: acharya360erp's Org
+                - generic [ref=f43e32]: Free
+              - button "Show organizations" [ref=f43e33] [cursor=pointer]
+            - generic [ref=f43e38]:
+              - generic [ref=f43e42]:
+                - link "acharya360erp's Project" [ref=f43e43] [cursor=pointer]:
+                  - /url: /dashboard/project/woqhizacenduogpxglen
+                - button "Show organization projects" [ref=f43e48] [cursor=pointer]
+              - generic [ref=f43e56]:
+                - link "main Production" [ref=f43e57] [cursor=pointer]:
+                  - /url: /dashboard/project/woqhizacenduogpxglen
+                  - generic "main" [ref=f43e58]
+                  - generic [ref=f43e59]: Production
+                - button "Show project branches" [ref=f43e60] [cursor=pointer]
+          - button "Connect" [ref=f43e66] [cursor=pointer]
+        - generic [ref=f43e71]:
+          - button "Feedback" [ref=f43e72] [cursor=pointer]
+          - generic [ref=f43e74]:
+            - button [ref=f43e75] [cursor=pointer]:
+              - paragraph [ref=f43e80]: Search...
+              - generic [ref=f43e82]: Ctrl K
+            - button "Help" [ref=f43e83] [cursor=pointer]
+            - button "Advisor Center" [ref=f43e90] [cursor=pointer]
+            - button "SQL Editor" [ref=f43e95] [cursor=pointer]
+            - button "AI Assistant" [ref=f43e100] [cursor=pointer]
+          - button [ref=f43e108] [cursor=pointer]:
+            - img "acharya360erp" [ref=f43e110]
+    - generic [ref=f43e111]:
+      - generic [ref=f43e115]:
+        - navigation [ref=f43e117]:
+          - list [ref=f43e119]:
+            - listitem [ref=f43e120]:
+              - link "Project Overview" [ref=f43e121] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen
+            - listitem [ref=f43e124]:
+              - link "Table Editor" [ref=f43e125] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/editor
+            - listitem [ref=f43e128]:
+              - link "SQL Editor" [ref=f43e129] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/sql
+          - list [ref=f43e133]:
+            - listitem [ref=f43e134]:
+              - link "Database" [ref=f43e135] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/database/schemas
+            - listitem [ref=f43e140]:
+              - link "Authentication" [ref=f43e141] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/auth/users
+            - listitem [ref=f43e144]:
+              - link "Storage" [ref=f43e145] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/storage/files
+            - listitem [ref=f43e148]:
+              - link "Edge Functions" [ref=f43e149] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/functions
+            - listitem [ref=f43e155]:
+              - link "Realtime" [ref=f43e156] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/realtime/inspector
+          - list [ref=f43e160]:
+            - listitem [ref=f43e161]:
+              - link "Advisors" [ref=f43e162] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/advisors/security
+            - listitem [ref=f43e166]:
+              - link "Observability" [ref=f43e167] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/observability
+            - listitem [ref=f43e176]:
+              - link "Logs" [ref=f43e177] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/logs
+            - listitem [ref=f43e179]:
+              - link "Integrations" [ref=f43e180] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/integrations
+          - list [ref=f43e185]:
+            - listitem [ref=f43e186]:
+              - link "Project Settings" [ref=f43e187] [cursor=pointer]:
+                - /url: /dashboard/project/woqhizacenduogpxglen/settings/general
+        - button "Sidebar control" [ref=f43e193] [cursor=pointer]
+      - main [ref=f43e200]:
+        - generic [ref=f43e202]:
+          - generic [ref=f43e206]:
+            - heading "Authentication" [level=4] [ref=f43e208]
+            - menu "Sidebar" [disabled] [ref=f43e211]:
+              - list [ref=f43e212]:
+                - generic [ref=f43e215]:
+                  - generic [ref=f43e216]: Manage
+                  - generic [ref=f43e220]:
+                    - link [disabled] [ref=f43e221] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/users
+                      - menuitem "Users" [disabled] [ref=f43e222]
+                    - link [disabled] [ref=f43e227] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/oauth-apps
+                      - menuitem "OAuth Apps" [disabled] [ref=f43e228]
+                - generic [ref=f43e236]:
+                  - generic [ref=f43e237]: Notifications
+                  - link [disabled] [ref=f43e242] [cursor=pointer]:
+                    - /url: /dashboard/project/woqhizacenduogpxglen/auth/templates
+                    - menuitem "Emails" [disabled] [ref=f43e243]
+                - generic [ref=f43e251]:
+                  - generic [ref=f43e252]: Configuration
+                  - generic [ref=f43e256]:
+                    - link [disabled] [ref=f43e257] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/database/policies
+                      - menuitem "Policies" [disabled] [ref=f43e258]:
+                        - generic "Policies" [ref=f43e261]
+                    - link [disabled] [ref=f43e267] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/providers
+                      - menuitem "Sign In / Providers" [disabled] [ref=f43e268]
+                    - link [disabled] [ref=f43e273] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/passkeys
+                      - menuitem "Passkeys Beta" [disabled] [ref=f43e274]:
+                        - generic [ref=f43e277]:
+                          - generic [ref=f43e278]: Passkeys
+                          - generic [ref=f43e279]: Beta
+                    - link [disabled] [ref=f43e280] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/oauth-server
+                      - menuitem "OAuth Server Beta" [disabled] [ref=f43e281]:
+                        - generic [ref=f43e284]:
+                          - generic [ref=f43e285]: OAuth Server
+                          - generic [ref=f43e286]: Beta
+                    - link [disabled] [ref=f43e287] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/sessions
+                      - menuitem "Sessions" [disabled] [ref=f43e288]
+                    - link [disabled] [ref=f43e293] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/rate-limits
+                      - menuitem "Rate Limits" [disabled] [ref=f43e294]
+                    - link [disabled] [ref=f43e299] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/mfa
+                      - menuitem "Multi-Factor" [disabled] [ref=f43e300]
+                    - link [disabled] [ref=f43e305] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/url-configuration
+                      - menuitem "URL Configuration" [disabled] [ref=f43e306]
+                    - link [disabled] [ref=f43e311] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/protection
+                      - menuitem "Attack Protection" [disabled] [ref=f43e312]
+                    - link [disabled] [ref=f43e317] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/hooks
+                      - menuitem "Auth Hooks Beta" [disabled] [ref=f43e318]:
+                        - generic [ref=f43e321]:
+                          - generic [ref=f43e322]: Auth Hooks
+                          - generic [ref=f43e323]: Beta
+                    - link [disabled] [ref=f43e324] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/audit-logs
+                      - menuitem "Audit Logs" [disabled] [ref=f43e325]
+                    - link [disabled] [ref=f43e330] [cursor=pointer]:
+                      - /url: /dashboard/project/woqhizacenduogpxglen/auth/performance
+                      - menuitem "Performance" [disabled] [ref=f43e331]
+          - separator [disabled] [ref=f43e336]
+          - main [ref=f43e347]:
+            - generic [ref=f43e348]:
+              - heading "Users" [level=3] [ref=f43e351]
+              - generic [ref=f43e352]:
+                - generic [ref=f43e353]:
+                  - generic [ref=f43e354]:
+                    - combobox [ref=f43e359] [cursor=pointer]:
+                      - generic: Email address
+                    - group [ref=f43e362]:
+                      - textbox "Search by email" [ref=f43e363]
+                  - button "All columns" [ref=f43e365] [cursor=pointer]
+                  - button "Sorted by user ID" [disabled] [ref=f43e371]
+                - generic [ref=f43e376]:
+                  - button "Refresh" [ref=f43e377] [cursor=pointer]
+                  - button "Add user" [expanded] [ref=f43e384] [cursor=pointer]
+              - grid [ref=f43e395]:
+                - row [ref=f43e396]:
+                  - columnheader [ref=f43e397]
+                  - columnheader [ref=f43e398]:
+                    - paragraph [ref=f43e401]: UID
+                  - columnheader [ref=f43e403]:
+                    - paragraph [ref=f43e406]: Display name
+                  - columnheader [ref=f43e408]:
+                    - paragraph [ref=f43e411]: Email
+                  - columnheader [ref=f43e413]:
+                    - paragraph [ref=f43e416]: Phone
+                  - columnheader [ref=f43e418]:
+                    - paragraph [ref=f43e421]: Providers
+                  - columnheader [ref=f43e423]:
+                    - paragraph [ref=f43e426]: Provider type
+                - generic [ref=f43e434]:
+                  - paragraph [ref=f43e435]: No users in your project
+                  - paragraph [ref=f43e436]: There are currently no users who signed up to your project
+              - generic [ref=f43e438]:
+                - generic [ref=f43e439]: "Total: 10 users (estimated)"
+                - button [ref=f43e440] [cursor=pointer]
+  - alert [ref=f43e445]: Users | Authentication | Supabase
+  - menu "Add user" [active] [ref=f43e447]:
+    - menuitem "Send invitation I then I" [ref=f43e448]:
+      - paragraph [ref=f43e452]: Send invitation
+      - generic [ref=f43e453]:
+        - generic [ref=f43e454]: I
+        - generic [ref=f43e455]: then
+        - generic [ref=f43e456]: I
+    - menuitem "Create new user I then U" [ref=f43e457]:
+      - paragraph [ref=f43e461]: Create new user
+      - generic [ref=f43e462]:
+        - generic [ref=f43e463]: I
+        - generic [ref=f43e464]: then
+        - generic [ref=f43e465]: U
