@@ -67,6 +67,7 @@ class SupabaseDBService {
       .from('profiles')
       .update({
         full_name: updates.full_name,
+        role: updates.role,
         department: updates.department,
         phone: updates.phone,
         title: updates.title
@@ -147,6 +148,30 @@ class SupabaseDBService {
       return { success: true, user: profile as UserProfile };
     } catch (err: any) {
       return { success: false, error: err.message || 'Unknown error creating user.' };
+    }
+  }
+
+  async deleteUser(userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // First try to delete from auth.users if we have service key
+      const { createClient } = await import('@supabase/supabase-js');
+      const serviceClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL || '',
+        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+      );
+
+      const { error: authError } = await serviceClient.auth.admin.deleteUser(userId);
+      
+      if (authError) {
+        // If admin deletion fails (e.g. no service key), fallback to deleting profile
+        // This will leave an orphaned auth user, but remove them from the app
+        const { error: profileError } = await supabase.from('profiles').delete().eq('id', userId);
+        if (profileError) return { success: false, error: profileError.message };
+      }
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Unknown error deleting user.' };
     }
   }
 
@@ -365,11 +390,21 @@ class SupabaseDBService {
     uploaderId?: string
   ): Promise<{ total: number; error?: string }> {
     try {
-      const records = marks.map(m => ({
-        ...m,
-        uploaded_by: uploaderId || m.uploaded_by || null,
-        updated_at: new Date().toISOString(),
-      }));
+      // De-duplicate records based on the unique constraint to avoid PostgreSQL 
+      // "ON CONFLICT DO UPDATE command cannot affect row a second time" error.
+      // We keep the last occurrence in the array (simulating an update).
+      const uniqueRecordsMap = new Map<string, any>();
+      
+      marks.forEach(m => {
+        const key = `${m.prn}|${m.cm_course_name}|${m.semester}|${m.paper_code}|${m.sm_subject_name}|${m.academic_year}|${m.exam_year}|${m.assessment_type}`;
+        uniqueRecordsMap.set(key, {
+          ...m,
+          uploaded_by: uploaderId || m.uploaded_by || null,
+          updated_at: new Date().toISOString(),
+        });
+      });
+
+      const records = Array.from(uniqueRecordsMap.values());
 
       const { data, error } = await supabase
         .from('student_marks')

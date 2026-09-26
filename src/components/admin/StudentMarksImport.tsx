@@ -150,10 +150,27 @@ export const StudentMarksImport: React.FC = () => {
       )}
 
       {uploadErrors.length > 0 && (
-        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs space-y-2 max-h-40 overflow-y-auto">
-          <div className="flex items-center gap-2 text-rose-800 font-bold mb-2">
-            <AlertCircle className="w-4 h-4 text-rose-600" />
-            Upload Issues Found
+        <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-xs space-y-2 max-h-40 overflow-y-auto relative">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 text-rose-800 font-bold">
+              <AlertCircle className="w-4 h-4 text-rose-600" />
+              Upload Issues Found
+            </div>
+            <button
+              onClick={() => {
+                const element = document.createElement("a");
+                const file = new Blob([uploadErrors.join('\n')], {type: 'text/plain'});
+                element.href = URL.createObjectURL(file);
+                element.download = "upload_errors.txt";
+                document.body.appendChild(element);
+                element.click();
+                document.body.removeChild(element);
+              }}
+              className="flex items-center gap-1.5 px-2 py-1 bg-rose-100 text-rose-700 hover:bg-rose-200 rounded transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export Errors
+            </button>
           </div>
           <ul className="list-disc pl-5 text-rose-700 space-y-1">
             {uploadErrors.map((err, i) => (
