@@ -44,6 +44,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
   isCoordinatorView,
   onSelectScheduleForTasks,
   onGenerateTasks,
+  onCommitSchedules,
 }) => {
   const [filters, setFilters] = useState<ExamFilterState>({
     search: '',
