@@ -79,7 +79,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs">
+    <header className="h-16 glass border-b border-white/50 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs shadow-slate-200/50">
       {/* Zone 1 & 2: Institutional Brand & Contextual Breadcrumb */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2.5">

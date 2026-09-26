@@ -223,6 +223,7 @@ function MainApp() {
                 isCoordinatorView={!isSuperAdmin}
                 onSelectScheduleForTasks={handleSelectScheduleForTasks}
                 onGenerateTasks={handleGenerateDefaultTasks}
+                onCommitSchedules={handleCommitSchedules}
               />
             </div>
           )}
@@ -242,24 +243,7 @@ function MainApp() {
             />
           )}
 
-          {/* VIEW: UPLOAD EXCEL (Restricted to Super Admins) */}
-          {currentView === 'upload' && (
-            isSuperAdmin ? (
-              <ExcelUploader
-                onCommitSchedules={handleCommitSchedules}
-                onCommitPrograms={handleCommitPrograms}
-                onNavigate={(view) => setCurrentView(view)}
-              />
-            ) : (
-              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center max-w-md mx-auto my-12 shadow-xs">
-                <Shield className="w-10 h-10 text-amber-600 mx-auto mb-3" />
-                <h3 className="text-base font-bold text-slate-900">Access Restricted</h3>
-                <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                  Excel Schedule and Program Mapping upload is exclusively permitted for Super Administrators (<code className="font-mono text-indigo-700 font-semibold">COE</code>, <code className="font-mono text-indigo-700 font-semibold">DYCOE</code>, <code className="font-mono text-indigo-700 font-semibold">ACOE</code>) per university RBAC policy.
-                </p>
-              </div>
-            )
-          )}
+
 
           {/* VIEW: PROGRAMS MASTER & MAPPING */}
           {currentView === 'programs' && (

@@ -10,7 +10,8 @@ import {
   CheckCircle2, 
   AlertCircle,
   Eye,
-  FileSpreadsheet
+  FileSpreadsheet,
+  UploadCloud
 } from 'lucide-react';
 
 interface ExamTableProps {
@@ -20,6 +21,7 @@ interface ExamTableProps {
   isCoordinatorView: boolean;
   onSelectScheduleForTasks: (schedule: ExamSchedule) => void;
   onGenerateTasks: (schedule: ExamSchedule) => void;
+  onCommitSchedules?: (schedules: ExamSchedule[], autoGen: boolean) => void;
 }
 
 function parseDateStrToTime(dateStr: string): number {
@@ -54,6 +56,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
     endDate: '',
     minStudents: '',
     maxStudents: '',
+    examYear: 'ALL',
   });
 
   // Distinct schools
@@ -63,6 +66,15 @@ export const ExamTable: React.FC<ExamTableProps> = ({
       if (s.cm_school_name) set.add(s.cm_school_name);
     });
     return Array.from(set);
+  }, [schedules]);
+
+  // Distinct exam years
+  const examYears = useMemo(() => {
+    const set = new Set<string>();
+    schedules.forEach((s) => {
+      if (s.exam_year) set.add(s.exam_year);
+    });
+    return Array.from(set).sort();
   }, [schedules]);
 
   // Filtered schedules with multi-field search and comprehensive criteria
@@ -105,6 +117,11 @@ export const ExamTable: React.FC<ExamTableProps> = ({
 
       // Semester filter
       if (filters.semester !== 'ALL' && String(item.semester) !== filters.semester) {
+        return false;
+      }
+
+      // Exam Year filter
+      if (filters.examYear !== 'ALL' && item.exam_year !== filters.examYear) {
         return false;
       }
 
@@ -181,12 +198,13 @@ export const ExamTable: React.FC<ExamTableProps> = ({
         programs={programs}
         totalCount={schedules.length}
         filteredCount={filteredSchedules.length}
+        examYears={examYears}
       />
 
       {/* Main Table Card */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+      <div className="glass rounded-2xl shadow-xs overflow-hidden">
         {/* Header & Action Bar */}
-        <div className="p-4 border-b border-slate-200 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-slate-50/40">
+        <div className="p-5 border-b border-white/50 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-white/40">
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-slate-900">
@@ -202,6 +220,41 @@ export const ExamTable: React.FC<ExamTableProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {!isCoordinatorView && onCommitSchedules && (
+              <>
+                <button
+                  onClick={() => document.getElementById('exam-upload-input')?.click()}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-indigo-600 border border-indigo-700 rounded-lg hover:bg-indigo-700 shadow-xs transition-colors"
+                  title="Import Master Schedule from Excel (.xlsx)"
+                >
+                  <UploadCloud className="w-3.5 h-3.5 text-white" />
+                  <span>Import XLSX</span>
+                </button>
+                <input
+                  type="file"
+                  id="exam-upload-input"
+                  className="hidden"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const arrayBuffer = await file.arrayBuffer();
+                    // Dynamically import to avoid circular or heavy deps if not needed
+                    const { parseExamScheduleExcel } = await import('../../services/excelParser');
+                    const result = parseExamScheduleExcel(arrayBuffer);
+                    if (result.data.length > 0) {
+                      // default autoGenTasks = true
+                      onCommitSchedules(result.data, true);
+                      alert(`Successfully parsed and imported ${result.data.length} schedules.`);
+                    } else {
+                      alert(`Failed to import. Errors: ${result.errors.join(', ')}`);
+                    }
+                    e.target.value = ''; // reset
+                  }}
+                />
+              </>
+            )}
+            
             <button
               onClick={exportToExcel}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-xs transition-colors"
@@ -217,7 +270,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-slate-100/80 text-slate-600 border-b border-slate-200 font-semibold text-[11px] uppercase tracking-wider">
+              <tr className="bg-slate-50/50 backdrop-blur-sm text-slate-500 border-b border-white/60 font-bold text-[11px] uppercase tracking-wider">
                 <th className="py-2.5 px-3 w-14 font-mono">PKG</th>
                 <th className="py-2.5 px-3 min-w-[200px]">Course & School</th>
                 <th className="py-2.5 px-3 w-16 text-center">Sem</th>
@@ -225,12 +278,13 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                 <th className="py-2.5 px-3 text-right font-mono">Candidates</th>
                 <th className="py-2.5 px-3 min-w-[130px]">Exam Date & Day</th>
                 <th className="py-2.5 px-3 min-w-[150px]">Session & Time</th>
+                <th className="py-2.5 px-3 w-20">Year</th>
                 <th className="py-2.5 px-3 w-24">Type</th>
                 <th className="py-2.5 px-3 min-w-[120px]">Workflow Status</th>
                 <th className="py-2.5 px-3 w-28 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-200">
+            <tbody className="divide-y divide-white/40">
               {filteredSchedules.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="py-12 text-center text-slate-400">
@@ -251,7 +305,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                   return (
                     <tr
                       key={schedule.id}
-                      className="hover:bg-indigo-50/30 transition-colors group"
+                      className="hover:bg-white/60 transition-colors group"
                     >
                       {/* PKG No */}
                       <td className="py-3 px-3 font-mono font-bold text-slate-900 tabular-nums">
@@ -331,6 +385,11 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                             {schedule.exam_time}
                           </span>
                         </div>
+                      </td>
+
+                      {/* Exam Year */}
+                      <td className="py-3 px-3 font-mono font-medium text-slate-700">
+                        {schedule.exam_year || '-'}
                       </td>
 
                       {/* Exam Type */}

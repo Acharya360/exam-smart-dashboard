@@ -24,6 +24,7 @@ export interface ExamFilterState {
   endDate: string;
   minStudents: string;
   maxStudents: string;
+  examYear: string;
 }
 
 interface AdvancedExamFilterProps {
@@ -33,6 +34,7 @@ interface AdvancedExamFilterProps {
   programs: Program[];
   totalCount: number;
   filteredCount: number;
+  examYears?: string[];
 }
 
 export const AdvancedExamFilter: React.FC<AdvancedExamFilterProps> = ({
@@ -42,6 +44,7 @@ export const AdvancedExamFilter: React.FC<AdvancedExamFilterProps> = ({
   programs,
   totalCount,
   filteredCount,
+  examYears = [],
 }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -61,6 +64,7 @@ export const AdvancedExamFilter: React.FC<AdvancedExamFilterProps> = ({
       endDate: '',
       minStudents: '',
       maxStudents: '',
+      examYear: 'ALL',
     });
   };
 
@@ -130,6 +134,20 @@ export const AdvancedExamFilter: React.FC<AdvancedExamFilterProps> = ({
             <option value="AM">Morning (AM)</option>
             <option value="PM">Afternoon (PM)</option>
           </select>
+
+          {/* Quick Exam Year dropdown */}
+          {examYears.length > 0 && (
+            <select
+              value={filters.examYear || 'ALL'}
+              onChange={(e) => update({ examYear: e.target.value })}
+              className="bg-white border border-slate-300 rounded-lg px-2.5 py-2 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            >
+              <option value="ALL">All Years</option>
+              {examYears.map(year => (
+                <option key={year} value={year}>{year}</option>
+              ))}
+            </select>
+          )}
         </div>
 
         {/* Right side: Filter toggle & active stats */}

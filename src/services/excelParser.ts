@@ -163,6 +163,8 @@ export function parseExamScheduleExcel(
       const rawAmPm = String(rowObj['ampm'] || 'AM').toUpperCase().trim();
       const amPm: 'AM' | 'PM' = rawAmPm === 'PM' ? 'PM' : 'AM';
       const examTime = String(rowObj['examtime'] || (amPm === 'AM' ? '10:30 am to 12:30 pm' : '02:00 pm to 04:00 pm')).trim();
+      
+      const examYear = String(rowObj['examyear'] || '').trim();
 
       const rawType = String(rowObj['examtype'] || 'Regular').trim();
       let examType: 'Regular' | 'Backlog' | 'Both' = 'Regular';
@@ -214,6 +216,7 @@ export function parseExamScheduleExcel(
         am_pm: amPm,
         exam_time: examTime,
         exam_type: examType,
+        exam_year: examYear || undefined,
       };
 
       schedules.push(schedule);

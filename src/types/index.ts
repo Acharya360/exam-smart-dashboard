@@ -25,6 +25,7 @@ export interface ExamScheduleFilter {
   endDate: string;
   minStudents?: number;
   maxStudents?: number;
+  examYear?: string;
 }
 
 export interface TaskFilter {
@@ -70,6 +71,7 @@ export interface ExamSchedule {
   am_pm: SessionPeriod;
   exam_time: string; // e.g. "10:30 am to 12:30 pm"
   exam_type: ExamType;
+  exam_year?: string;
 }
 
 export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'ESCALATED_TO_ALTERNATE';
@@ -117,6 +119,7 @@ export interface ExamScheduleRow {
   AM_PM?: string;
   'Exam Time'?: string;
   'Exam Type'?: string;
+  ExamYear?: string;
   [key: string]: unknown;
 }
 

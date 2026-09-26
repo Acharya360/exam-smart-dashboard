@@ -3,7 +3,6 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   LayoutDashboard, 
   CheckSquare, 
-  UploadCloud, 
   Users, 
   Database, 
   Lock, 
@@ -49,7 +48,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
       
-      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex flex-col shrink-0 border-r border-slate-800 select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-slate-950/95 backdrop-blur-xl text-slate-300 flex flex-col shrink-0 border-r border-slate-800/60 shadow-2xl shadow-indigo-900/10 select-none transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
       {/* Brand & Organization */}
       <div className="p-4 border-b border-slate-800/80">
         <div className="flex items-center justify-between">
@@ -216,34 +215,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
         </button>
 
-        {/* Excel Upload (Super Admin only per RBAC matrix) */}
-        {isSuperAdmin ? (
-          <button
-            onClick={() => onNavigate('upload')}
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
-              currentView === 'upload'
-                ? 'bg-indigo-600 text-white shadow-xs font-semibold'
-                : 'text-slate-300 hover:bg-slate-800/70 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center gap-2.5">
-              <UploadCloud className="w-4 h-4" />
-              <span>Upload Exam Schedules</span>
-            </div>
-            <span className="text-[10px] text-indigo-300 font-mono">XLSX</span>
-          </button>
-        ) : (
-          <div
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-slate-500 cursor-not-allowed opacity-60"
-            title="Excel Schedule and Mapping uploads restricted to CoE / DyCoE / ACoE"
-          >
-            <div className="flex items-center gap-2.5">
-              <UploadCloud className="w-4 h-4" />
-              <span>Upload Exam Schedules</span>
-            </div>
-            <Lock className="w-3.5 h-3.5 text-slate-500" />
-          </div>
-        )}
+
 
         {/* Staff Password Governance (CoE / DyCoE / ACoE only) */}
         {isSuperAdmin && (
