@@ -12,7 +12,8 @@ import {
   AlertCircle,
   Eye,
   FileSpreadsheet,
-  UploadCloud
+  UploadCloud,
+  Trash2
 } from 'lucide-react';
 
 interface ExamTableProps {
@@ -23,6 +24,8 @@ interface ExamTableProps {
   onSelectScheduleForTasks: (schedule: ExamSchedule) => void;
   onGenerateTasks: (schedule: ExamSchedule) => void;
   onCommitSchedules?: (schedules: ExamSchedule[], autoGen: boolean) => void;
+  onDeleteSchedule?: (id: string) => void;
+  onDeleteSchedules?: (ids: string[]) => void;
 }
 
 function parseDateStrToTime(dateStr: string): number {
@@ -46,7 +49,10 @@ export const ExamTable: React.FC<ExamTableProps> = ({
   onSelectScheduleForTasks,
   onGenerateTasks,
   onCommitSchedules,
+  onDeleteSchedule,
+  onDeleteSchedules,
 }) => {
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filters, setFilters] = useState<ExamFilterState>({
     search: '',
     school: 'ALL',
@@ -190,6 +196,29 @@ export const ExamTable: React.FC<ExamTableProps> = ({
     return { total: schedTasks.length, completed, escalated };
   };
 
+  const handleToggleSelectAll = () => {
+    if (selectedIds.size === filteredSchedules.length && filteredSchedules.length > 0) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredSchedules.map(s => s.id)));
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedIds.size === 0 || !onDeleteSchedules) return;
+    if (confirm(`Are you sure you want to delete ${selectedIds.size} schedule(s)?`)) {
+      onDeleteSchedules(Array.from(selectedIds));
+      setSelectedIds(new Set());
+    }
+  };
+
   return (
     <div className="space-y-3">
       {/* Advanced Search & Filtering Component */}
@@ -222,6 +251,17 @@ export const ExamTable: React.FC<ExamTableProps> = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {!isCoordinatorView && onDeleteSchedules && selectedIds.size > 0 && (
+              <button
+                onClick={handleDeleteSelected}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-rose-600 border border-rose-700 rounded-lg hover:bg-rose-700 shadow-xs transition-colors"
+                title="Delete Selected Schedules"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete ({selectedIds.size})</span>
+              </button>
+            )}
+
             {!isCoordinatorView && onCommitSchedules && (
               <>
                 <button
@@ -278,6 +318,16 @@ export const ExamTable: React.FC<ExamTableProps> = ({
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50/50 backdrop-blur-sm text-slate-500 border-b border-white/60 font-bold text-[11px] uppercase tracking-wider">
+                {!isCoordinatorView && (
+                  <th className="py-2.5 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                      checked={selectedIds.size === filteredSchedules.length && filteredSchedules.length > 0}
+                      onChange={handleToggleSelectAll}
+                    />
+                  </th>
+                )}
                 <th className="py-2.5 px-3 w-14 font-mono">PKG</th>
                 <th className="py-2.5 px-3 min-w-[200px]">Course & School</th>
                 <th className="py-2.5 px-3 w-16 text-center">Sem</th>
@@ -294,7 +344,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
             <tbody className="divide-y divide-white/40">
               {filteredSchedules.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400">
+                  <td colSpan={isCoordinatorView ? 10 : 11} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <FileSpreadsheet className="w-8 h-8 text-slate-300" />
                       <p className="text-sm font-medium text-slate-600">No exam schedules matched your filter criteria</p>
@@ -312,8 +362,20 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                   return (
                     <tr
                       key={schedule.id}
-                      className="hover:bg-white/60 transition-colors group"
+                      className={`hover:bg-white/60 transition-colors group ${selectedIds.has(schedule.id) ? 'bg-indigo-50/30' : ''}`}
                     >
+                      {/* Selection */}
+                      {!isCoordinatorView && (
+                        <td className="py-3 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
+                            checked={selectedIds.has(schedule.id)}
+                            onChange={() => handleToggleSelect(schedule.id)}
+                          />
+                        </td>
+                      )}
+
                       {/* PKG No */}
                       <td className="py-3 px-3 font-mono font-bold text-slate-900 tabular-nums">
                         #{schedule.pkg_no}
@@ -459,6 +521,19 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                               title="Auto-generate standard task suite"
                             >
                               <ListPlus className="w-3 h-3" />
+                            </button>
+                          )}
+                          {!isCoordinatorView && onDeleteSchedule && (
+                            <button
+                              onClick={() => {
+                                if(confirm('Are you sure you want to delete this schedule?')) {
+                                  onDeleteSchedule(schedule.id);
+                                }
+                              }}
+                              className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-medium transition-colors opacity-0 group-hover:opacity-100"
+                              title="Delete schedule"
+                            >
+                              <Trash2 className="w-3 h-3" />
                             </button>
                           )}
                         </div>

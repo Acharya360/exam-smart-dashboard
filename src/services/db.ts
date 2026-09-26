@@ -306,9 +306,24 @@ class SupabaseDBService {
   }
 
   async addSchedules(newSchedules: ExamSchedule[]): Promise<ExamSchedule[]> {
-    // Remove the client-generated ID so Supabase gen_random_uuid() can handle it, 
-    // unless we strictly want to keep the client IDs. Let's just upsert using pkg_no or paper_code as conflict targets if possible, 
-    // or just insert. For now, insert all.
+    // Ensure all program_codes exist to satisfy foreign key constraint
+    const uniquePrograms = Array.from(new Set(newSchedules.map(s => s.program_code)));
+    const { data: existingPrograms } = await supabase.from('programs').select('program_code');
+    const existingProgramCodes = new Set(existingPrograms?.map(p => p.program_code) || []);
+
+    const missingPrograms = uniquePrograms.filter(p => !existingProgramCodes.has(p));
+    if (missingPrograms.length > 0) {
+      const newProgramRecords = missingPrograms.map(pCode => {
+        const sched = newSchedules.find(s => s.program_code === pCode)!;
+        return {
+          program_code: pCode,
+          program_name: sched.cm_course_name || pCode,
+          school_name: sched.cm_school_name || 'General School',
+        };
+      });
+      await supabase.from('programs').insert(newProgramRecords);
+    }
+
     const recordsToInsert = newSchedules.map(s => {
       const copy = { ...s };
       if (copy.id && copy.id.startsWith('sched-')) delete (copy as any).id; // Remove fake ids
@@ -325,6 +340,16 @@ class SupabaseDBService {
       return [];
     }
     return data as ExamSchedule[];
+  }
+
+  async deleteSchedule(id: string): Promise<void> {
+    const { error } = await supabase.from('exam_schedules').delete().eq('id', id);
+    if (error) console.error('Error deleting schedule:', error);
+  }
+
+  async deleteSchedules(ids: string[]): Promise<void> {
+    const { error } = await supabase.from('exam_schedules').delete().in('id', ids);
+    if (error) console.error('Error deleting schedules:', error);
   }
 
   // Tasks

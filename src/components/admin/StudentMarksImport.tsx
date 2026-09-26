@@ -215,19 +215,19 @@ export const StudentMarksImport: React.FC = () => {
       </div>
 
       {/* Table Section */}
-      <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-slate-100 border-b border-slate-200">
-                <th className="text-left px-4 py-3 font-bold text-slate-700 w-32">PRN / Name</th>
-                <th className="text-left px-4 py-3 font-bold text-slate-700 min-w-[200px]">Program & Subject</th>
-                <th className="text-center px-3 py-3 font-bold text-slate-700">Type</th>
-                <th className="text-center px-3 py-3 font-bold text-slate-700 border-l border-slate-200">Theory</th>
-                <th className="text-center px-3 py-3 font-bold text-slate-700">Pract</th>
-                <th className="text-center px-3 py-3 font-bold text-slate-700">Skills</th>
-                <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-200/50">Total</th>
-                <th className="text-center px-3 py-3 font-bold text-slate-700 border-l border-slate-200">Actions</th>
+      <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden flex flex-col">
+        <div className="overflow-auto max-h-[calc(100vh-280px)]">
+          <table className="w-full text-xs relative">
+            <thead className="sticky top-0 z-10 shadow-sm ring-1 ring-slate-200">
+              <tr className="bg-slate-100">
+                <th className="text-left px-4 py-3 font-bold text-slate-700 w-32 bg-slate-100">PRN / Name</th>
+                <th className="text-left px-4 py-3 font-bold text-slate-700 min-w-[200px] bg-slate-100">Program & Subject</th>
+                <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-100">Type</th>
+                <th className="text-center px-3 py-3 font-bold text-slate-700 border-l border-slate-200 bg-slate-100">Theory</th>
+                <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-100">Pract</th>
+                <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-100">Skills</th>
+                <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-200">Total</th>
+                <th className="text-center px-3 py-3 font-bold text-slate-700 border-l border-slate-200 bg-slate-100">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">

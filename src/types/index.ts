@@ -44,8 +44,8 @@ export interface Program {
   program_code: string;
   program_name: string;
   school_name: string;
-  primary_coordinator_id: string;
-  alternate_coordinator_id: string;
+  primary_coordinator_id: string | null;
+  alternate_coordinator_id: string | null;
 }
 
 export type ExamType = 'Regular' | 'Backlog' | 'Both';

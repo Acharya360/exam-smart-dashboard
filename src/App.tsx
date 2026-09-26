@@ -140,6 +140,16 @@ function MainApp() {
     await refreshData();
   };
 
+  const handleDeleteSchedule = async (id: string) => {
+    await db.deleteSchedule(id);
+    await refreshData();
+  };
+
+  const handleDeleteSchedules = async (ids: string[]) => {
+    await db.deleteSchedules(ids);
+    await refreshData();
+  };
+
   const handleCommitPrograms = async (newPrograms: Program[], newUsers: UserProfile[]) => {
     // Handling mass uploads is currently unsupported in SupabaseDBService as we didn't write batch users sync
     // In production, this should trigger an edge function to create Supabase Auth users.
@@ -224,6 +234,8 @@ function MainApp() {
                 onSelectScheduleForTasks={handleSelectScheduleForTasks}
                 onGenerateTasks={handleGenerateDefaultTasks}
                 onCommitSchedules={handleCommitSchedules}
+                onDeleteSchedule={handleDeleteSchedule}
+                onDeleteSchedules={handleDeleteSchedules}
               />
             </div>
           )}

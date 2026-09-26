@@ -36,10 +36,9 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchool, setSelectedSchool] = useState<string>('ALL');
 
-  // Inline editing state
   const [editingProgId, setEditingProgId] = useState<string | null>(null);
-  const [editPrimaryId, setEditPrimaryId] = useState<string>('');
-  const [editAltId, setEditAltId] = useState<string>('');
+  const [editPrimaryId, setEditPrimaryId] = useState<string | null>(null);
+  const [editAltId, setEditAltId] = useState<string | null>(null);
 
   // Add program modal state
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -47,8 +46,8 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
   const [newProgCode, setNewProgCode] = useState('');
   const [newProgName, setNewProgName] = useState('');
   const [newSchoolName, setNewSchoolName] = useState('School of Engineering & Technology');
-  const [newPrimaryId, setNewPrimaryId] = useState(users.find((u) => u.role === 'COORDINATOR')?.id || users[0]?.id);
-  const [newAltId, setNewAltId] = useState(users.find((u) => u.role === 'COORDINATOR')?.id || users[0]?.id);
+  const [newPrimaryId, setNewPrimaryId] = useState<string | null>(users.find((u) => u.role === 'COORDINATOR')?.id || null);
+  const [newAltId, setNewAltId] = useState<string | null>(users.find((u) => u.role === 'COORDINATOR')?.id || null);
 
   const userProgs = getUserPrograms();
   const displayedPrograms = isSuperAdmin ? programs : userProgs.all;
@@ -76,8 +75,8 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
   const saveInlineEdit = (p: Program) => {
     onUpdateProgram({
       ...p,
-      primary_coordinator_id: editPrimaryId,
-      alternate_coordinator_id: editAltId,
+      primary_coordinator_id: editPrimaryId || null,
+      alternate_coordinator_id: editAltId || null,
     });
     setEditingProgId(null);
   };
@@ -94,8 +93,8 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
       program_code: newProgCode.toUpperCase().trim(),
       program_name: newProgName.trim(),
       school_name: newSchoolName.trim(),
-      primary_coordinator_id: newPrimaryId,
-      alternate_coordinator_id: newAltId,
+      primary_coordinator_id: newPrimaryId || null,
+      alternate_coordinator_id: newAltId || null,
     };
 
     onAddProgram(newProg);
@@ -254,10 +253,11 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
                       <td className="py-3 px-3">
                         {isEditing ? (
                           <select
-                            value={editPrimaryId}
+                            value={editPrimaryId || ''}
                             onChange={(e) => setEditPrimaryId(e.target.value)}
                             className="w-full p-1.5 border border-slate-300 rounded text-xs focus:ring-2 focus:ring-indigo-500/20"
                           >
+                            <option value="">Unassigned</option>
                             {users.map((u) => (
                               <option key={u.id} value={u.id}>
                                 {u.full_name} ({u.role})
@@ -286,10 +286,11 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
                       <td className="py-3 px-3">
                         {isEditing ? (
                           <select
-                            value={editAltId}
+                            value={editAltId || ''}
                             onChange={(e) => setEditAltId(e.target.value)}
                             className="w-full p-1.5 border border-slate-300 rounded text-xs focus:ring-2 focus:ring-indigo-500/20"
                           >
+                            <option value="">Unassigned</option>
                             {users.map((u) => (
                               <option key={u.id} value={u.id}>
                                 {u.full_name} ({u.role})
@@ -432,10 +433,11 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Primary Coordinator</label>
                 <select
-                  value={newPrimaryId}
+                  value={newPrimaryId || ''}
                   onChange={(e) => setNewPrimaryId(e.target.value)}
                   className="w-full p-2 border border-slate-300 rounded-lg"
                 >
+                  <option value="">Unassigned</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.full_name} ({u.role}) - {u.email}
@@ -447,10 +449,11 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Alternate Coordinator</label>
                 <select
-                  value={newAltId}
+                  value={newAltId || ''}
                   onChange={(e) => setNewAltId(e.target.value)}
                   className="w-full p-2 border border-slate-300 rounded-lg"
                 >
+                  <option value="">Unassigned</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.full_name} ({u.role}) - {u.email}
