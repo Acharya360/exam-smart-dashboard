@@ -53,10 +53,43 @@ class SupabaseDBService {
       return { success: false, error: 'Password must be at least 6 characters long.' };
     }
     
-    // In Supabase, changing another user's password securely requires the Admin API via a secure backend function.
-    // As a workaround for client-side without edge functions, we'll return an error explaining this limitation.
-    // In a full implementation, you'd call a Supabase Edge Function here.
-    return { success: false, error: 'Password reset requires an Edge Function in Supabase to use the Admin API.' };
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // If user is changing their own password
+      if (user && user.id === targetUserId) {
+        const { error } = await supabase.auth.updateUser({ password: newPassword });
+        if (error) return { success: false, error: error.message };
+        return { success: true };
+      }
+      
+      // If admin is changing another user's password, we need the service key
+      const hasServiceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY && 
+                            import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY !== import.meta.env.VITE_SUPABASE_ANON_KEY;
+                            
+      if (!hasServiceKey) {
+        return { success: false, error: 'To change other users passwords, you must provide VITE_SUPABASE_SERVICE_ROLE_KEY in .env.' };
+      }
+      
+      const { createClient } = await import('@supabase/supabase-js');
+      const serviceClient = createClient(
+        import.meta.env.VITE_SUPABASE_URL || '',
+        import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY || ''
+      );
+      
+      const { error: adminError } = await serviceClient.auth.admin.updateUserById(targetUserId, {
+        password: newPassword,
+        email_confirm: true // Force confirmation just in case
+      });
+      
+      if (adminError) {
+        return { success: false, error: adminError.message };
+      }
+      
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Unknown error occurred.' };
+    }
   }
 
   async updateUserProfile(

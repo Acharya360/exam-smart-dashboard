@@ -73,6 +73,7 @@
       am_pm exam_session_enum NOT NULL DEFAULT 'AM',
       exam_time TEXT NOT NULL,
       exam_type exam_type_enum NOT NULL DEFAULT 'Regular',
+      exam_year TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
