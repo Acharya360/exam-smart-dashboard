@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
+import { parseExamScheduleExcel } from '../../services/excelParser';
 import { ExamSchedule, ExamTask, Program } from '../../types';
 import { AdvancedExamFilter, ExamFilterState } from '../common/AdvancedExamFilter';
 import { 
@@ -237,20 +238,25 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                   className="hidden"
                   accept=".xlsx,.xls,.csv"
                   onChange={async (e) => {
-                    const file = e.target.files?.[0];
-                    if (!file) return;
-                    const arrayBuffer = await file.arrayBuffer();
-                    // Dynamically import to avoid circular or heavy deps if not needed
-                    const { parseExamScheduleExcel } = await import('../../services/excelParser');
-                    const result = parseExamScheduleExcel(arrayBuffer);
-                    if (result.data.length > 0) {
-                      // default autoGenTasks = true
-                      onCommitSchedules(result.data, true);
-                      alert(`Successfully parsed and imported ${result.data.length} schedules.`);
-                    } else {
-                      alert(`Failed to import. Errors: ${result.errors.join(', ')}`);
+                    try {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const arrayBuffer = await file.arrayBuffer();
+                      const result = parseExamScheduleExcel(arrayBuffer);
+                      
+                      if (result.data.length > 0) {
+                        alert(`Parsed ${result.data.length} schedules. Uploading to database...`);
+                        await onCommitSchedules(result.data, true);
+                        alert(`Successfully uploaded ${result.data.length} schedules.`);
+                      } else {
+                        alert(`Failed to import. Errors: ${result.errors.join(', ')}`);
+                      }
+                    } catch (err: any) {
+                      alert(`Upload failed: ${err.message || 'Unknown error occurred during upload.'}`);
+                      console.error('Upload Error:', err);
+                    } finally {
+                      e.target.value = ''; // reset
                     }
-                    e.target.value = ''; // reset
                   }}
                 />
               </>
