@@ -206,57 +206,7 @@ function MainApp() {
 
         {/* Dynamic Content Body */}
         <main className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-          {/* Personalized User Welcome Banner */}
-          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-                {currentUser?.full_name?.charAt(0) || '?'}
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-slate-900 text-sm">{currentUser?.full_name}</span>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200">
-                    {currentUser?.role}
-                  </span>
-                  <span className="text-slate-400">·</span>
-                  <span className="text-slate-600 font-medium">{currentUser?.title}</span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-0.5">
-                  <span className="font-mono text-slate-600">{currentUser?.email}</span>
-                  <span>·</span>
-                  <span>{currentUser?.department || 'Examination Department'}</span>
-                  <span>·</span>
-                  <span className="text-slate-600 font-medium">
-                    {isSuperAdmin
-                      ? 'Full University Oversight'
-                      : `${userProgs.all.length} Assigned Program(s)`}
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-2 mt-2 sm:mt-0">
-              <button
-                onClick={() => handleOpenProfileModal('profile')}
-                className="flex items-center justify-center flex-1 sm:flex-none gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg transition-colors shadow-2xs"
-                title="View and edit your personal profile and account settings"
-              >
-                <User className="w-3.5 h-3.5 text-slate-600" />
-                <span>My Profile & Settings</span>
-              </button>
-
-              {isSuperAdmin && (
-                <button
-                  onClick={() => setIsPasswordModalOpen(true)}
-                  className="flex items-center justify-center flex-1 sm:flex-none gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
-                  title="Staff Password Governance (Super Admin duty)"
-                >
-                  <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>Staff Passwords</span>
-                </button>
-              )}
-            </div>
-          </div>
 
           {/* VIEW: DASHBOARD */}
           {currentView === 'dashboard' && (
@@ -266,21 +216,6 @@ function MainApp() {
                 tasks={accessibleTasks}
                 isCoordinatorView={!isSuperAdmin}
               />
-              {/* Optional: we can remove ExamTable from Dashboard now or leave it for quick overview */}
-              <ExamTable
-                schedules={accessibleSchedules}
-                tasks={tasks}
-                programs={programs}
-                isCoordinatorView={!isSuperAdmin}
-                onSelectScheduleForTasks={handleSelectScheduleForTasks}
-                onGenerateTasks={handleGenerateDefaultTasks}
-              />
-            </div>
-          )}
-
-          {/* VIEW: SCHEDULED EXAMS LIST */}
-          {currentView === 'scheduledExams' && (
-            <div className="space-y-6">
               <ExamTable
                 schedules={accessibleSchedules}
                 tasks={tasks}
