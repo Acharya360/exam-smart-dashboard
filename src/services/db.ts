@@ -335,7 +335,7 @@ class SupabaseDBService {
     const recordsToInsert = newSchedules.map(s => {
       const copy = { ...s };
       if (copy.id && copy.id.startsWith('sched-')) delete (copy as any).id; // Remove fake ids
-      
+
       // Ensure exam_date is in YYYY-MM-DD format for Postgres DATE column
       if (copy.exam_date && !/^\d{4}-\d{2}-\d{2}$/.test(copy.exam_date)) {
         const parts = copy.exam_date.split(/[\/\-]/);

@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/db';
 import { StudentMark } from '../../types';
 import { parseStudentMarksExcel, downloadStudentMarksTemplate } from '../../services/excelParser';
+import * as XLSX from 'xlsx';
 import {
   FileSpreadsheet,
   UploadCloud,
@@ -24,6 +25,11 @@ export const StudentMarksImport: React.FC = () => {
   // Filters
   const [assessmentFilter, setAssessmentFilter] = useState<string>('ALL');
   const [paperFilter, setPaperFilter] = useState<string>('ALL');
+  const [programFilter, setProgramFilter] = useState<string>('ALL');
+  const [semesterFilter, setSemesterFilter] = useState<string>('ALL');
+
+  // Bulk Selection
+  const [selectedMarks, setSelectedMarks] = useState<Set<string>>(new Set());
 
   // Upload state
   const [isUploading, setIsUploading] = useState(false);
@@ -82,9 +88,52 @@ export const StudentMarksImport: React.FC = () => {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedMarks.size === 0) return;
+    if (confirm(`Are you sure you want to delete ${selectedMarks.size} records?`)) {
+      setIsUploading(true);
+      const ids = Array.from(selectedMarks);
+      await Promise.all(ids.map(id => db.deleteStudentMark(id)));
+      setSelectedMarks(new Set());
+      await fetchMarks();
+      setIsUploading(false);
+    }
+  };
+
+  const handleExport = () => {
+    if (filteredMarks.length === 0) {
+      alert("No records to export");
+      return;
+    }
+    const exportData = filteredMarks.map(m => ({
+      'PRN': m.prn,
+      'Name of the Student': m.student_name,
+      'CM_Course_Name': m.cm_course_name,
+      'Semester': m.semester,
+      'PaperCode': m.paper_code,
+      'SM_Subject_Name': m.sm_subject_name,
+      'Academic_Year': m.academic_year,
+      'Exam Year': m.exam_year,
+      'Assessment_Type': m.assessment_type,
+      'Theory': m.theory,
+      'Practical': m.practical,
+      'Skills': m.skills,
+      'Total': m.theory + m.practical + m.skills
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Marks');
+    XLSX.writeFile(wb, 'Student_Marks_Export.xlsx');
+  };
+
   // Derived filter options
   const uniqueAssessments = Array.from(new Set(marks.map(m => m.assessment_type))).sort();
   const uniquePapers = Array.from(new Set(marks.map(m => m.paper_code))).sort();
+  const uniquePrograms = Array.from(new Set(marks.map(m => m.cm_course_name))).sort();
+  const uniqueSemesters = Array.from(new Set(marks.map(m => m.semester))).sort((a, b) => {
+    return String(a).localeCompare(String(b), undefined, { numeric: true });
+  });
 
   const filteredMarks = marks.filter((m) => {
     const q = searchQuery.toLowerCase();
@@ -95,8 +144,10 @@ export const StudentMarksImport: React.FC = () => {
       
     const matchesAssessment = assessmentFilter === 'ALL' || m.assessment_type === assessmentFilter;
     const matchesPaper = paperFilter === 'ALL' || m.paper_code === paperFilter;
+    const matchesProgram = programFilter === 'ALL' || m.cm_course_name === programFilter;
+    const matchesSemester = semesterFilter === 'ALL' || m.semester === semesterFilter;
     
-    return matchesSearch && matchesAssessment && matchesPaper;
+    return matchesSearch && matchesAssessment && matchesPaper && matchesProgram && matchesSemester;
   });
 
   return (
@@ -114,7 +165,24 @@ export const StudentMarksImport: React.FC = () => {
         </div>
         
         {isSuperAdmin && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {selectedMarks.size > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                disabled={isUploading}
+                className="flex items-center gap-1.5 px-3 py-2 bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg hover:bg-rose-200 transition-colors shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete ({selectedMarks.size})
+              </button>
+            )}
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors shadow-xs border border-slate-300"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export
+            </button>
             <button
               onClick={downloadStudentMarksTemplate}
               className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors shadow-xs border border-slate-300"
@@ -181,7 +249,7 @@ export const StudentMarksImport: React.FC = () => {
       )}
 
       {/* Filters */}
-      <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row gap-3 shadow-xs">
+      <div className="bg-white border border-slate-200 rounded-xl p-3 flex flex-col gap-3 shadow-xs">
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
@@ -193,8 +261,24 @@ export const StudentMarksImport: React.FC = () => {
           />
         </div>
         
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
           <Filter className="w-4 h-4 text-slate-400" />
+          <select
+            value={programFilter}
+            onChange={(e) => setProgramFilter(e.target.value)}
+            className="px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-40"
+          >
+            <option value="ALL">All Programs</option>
+            {uniquePrograms.map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          <select
+            value={semesterFilter}
+            onChange={(e) => setSemesterFilter(e.target.value)}
+            className="px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-32"
+          >
+            <option value="ALL">All Semesters</option>
+            {uniqueSemesters.map(s => <option key={s} value={String(s)}>Sem {s}</option>)}
+          </select>
           <select
             value={assessmentFilter}
             onChange={(e) => setAssessmentFilter(e.target.value)}
@@ -211,6 +295,21 @@ export const StudentMarksImport: React.FC = () => {
             <option value="ALL">All Papers</option>
             {uniquePapers.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
+          
+          {(programFilter !== 'ALL' || semesterFilter !== 'ALL' || assessmentFilter !== 'ALL' || paperFilter !== 'ALL' || searchQuery !== '') && (
+            <button
+              onClick={() => {
+                setProgramFilter('ALL');
+                setSemesterFilter('ALL');
+                setAssessmentFilter('ALL');
+                setPaperFilter('ALL');
+                setSearchQuery('');
+              }}
+              className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors ml-auto flex items-center gap-1.5"
+            >
+              Reset Filters
+            </button>
+          )}
         </div>
       </div>
 
@@ -220,6 +319,22 @@ export const StudentMarksImport: React.FC = () => {
           <table className="w-full text-xs relative">
             <thead className="sticky top-0 z-10 shadow-sm ring-1 ring-slate-200">
               <tr className="bg-slate-100">
+                {isSuperAdmin && (
+                  <th className="text-center px-4 py-3 w-10 bg-slate-100">
+                    <input 
+                      type="checkbox" 
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      checked={filteredMarks.length > 0 && selectedMarks.size === filteredMarks.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedMarks(new Set(filteredMarks.map(m => m.id)));
+                        } else {
+                          setSelectedMarks(new Set());
+                        }
+                      }}
+                    />
+                  </th>
+                )}
                 <th className="text-left px-4 py-3 font-bold text-slate-700 w-32 bg-slate-100">PRN / Name</th>
                 <th className="text-left px-4 py-3 font-bold text-slate-700 min-w-[200px] bg-slate-100">Program & Subject</th>
                 <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-100">Type</th>
@@ -235,6 +350,21 @@ export const StudentMarksImport: React.FC = () => {
                 const total = m.theory + m.practical + m.skills;
                 return (
                   <tr key={m.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    {isSuperAdmin && (
+                      <td className="px-4 py-3 text-center border-r border-slate-100">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                          checked={selectedMarks.has(m.id)}
+                          onChange={(e) => {
+                            const newSet = new Set(selectedMarks);
+                            if (e.target.checked) newSet.add(m.id);
+                            else newSet.delete(m.id);
+                            setSelectedMarks(newSet);
+                          }}
+                        />
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="font-bold text-indigo-700 font-mono">{m.prn}</div>
                       <div className="text-[11px] font-semibold text-slate-700 mt-0.5 truncate max-w-[120px]">{m.student_name}</div>
@@ -287,7 +417,7 @@ export const StudentMarksImport: React.FC = () => {
               })}
               {filteredMarks.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-12 text-center">
+                  <td colSpan={isSuperAdmin ? 9 : 8} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-500">
                       <Users className="w-8 h-8 text-slate-300 mb-2" />
                       <p>No marks records found.</p>
