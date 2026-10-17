@@ -1,0 +1,262 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "ExamTrack Examination Task Lifecycle",
+    "locale": "en",
+    "quality_profile": "showcase"
+  },
+  "lanes": [
+    {
+      "id": "superadmin",
+      "label": "Super Admin (COE · DYCOE · ACOE)"
+    },
+    {
+      "id": "system",
+      "label": "ExamTrack System · Local SQL Server"
+    },
+    {
+      "id": "primary",
+      "label": "Primary Coordinator"
+    },
+    {
+      "id": "recovery",
+      "label": "Escalation → Alternate Coordinator",
+      "variant": "exception"
+    }
+  ],
+  "phases": [
+    {
+      "id": "ingest",
+      "label": "Ingest",
+      "fromCol": 0,
+      "toCol": 1
+    },
+    {
+      "id": "generate",
+      "label": "Generate + Dispatch",
+      "fromCol": 2,
+      "toCol": 3,
+      "variant": "emphasis"
+    },
+    {
+      "id": "execute",
+      "label": "Execute",
+      "fromCol": 4,
+      "toCol": 4
+    },
+    {
+      "id": "escalate",
+      "label": "Escalate + Recover",
+      "fromCol": 5,
+      "toCol": 5,
+      "variant": "security"
+    }
+  ],
+  "mainPath": [
+    "upload",
+    "parse",
+    "commit",
+    "gen4",
+    "start",
+    "complete"
+  ],
+  "semanticChecks": {
+    "allowedRoots": [
+      "upload"
+    ],
+    "allowedTerminals": [
+      "complete",
+      "alerts"
+    ],
+    "requiredEdges": [
+      {
+        "from": "escalate",
+        "to": "enforce"
+      },
+      {
+        "from": "enforce",
+        "to": "resume"
+      }
+    ],
+    "requiredPaths": [
+      {
+        "from": "upload",
+        "to": "complete"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "id": "upload",
+      "lane": "superadmin",
+      "col": 0,
+      "width": 96,
+      "type": "frontend",
+      "label": "Upload Excel",
+      "sublabel": "timetable workbook"
+    },
+    {
+      "id": "parse",
+      "lane": "system",
+      "col": 1,
+      "width": 116,
+      "type": "backend",
+      "label": "Parse + Validate",
+      "sublabel": "SheetJS headers"
+    },
+    {
+      "id": "commit",
+      "lane": "system",
+      "col": 2,
+      "width": 92,
+      "type": "backend",
+      "label": "Commit",
+      "sublabel": "rows + auto-gen"
+    },
+    {
+      "id": "gen4",
+      "lane": "system",
+      "col": 3,
+      "width": 96,
+      "type": "backend",
+      "label": "4-Phase Suite",
+      "sublabel": "per schedule",
+      "tag": "idempotent"
+    },
+    {
+      "id": "start",
+      "lane": "primary",
+      "col": 3,
+      "width": 92,
+      "type": "frontend",
+      "label": "Start Task",
+      "sublabel": "→ IN_PROGRESS"
+    },
+    {
+      "id": "complete",
+      "lane": "primary",
+      "col": 4,
+      "width": 92,
+      "type": "frontend",
+      "label": "Complete",
+      "sublabel": "with notes"
+    },
+    {
+      "id": "escalate",
+      "lane": "recovery",
+      "col": 5,
+      "width": 112,
+      "type": "security",
+      "label": "Escalate",
+      "sublabel": "rationale required"
+    },
+    {
+      "id": "enforce",
+      "lane": "system",
+      "col": 5,
+      "width": 112,
+      "type": "security",
+      "label": "Enforce Rules",
+      "sublabel": "PATCH /api/tasks"
+    },
+    {
+      "id": "resume",
+      "lane": "recovery",
+      "col": 4,
+      "width": 92,
+      "type": "frontend",
+      "label": "Resume",
+      "sublabel": "banner alert"
+    },
+    {
+      "id": "alerts",
+      "lane": "superadmin",
+      "col": 5,
+      "width": 110,
+      "type": "frontend",
+      "label": "Critical Alerts",
+      "sublabel": "COE oversight"
+    }
+  ],
+  "edges": [
+    {
+      "from": "upload",
+      "to": "parse",
+      "label": "xlsx / xls"
+    },
+    {
+      "from": "parse",
+      "to": "commit",
+      "label": "valid rows"
+    },
+    {
+      "from": "commit",
+      "to": "gen4",
+      "label": "auto-generate"
+    },
+    {
+      "from": "gen4",
+      "to": "start",
+      "label": "4 milestones"
+    },
+    {
+      "from": "start",
+      "to": "complete",
+      "label": "on track",
+      "variant": "emphasis"
+    },
+    {
+      "from": "start",
+      "to": "escalate",
+      "label": "blocked / overdue",
+      "variant": "security"
+    },
+    {
+      "from": "escalate",
+      "to": "enforce",
+      "label": "rationale",
+      "variant": "security",
+      "fromSide": "top"
+    },
+    {
+      "from": "enforce",
+      "to": "resume",
+      "label": "reassign + stamp",
+      "variant": "security"
+    },
+    {
+      "from": "resume",
+      "to": "complete",
+      "label": "resumes execution",
+      "role": "return"
+    },
+    {
+      "from": "enforce",
+      "to": "alerts",
+      "label": "escalated + overdue",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "4-Phase Task Suite",
+      "items": [
+        "Question Paper Printing & Secure Vault Packaging",
+        "Hall Seating Plan, Attendance Sheets & Roll Labels",
+        "Invigilation Duty Assignment & Verification",
+        "Answer Booklet Collection & Counterfoil Verification"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "Escalation Enforcement",
+      "items": [
+        "Server rejects escalation without a rationale",
+        "assigned_to becomes the alternate; escalated_at stamped",
+        "Alternate resumes; COE sees Critical Alerts"
+      ]
+    }
+  ]
+}

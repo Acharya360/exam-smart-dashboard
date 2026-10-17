@@ -1,8 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { RegistrationReview } from './RegistrationReview';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/db';
-import { StudentMark } from '../../types';
+import { StudentMark, ExaminationData, RegistrationResult } from '../../types';
 import { parseStudentMarksExcel, downloadStudentMarksTemplate } from '../../services/excelParser';
+import { EditStudentMarkModal } from './EditStudentMarkModal';
 import * as XLSX from 'xlsx';
 import {
   FileSpreadsheet,
@@ -15,18 +17,30 @@ import {
   AlertCircle,
   Trash2,
   Filter,
+  ChevronLeft,
+  ChevronRight,
+  Edit3,
 } from 'lucide-react';
 
 export const StudentMarksImport: React.FC = () => {
   const { isSuperAdmin, currentUser } = useAuth();
   const [marks, setMarks] = useState<StudentMark[]>([]);
+  const [marksPageInfo, setMarksPageInfo] = useState<{total:number;page:number;pageSize:number}|null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+
+  // Client-side filters applied to the server-fetched page
   const [searchQuery, setSearchQuery] = useState('');
-  
-  // Filters
-  const [assessmentFilter, setAssessmentFilter] = useState<string>('ALL');
-  const [paperFilter, setPaperFilter] = useState<string>('ALL');
-  const [programFilter, setProgramFilter] = useState<string>('ALL');
-  const [semesterFilter, setSemesterFilter] = useState<string>('ALL');
+  const [assessmentFilter, setAssessmentFilter] = useState('ALL');
+  const [paperFilter, setPaperFilter] = useState('ALL');
+  const [programFilter, setProgramFilter] = useState('ALL');
+  const [semesterFilter, setSemesterFilter] = useState('ALL');
+  const [examYearFilter, setExamYearFilter] = useState('ALL');
+  const [reviewMode, setReviewMode] = useState<'matrix'|'records'>('records');
+  const [loadError, setLoadError] = useState<string|null>(null);
+  const [page, setPage] = useState(0);
+  const [examData, setExamData] = useState<ExaminationData | null>(null);
+  const [editingMark, setEditingMark] = useState<StudentMark | null>(null);
 
   // Bulk Selection
   const [selectedMarks, setSelectedMarks] = useState<Set<string>>(new Set());
@@ -37,14 +51,33 @@ export const StudentMarksImport: React.FC = () => {
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchMarks = async () => {
-    const data = await db.getStudentMarks();
-    setMarks(data);
+  const fetchMarks = async (page?:number) => {
+    const pageNum = page ?? currentPage;
+    const [response, examination] = await Promise.all([
+      db.getStudentMarks({ page: pageNum, pageSize }),
+      db.getExaminationData().catch(() => null)
+    ]);
+    setMarks(response.data);
+    setMarksPageInfo({ total: response.total, page: response.page, pageSize: response.pageSize });
+    setCurrentPage(response.page);
+    if (examination) setExamData(examination);
   };
 
   useEffect(() => {
-    fetchMarks();
+    fetchMarks(1).catch(()=>setLoadError('Unable to load marks. Refresh this screen to retry.'));
   }, []);
+
+  // Quick lookup for student registration status
+  const regMap = useMemo(() => {
+    const map = new Map<string, RegistrationResult>();
+    if (examData?.registrations) {
+      for (const r of examData.registrations) {
+        const k = `${r.prn}|${r.cm_course_name}|${r.semester}|${r.paper_code}|${r.academic_year}|${r.exam_year}`;
+        map.set(k, r);
+      }
+    }
+    return map;
+  }, [examData]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,6 +100,8 @@ export const StudentMarksImport: React.FC = () => {
       setUploadErrors(result.errors);
     }
 
+    if (result.errors.length > 0) { setIsUploading(false); return; }
+    if (!window.confirm(`Import ${result.data.length} validated mark records? Matching records will be updated. Review the selected workbook before confirming.`)) { setIsUploading(false); if(fileInputRef.current)fileInputRef.current.value=''; return; }
     // Call upsert
     const upsertResult = await db.upsertStudentMarks(result.data, currentUser.id);
     setIsUploading(false);
@@ -75,16 +110,16 @@ export const StudentMarksImport: React.FC = () => {
       setUploadErrors(prev => [...prev, `DB Error: ${upsertResult.error}`]);
     } else {
       setUploadSuccess(`Successfully processed (inserted or updated) ${upsertResult.total} student mark records.`);
-      fetchMarks();
+      fetchMarks(1);
     }
-    
+
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this student mark record?')) {
       await db.deleteStudentMark(id);
-      fetchMarks();
+      fetchMarks(currentPage);
     }
   };
 
@@ -93,10 +128,11 @@ export const StudentMarksImport: React.FC = () => {
     if (confirm(`Are you sure you want to delete ${selectedMarks.size} records?`)) {
       setIsUploading(true);
       const ids = Array.from(selectedMarks);
-      await Promise.all(ids.map(id => db.deleteStudentMark(id)));
+      await db.deleteStudentMarks(ids);
       setSelectedMarks(new Set());
       await fetchMarks();
       setIsUploading(false);
+      setUploadSuccess(`Successfully deleted ${ids.length} mark record(s).`);
     }
   };
 
@@ -118,7 +154,7 @@ export const StudentMarksImport: React.FC = () => {
       'Theory': m.theory,
       'Practical': m.practical,
       'Skills': m.skills,
-      'Total': m.theory + m.practical + m.skills
+      'Total': [m.theory, m.practical, m.skills].reduce<number>((sum, value) => sum + (typeof value === 'number' ? value : 0), 0)
     }));
 
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -134,24 +170,41 @@ export const StudentMarksImport: React.FC = () => {
   const uniqueSemesters = Array.from(new Set(marks.map(m => m.semester))).sort((a, b) => {
     return String(a).localeCompare(String(b), undefined, { numeric: true });
   });
+  const uniqueExamYears = Array.from(new Set(marks.map(m => m.exam_year).filter(Boolean))).sort();
 
   const filteredMarks = marks.filter((m) => {
     const q = searchQuery.toLowerCase();
-    const matchesSearch = !searchQuery || 
-      m.prn.toLowerCase().includes(q) || 
+    const matchesSearch = !searchQuery ||
+      m.prn.toLowerCase().includes(q) ||
       m.student_name.toLowerCase().includes(q) ||
       m.sm_subject_name.toLowerCase().includes(q);
-      
+
     const matchesAssessment = assessmentFilter === 'ALL' || m.assessment_type === assessmentFilter;
     const matchesPaper = paperFilter === 'ALL' || m.paper_code === paperFilter;
     const matchesProgram = programFilter === 'ALL' || m.cm_course_name === programFilter;
     const matchesSemester = semesterFilter === 'ALL' || m.semester === semesterFilter;
-    
-    return matchesSearch && matchesAssessment && matchesPaper && matchesProgram && matchesSemester;
+    const matchesExamYear = examYearFilter === 'ALL' || m.exam_year === examYearFilter;
+
+    return matchesSearch && matchesAssessment && matchesPaper && matchesProgram && matchesSemester && matchesExamYear;
   });
+
+  // Reset page when filter criteria change
+  useEffect(() => {
+    setPage(0);
+  }, [searchQuery, assessmentFilter, paperFilter, programFilter, semesterFilter, examYearFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredMarks.length / pageSize));
+  const paginatedMarks = filteredMarks.slice(page * pageSize, (page + 1) * pageSize);
+
+  // Server-side pagination controls (only visible when server returned page info)
+  const showServerPaging = marksPageInfo !== null && marksPageInfo.total > pageSize;
+  const totalServerPages = marksPageInfo ? Math.ceil(marksPageInfo.total / marksPageInfo.pageSize) : 0;
 
   return (
     <div className="space-y-6">
+      {loadError&&<p role="alert" className="rounded-lg bg-rose-50 p-4 text-rose-800">{loadError}<button className="ui-button ml-3" onClick={()=>{setLoadError('');void fetchMarks().catch(()=>setLoadError('Unable to load marks. Please retry.'));}}>Retry</button></p>}
+      <div className="flex gap-2" aria-label="Marks presentation"><button className="ui-button" aria-pressed={reviewMode==='matrix'} onClick={()=>setReviewMode('matrix')}>Component review</button><button className="ui-button" aria-pressed={reviewMode==='records'} onClick={()=>setReviewMode('records')}>Import & edit records</button></div>
+      {reviewMode==='matrix'?<><div><h1 className="text-2xl font-bold">Student marks review</h1><p className="mt-2 text-sm text-slate-500">One row per student and subject, with all twelve assessment components.</p></div>{examData?<RegistrationReview data={examData} mode="marks"/>:<p role="status">Loading component review…</p>}</>:<>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
@@ -163,7 +216,7 @@ export const StudentMarksImport: React.FC = () => {
             Upload subject-wise and component-wise marks (CA1, CA2, CA3, ESE). Existing records update automatically.
           </p>
         </div>
-        
+
         {isSuperAdmin && (
           <div className="flex items-center gap-2 flex-wrap">
             {selectedMarks.size > 0 && (
@@ -260,7 +313,7 @@ export const StudentMarksImport: React.FC = () => {
             className="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400"
           />
         </div>
-        
+
         <div className="flex flex-wrap items-center gap-2">
           <Filter className="w-4 h-4 text-slate-400" />
           <select
@@ -280,6 +333,14 @@ export const StudentMarksImport: React.FC = () => {
             {uniqueSemesters.map(s => <option key={s} value={String(s)}>Sem {s}</option>)}
           </select>
           <select
+            value={examYearFilter}
+            onChange={(e) => setExamYearFilter(e.target.value)}
+            className="px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-36"
+          >
+            <option value="ALL">All Exam Years</option>
+            {uniqueExamYears.map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select
             value={assessmentFilter}
             onChange={(e) => setAssessmentFilter(e.target.value)}
             className="px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-32"
@@ -295,12 +356,13 @@ export const StudentMarksImport: React.FC = () => {
             <option value="ALL">All Papers</option>
             {uniquePapers.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
-          
-          {(programFilter !== 'ALL' || semesterFilter !== 'ALL' || assessmentFilter !== 'ALL' || paperFilter !== 'ALL' || searchQuery !== '') && (
+
+          {(programFilter !== 'ALL' || semesterFilter !== 'ALL' || examYearFilter !== 'ALL' || assessmentFilter !== 'ALL' || paperFilter !== 'ALL' || searchQuery !== '') && (
             <button
               onClick={() => {
                 setProgramFilter('ALL');
                 setSemesterFilter('ALL');
+                setExamYearFilter('ALL');
                 setAssessmentFilter('ALL');
                 setPaperFilter('ALL');
                 setSearchQuery('');
@@ -321,8 +383,8 @@ export const StudentMarksImport: React.FC = () => {
               <tr className="bg-slate-100">
                 {isSuperAdmin && (
                   <th className="text-center px-4 py-3 w-10 bg-slate-100">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
                       checked={filteredMarks.length > 0 && selectedMarks.size === filteredMarks.length}
                       onChange={(e) => {
@@ -342,12 +404,35 @@ export const StudentMarksImport: React.FC = () => {
                 <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-100">Pract</th>
                 <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-100">Skills</th>
                 <th className="text-center px-3 py-3 font-bold text-slate-700 bg-slate-200">Total</th>
+                <th className="text-center px-3 py-3 font-bold text-slate-700 border-l border-slate-200 bg-slate-100">Status</th>
                 <th className="text-center px-3 py-3 font-bold text-slate-700 border-l border-slate-200 bg-slate-100">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredMarks.map((m) => {
-                const total = m.theory + m.practical + m.skills;
+              {paginatedMarks.map((m) => {
+                const total = [m.theory, m.practical, m.skills].reduce<number>((sum, value) => sum + (typeof value === 'number' ? value : 0), 0);
+                const regKey = `${m.prn}|${m.cm_course_name}|${m.semester}|${m.paper_code}|${m.academic_year}|${m.exam_year}`;
+                const reg = regMap.get(regKey);
+                const isCA = m.assessment_type.startsWith('CA');
+                const displayStatus = isCA ? (reg?.internalStatus || 'PENDING') : (reg?.status || 'PENDING');
+
+                const getStatusColor = (st: string) => {
+                  switch (st) {
+                    case 'PASS':
+                    case 'TG':
+                      return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+                    case 'FAIL':
+                    case 'TNG':
+                      return 'bg-rose-50 text-rose-700 border-rose-200';
+                    case 'ABSENT':
+                      return 'bg-slate-100 text-slate-700 border-slate-300';
+                    case 'WITHHELD':
+                      return 'bg-purple-50 text-purple-700 border-purple-200';
+                    default:
+                      return 'bg-amber-50 text-amber-700 border-amber-200';
+                  }
+                };
+
                 return (
                   <tr key={m.id} className="hover:bg-indigo-50/30 transition-colors group">
                     {isSuperAdmin && (
@@ -377,7 +462,7 @@ export const StudentMarksImport: React.FC = () => {
                         {m.sm_subject_name}
                       </div>
                       <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[250px]" title={m.cm_course_name}>
-                        {m.cm_course_name} (Sem {m.semester})
+                        {m.cm_course_name} (Sem {m.semester}) · {m.exam_year}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-center">
@@ -388,26 +473,43 @@ export const StudentMarksImport: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-3 py-3 text-center font-mono border-l border-slate-100">
-                      {m.theory > 0 ? m.theory : '-'}
+                      {m.theory ?? 'Pending'}
                     </td>
                     <td className="px-3 py-3 text-center font-mono">
-                      {m.practical > 0 ? m.practical : '-'}
+                      {m.practical ?? 'Pending'}
                     </td>
                     <td className="px-3 py-3 text-center font-mono">
-                      {m.skills > 0 ? m.skills : '-'}
+                      {m.skills ?? 'Pending'}
                     </td>
                     <td className="px-3 py-3 text-center font-bold text-slate-800 bg-slate-50">
                       {total}
                     </td>
                     <td className="px-3 py-3 text-center border-l border-slate-100">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${getStatusColor(displayStatus)}`}
+                        title={reg ? `Internal: ${reg.internalStatus} (${reg.internalTotal}/${reg.internalMaximum}, req ${reg.internalRequired}) · Result: ${reg.status} · Grade: ${reg.grade}${reg.reasons.length ? ' · ' + reg.reasons.join(', ') : ''}` : 'Status pending evaluation'}
+                      >
+                        {displayStatus}
+                      </span>
+                    </td>
+                    <td className="px-3 py-3 text-center border-l border-slate-100">
                       {isSuperAdmin ? (
-                        <button
-                          onClick={() => handleDelete(m.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                          title="Delete Record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => setEditingMark(m)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            title="Edit marks individually"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(m.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            title="Delete Record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       ) : (
                         <Shield className="w-3.5 h-3.5 text-slate-300 mx-auto" />
                       )}
@@ -417,7 +519,7 @@ export const StudentMarksImport: React.FC = () => {
               })}
               {filteredMarks.length === 0 && (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 9 : 8} className="px-4 py-12 text-center">
+                  <td colSpan={isSuperAdmin ? 10 : 9} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-500">
                       <Users className="w-8 h-8 text-slate-300 mb-2" />
                       <p>No marks records found.</p>
@@ -429,7 +531,74 @@ export const StudentMarksImport: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Bar */}
+        {filteredMarks.length > 0 && (
+          <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
+            <div className="flex items-center gap-2">
+              <span>
+                Showing <span className="font-semibold text-slate-900">{page * pageSize + 1}</span> to{' '}
+                <span className="font-semibold text-slate-900">{Math.min((page + 1) * pageSize, filteredMarks.length)}</span> of{' '}
+                <span className="font-semibold text-slate-900">{filteredMarks.length}</span>{' '}
+                records{marksPageInfo ? ` (of ${marksPageInfo.total.toLocaleString()} total)` : ''}
+              </span>
+              <span className="text-slate-300">|</span>
+              <div className="flex items-center gap-1.5">
+                <span>Per page:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => { setCurrentPage(1); fetchMarks(1); }}
+                  className="px-2 py-1 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  disabled
+                >
+                  <option value={50}>50 (server)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span>
+                Page <span className="font-semibold text-slate-900">{page + 1}</span> of{' '}
+                <span className="font-semibold text-slate-900">{totalPages}</span>
+              </span>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setPage((prev) => Math.max(0, prev - 1))}
+                  disabled={page === 0}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Previous page"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => setPage((prev) => Math.min(totalPages - 1, prev + 1))}
+                  disabled={page >= totalPages - 1}
+                  className="p-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  title="Next page"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Edit Student Mark Modal */}
+      {editingMark && (
+        <EditStudentMarkModal
+          mark={editingMark}
+          allStudentMarks={marks}
+          examData={examData}
+          onClose={() => setEditingMark(null)}
+          onSaved={(updatedMark, newStatus) => {
+            setEditingMark(null);
+            setUploadSuccess(`Marks for ${updatedMark.student_name} (${updatedMark.prn}) updated successfully. Evaluated status: ${newStatus}.`);
+            fetchMarks();
+          }}
+        />
+      )}
+      </>}
     </div>
   );
 };

@@ -17,7 +17,8 @@ import {
   Lock,
   Mail,
   Building2,
-  Menu
+  Menu,
+  Sparkles
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -27,6 +28,7 @@ interface HeaderProps {
   onOpenPasswordModal: () => void;
   onOpenProfileModal: (tab?: 'profile' | 'password' | 'duties') => void;
   onMenuToggle?: () => void;
+  onOpenMotionVideo?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -35,7 +37,8 @@ export const Header: React.FC<HeaderProps> = ({
   escalatedTasksCount,
   onOpenPasswordModal,
   onOpenProfileModal,
-  onMenuToggle
+  onMenuToggle,
+  onOpenMotionVideo
 }) => {
   const { currentUser, getUserRoleLabel, isSuperAdmin, logout, getUserPrograms } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -50,8 +53,10 @@ export const Header: React.FC<HeaderProps> = ({
         setDropdownOpen(false);
       }
     };
+    const closeOnEscape = (e: KeyboardEvent) => { if (e.key === 'Escape') { setDropdownOpen(false); setNotificationsOpen(false); } };
+    document.addEventListener('keydown', closeOnEscape);
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    return () => { document.removeEventListener('mousedown', handleClickOutside); document.removeEventListener('keydown', closeOnEscape); };
   }, []);
 
   const roleColors: Record<UserRole, string> = {
@@ -63,6 +68,16 @@ export const Header: React.FC<HeaderProps> = ({
 
   const getBreadcrumbTitle = (view: string) => {
     switch (view) {
+      case 'timetable': return 'Examination planning / Timetable';
+      case 'users': return 'Governance / User management';
+      case 'tng': return 'Results / TNG candidates';
+      case 'trsheet': return 'Reports / Tabulation register';
+      case 'students': return 'Student Registry / Programme & Subject Links';
+      case 'assessment': return 'Assessment Schemes / CA, EST, ESP & ESS';
+      case 'results': return 'Examination Processing / Eligibility & Results';
+      case 'sgpa': return 'Semester Results / Credit-Weighted SGPA';
+      case 'courseMaster': return 'Academic Registry / LTPS & Course Credits';
+      case 'studentMarks': return 'Examination Marks / Import & Review';
       case 'dashboard':
         return isSuperAdmin ? 'Central Examination Command / Master Dashboard' : 'Assigned Programs / Examination Timetable';
       case 'tasks':
@@ -73,6 +88,8 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Data Ingestion / Excel Sheet Parser';
       case 'schema':
         return 'System Architecture / PostgreSQL & Supabase RLS Engine';
+      case 'motionVideo':
+        return 'Experience / 60 FPS Cinematic Motion Video Showcase';
       default:
         return 'Examination Management System';
     }
@@ -112,15 +129,18 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Zone 3: Actions, Notifications & Personal User Profile */}
       <div className="flex items-center gap-2.5">
-        {/* Super Admin Staff Password Governance Shortcut */}
-        {isSuperAdmin && (
+        {/* Launch Cinematic Motion Video Button */}
+        {onOpenMotionVideo && (
           <button
-            onClick={onOpenPasswordModal}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors shadow-2xs"
-            title="Reset or change passwords for other examination coordinators and staff"
+            onClick={onOpenMotionVideo}
+            className="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 via-indigo-600 to-violet-700 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-xs shadow-violet-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+            title="Experience Project Motion Video Showcase"
           >
-            <KeyRound className="w-3.5 h-3.5 text-indigo-600" />
-            <span className="hidden sm:inline">Staff Passwords</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 group-hover:rotate-12 transition-transform" />
+            <span className="tracking-wide">Motion Video</span>
+            <span className="hidden sm:inline-block px-1.5 py-0.2 rounded text-[10px] font-mono bg-white/20 text-white font-bold">
+              60 FPS
+            </span>
           </button>
         )}
 
@@ -139,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-[min(320px,calc(100vw-32px))] bg-white rounded-xl shadow-lg border border-slate-200 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Operational Alerts</span>
                 <span className="text-xs text-slate-400 font-mono">{escalatedTasksCount} active</span>
@@ -167,22 +187,12 @@ export const Header: React.FC<HeaderProps> = ({
               ) : (
                 <div className="py-4 text-center text-xs text-slate-400 flex flex-col items-center gap-1.5">
                   <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                  <span>All tasks within regular SLA parameters</span>
+                  <span>No escalated tasks in your scope</span>
                 </div>
               )}
             </div>
           )}
         </div>
-
-        {/* Quick Schema & RLS Shortcut */}
-        <button
-          onClick={() => onNavigate('schema')}
-          className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 hover:text-slate-900 rounded-lg transition-colors"
-          title="Inspect PostgreSQL Schema & Supabase RLS Policies"
-        >
-          <Database className="w-3.5 h-3.5 text-indigo-600" />
-          <span>PostgreSQL & RLS</span>
-        </button>
 
         {/* PERSONAL USER PROFILE & SETTINGS DROPDOWN (Strictly for the Logged-In User) */}
         <div className="relative" ref={dropdownRef}>
@@ -212,7 +222,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-[min(320px,calc(100vw-32px))] bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
               {/* User Identity Card */}
               <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 rounded-t-xl">
                 <div className="flex items-center gap-3">

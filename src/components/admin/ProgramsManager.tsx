@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import confetti from 'canvas-confetti';
 import { useAuth } from '../../context/AuthContext';
 import { Program, UserProfile } from '../../types';
 import { 
-  Users, 
   Search, 
   Plus, 
   Download, 
@@ -14,15 +14,42 @@ import {
   ShieldCheck, 
   UserCheck, 
   Building2,
-  Lock
+  UploadCloud,
+  FileSpreadsheet,
+  Sparkles,
+  RefreshCw,
+  AlertCircle,
+  CheckCircle2,
+  AlertTriangle,
+  Layers,
+  ArrowRight
 } from 'lucide-react';
 
 interface ProgramsManagerProps {
   programs: Program[];
   users: UserProfile[];
-  onUpdateProgram: (program: Program) => void;
-  onDeleteProgram: (programId: string) => void;
-  onAddProgram: (program: Program) => void;
+  onUpdateProgram: (program: Program) => void | Promise<void>;
+  onDeleteProgram: (programId: string) => void | Promise<void>;
+  onDeletePrograms?: (programIds: string[]) => void | Promise<void>;
+  onAddProgram: (program: Program) => void | Promise<void>;
+  onAddPrograms?: (programs: Program[], newUsers?: UserProfile[]) => Promise<void>;
+}
+
+interface ParsedProgramItem {
+  sr_no: number;
+  program_code: string;
+  program_name: string;
+  school_name: string;
+  primary_coordinator_id: string | null;
+  alternate_coordinator_id: string | null;
+  primary_name_display: string;
+  alternate_name_display: string;
+  isUpdate: boolean;
+  existingId?: string;
+  existingName?: string;
+  warnings: string[];
+  newUserPrimary?: UserProfile;
+  newUserAlt?: UserProfile;
 }
 
 export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
@@ -30,15 +57,43 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
   users,
   onUpdateProgram,
   onDeleteProgram,
+  onDeletePrograms,
   onAddProgram,
+  onAddPrograms,
 }) => {
   const { isSuperAdmin, currentUser, getUserPrograms } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSchool, setSelectedSchool] = useState<string>('ALL');
+  const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [editingProgId, setEditingProgId] = useState<string | null>(null);
   const [editPrimaryId, setEditPrimaryId] = useState<string | null>(null);
   const [editAltId, setEditAltId] = useState<string | null>(null);
+
+  // Bulk Upload State
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkFileName, setBulkFileName] = useState<string | null>(null);
+  const [parsedItems, setParsedItems] = useState<ParsedProgramItem[]>([]);
+  const [bulkFilter, setBulkFilter] = useState<'ALL' | 'NEW' | 'UPDATE' | 'WARNING'>('ALL');
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadSuccessMessage, setUploadSuccessMessage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleBulkDelete = async () => {
+    if (selectedPrograms.size === 0) return;
+    if (confirm(`Are you sure you want to delete ${selectedPrograms.size} academic programs?`)) {
+      setIsDeleting(true);
+      const ids = Array.from(selectedPrograms);
+      if (onDeletePrograms) {
+        await onDeletePrograms(ids);
+      } else {
+        await Promise.all(ids.map(id => onDeleteProgram(id)));
+      }
+      setSelectedPrograms(new Set());
+      setIsDeleting(false);
+    }
+  };
 
   // Add program modal state
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -72,8 +127,13 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
     setEditAltId(p.alternate_coordinator_id);
   };
 
-  const saveInlineEdit = (p: Program) => {
-    onUpdateProgram({
+  const saveInlineEdit = async (p: Program) => {
+    if (editPrimaryId && editPrimaryId === editAltId) { 
+      window.alert('Choose different primary and alternate coordinators.'); 
+      return; 
+    }
+    if (!window.confirm(`Change active coordinators for ${p.program_name}? Existing examination records will be retained.`)) return;
+    await onUpdateProgram({
       ...p,
       primary_coordinator_id: editPrimaryId || null,
       alternate_coordinator_id: editAltId || null,
@@ -85,24 +145,55 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
     setEditingProgId(null);
   };
 
-  const handleAddProgramSubmit = (e: React.FormEvent) => {
+  // Single Add Program Form with Upsert Checking
+  const handleAddProgramSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanCode = newProgCode.trim().toUpperCase();
+    const existing = displayedPrograms.find(p => p.program_code.toLowerCase() === cleanCode.toLowerCase());
+
+    if (existing) {
+      if (window.confirm(`Program code "${existing.program_code}" already exists (${existing.program_name}).\n\nDo you want to update its information with these new details?`)) {
+        if (newPrimaryId && newPrimaryId === newAltId) {
+          window.alert('Primary and alternate coordinators must be different faculty members.');
+          return;
+        }
+        await onUpdateProgram({
+          ...existing,
+          sr_no: newSrNo || existing.sr_no,
+          program_name: newProgName.trim(),
+          school_name: newSchoolName.trim(),
+          primary_coordinator_id: newPrimaryId || null,
+          alternate_coordinator_id: newAltId || null,
+        });
+        setAddModalOpen(false);
+        setNewProgCode('');
+        setNewProgName('');
+      }
+      return;
+    }
+
+    if (newPrimaryId && newPrimaryId === newAltId) { 
+      window.alert('Primary and alternate coordinators must be different faculty members.'); 
+      return; 
+    }
+
     const newProg: Program = {
-      id: `prog-${newProgCode.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+      id: `prog-${cleanCode.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
       sr_no: newSrNo,
-      program_code: newProgCode.toUpperCase().trim(),
+      program_code: cleanCode,
       program_name: newProgName.trim(),
       school_name: newSchoolName.trim(),
       primary_coordinator_id: newPrimaryId || null,
       alternate_coordinator_id: newAltId || null,
     };
 
-    onAddProgram(newProg);
+    await onAddProgram(newProg);
     setAddModalOpen(false);
     setNewProgCode('');
     setNewProgName('');
   };
 
+  // Export current registry to Excel
   const exportProgramsToExcel = () => {
     const exportData = filteredPrograms.map((p) => {
       const primaryUser = users.find((u) => u.id === p.primary_coordinator_id);
@@ -124,6 +215,380 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
     XLSX.writeFile(wb, `Program_Master_Mapping_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  // Helper to resolve coordinator by email or name
+  const resolveCoordinator = (rawStr: string | undefined): { userId: string | null; displayName: string; newUser?: UserProfile } => {
+    if (!rawStr || typeof rawStr !== 'string' || !rawStr.trim() || rawStr.trim().toLowerCase() === 'unassigned') {
+      return { userId: null, displayName: 'Unassigned' };
+    }
+    const trimmed = rawStr.trim();
+    
+    // 1. Try extracting email
+    const emailMatch = trimmed.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+    const email = emailMatch ? emailMatch[1].toLowerCase() : null;
+
+    if (email) {
+      const userByEmail = users.find(u => u.email.toLowerCase() === email);
+      if (userByEmail) {
+        return { userId: userByEmail.id, displayName: `${userByEmail.full_name} (${userByEmail.email})` };
+      }
+    }
+
+    // 2. Search existing users by clean name
+    const cleanName = trimmed.replace(/\(.*?\)/g, '').replace(/^(prof\.|dr\.|mr\.|ms\.|mrs\.)\s+/i, '').trim().toLowerCase();
+    if (cleanName.length > 2) {
+      const userByName = users.find(u => {
+        const uClean = u.full_name.replace(/^(prof\.|dr\.|mr\.|ms\.|mrs\.)\s+/i, '').trim().toLowerCase();
+        return uClean === cleanName || uClean.includes(cleanName) || cleanName.includes(uClean);
+      });
+      if (userByName) {
+        return { userId: userByName.id, displayName: `${userByName.full_name} (${userByName.email})` };
+      }
+    }
+
+    // 3. If email supplied and not found in users, stage a new user profile
+    if (email) {
+      const extractedName = trimmed.replace(/\(.*?\)/g, '').trim() || email.split('@')[0];
+      const newId = `user-coord-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+      const newUser: UserProfile = {
+        id: newId,
+        email,
+        full_name: extractedName,
+        role: 'COORDINATOR',
+        title: 'Exam Coordinator',
+        department: '',
+        created_at: new Date().toISOString()
+      };
+      return { userId: newId, displayName: `${extractedName} (${email}) [New User]`, newUser };
+    }
+
+    return { userId: null, displayName: `${trimmed} (Unassigned)` };
+  };
+
+  // Convert raw row array to ParsedProgramItem with Upsert verification
+  const parseRowsToItems = (rawRows: Record<string, unknown>[]): ParsedProgramItem[] => {
+    const items: ParsedProgramItem[] = [];
+
+    rawRows.forEach((r, idx) => {
+      const progCode = String(
+        r['Program Code'] ?? r['Program_Code'] ?? r['Code'] ?? r['PaperCode'] ?? r['Course Code'] ?? r['ProgramCode'] ?? ''
+      ).trim().toUpperCase();
+
+      const progName = String(
+        r['Program Name'] ?? r['Program_Name'] ?? r['Course Name'] ?? r['CM_Course_Name'] ?? r['Title'] ?? ''
+      ).trim();
+
+      const schoolName = String(
+        r['School Name'] ?? r['School_Name'] ?? r['School'] ?? r['Faculty'] ?? r['Department'] ?? 'School of Engineering & Technology'
+      ).trim();
+
+      const rawSr = r['Sr. No.'] ?? r['Sr No'] ?? r['Sr'] ?? r['Serial'];
+      const srNo = Number(rawSr) || (idx + 1);
+
+      const primaryRaw = String(r['Primary Coordinator Email/Name'] ?? r['Primary Coordinator'] ?? r['Primary_Coordinator'] ?? r['Primary'] ?? '');
+      const altRaw = String(r['Alternate Coordinator Email/Name'] ?? r['Alternate Coordinator'] ?? r['Alternate_Coordinator'] ?? r['Alternate'] ?? '');
+
+      if (!progCode && !progName) return; // skip empty rows
+
+      const warnings: string[] = [];
+      if (!progCode) warnings.push('Missing Program Code');
+      if (!progName) warnings.push('Missing Program Title');
+
+      // Check if existing or not
+      const existing = programs.find(p => p.program_code.trim().toLowerCase() === progCode.toLowerCase());
+      const isUpdate = !!existing;
+
+      const resolvedPrimary = resolveCoordinator(primaryRaw);
+      const resolvedAlt = resolveCoordinator(altRaw);
+
+      if (resolvedPrimary.userId && resolvedAlt.userId && resolvedPrimary.userId === resolvedAlt.userId) {
+        warnings.push('Primary and Alternate coordinators are the same faculty member');
+      }
+
+      items.push({
+        sr_no: srNo,
+        program_code: progCode,
+        program_name: progName,
+        school_name: schoolName,
+        primary_coordinator_id: resolvedPrimary.userId,
+        alternate_coordinator_id: resolvedAlt.userId,
+        primary_name_display: resolvedPrimary.displayName,
+        alternate_name_display: resolvedAlt.displayName,
+        isUpdate,
+        existingId: existing?.id,
+        existingName: existing?.program_name,
+        warnings,
+        newUserPrimary: resolvedPrimary.newUser,
+        newUserAlt: resolvedAlt.newUser
+      });
+    });
+
+    return items;
+  };
+
+  // Download Sample Excel Template
+  const downloadSampleTemplate = () => {
+    const templateRows = [
+      {
+        'Sr. No.': 1,
+        'Program Code': 'BTECH-CEM',
+        'Program Name': 'B.Tech. Construction Engineering & Management',
+        'School Name': 'School of Construction Engineering and Infrastructure Management',
+        'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 2,
+        'Program Code': 'BTECH-MECH',
+        'Program Name': 'B.Tech. Mechatronics Engineering',
+        'School Name': 'School of Mechatronics Engineering',
+        'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 3,
+        'Program Code': 'BTECH-CSAI',
+        'Program Name': 'B.Tech. Computer Science & AI',
+        'School Name': 'School of Computer Science & Artificial Intelligence',
+        'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 4,
+        'Program Code': 'BTECH-EEE',
+        'Program Name': 'B.Tech. Electrical & Electronics',
+        'School Name': 'School of Electrical & Electronics Engineering',
+        'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 5,
+        'Program Code': 'BARCH',
+        'Program Name': 'B.Arch. Architecture & Urban Design',
+        'School Name': 'School of Architecture, Urban Development & Planning',
+        'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 6,
+        'Program Code': 'BBA-LSCM',
+        'Program Name': 'BBA Logistics & Supply Chain Management',
+        'School Name': 'School of Management & Commerce',
+        'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 7,
+        'Program Code': 'BBA-RET',
+        'Program Name': 'BBA Retail & E-Commerce Management',
+        'School Name': 'School of Management & Commerce',
+        'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 8,
+        'Program Code': 'BSC-DS',
+        'Program Name': 'B.Sc. Data Science & Artificial Intelligence',
+        'School Name': 'School of Computer Science & Artificial Intelligence',
+        'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
+      }
+    ];
+
+    const ws = XLSX.utils.json_to_sheet(templateRows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Program_Mapping_Registry');
+    XLSX.writeFile(wb, 'SSPU_Academic_Programs_Template.xlsx');
+  };
+
+  // Preload SSPU Standard Programs Preset
+  const loadPreloadedSSPUPrograms = () => {
+    const templateRows = [
+      {
+        'Sr. No.': 1,
+        'Program Code': 'BTECH-CEM',
+        'Program Name': 'B.Tech. Construction Engineering & Management',
+        'School Name': 'School of Construction Engineering and Infrastructure Management',
+        'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 2,
+        'Program Code': 'BTECH-MECH',
+        'Program Name': 'B.Tech. Mechatronics Engineering',
+        'School Name': 'School of Mechatronics Engineering',
+        'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 3,
+        'Program Code': 'BTECH-CSAI',
+        'Program Name': 'B.Tech. Computer Science & AI',
+        'School Name': 'School of Computer Science & Artificial Intelligence',
+        'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 4,
+        'Program Code': 'BTECH-EEE',
+        'Program Name': 'B.Tech. Electrical & Electronics',
+        'School Name': 'School of Electrical & Electronics Engineering',
+        'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 5,
+        'Program Code': 'BARCH',
+        'Program Name': 'B.Arch. Architecture & Urban Design',
+        'School Name': 'School of Architecture, Urban Development & Planning',
+        'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 6,
+        'Program Code': 'BBA-LSCM',
+        'Program Name': 'BBA Logistics & Supply Chain Management',
+        'School Name': 'School of Management & Commerce',
+        'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 7,
+        'Program Code': 'BBA-RET',
+        'Program Name': 'BBA Retail & E-Commerce Management',
+        'School Name': 'School of Management & Commerce',
+        'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
+      },
+      {
+        'Sr. No.': 8,
+        'Program Code': 'BSC-DS',
+        'Program Name': 'B.Sc. Data Science & Artificial Intelligence',
+        'School Name': 'School of Computer Science & Artificial Intelligence',
+        'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
+        'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
+      }
+    ];
+
+    const items = parseRowsToItems(templateRows);
+    setParsedItems(items);
+    setBulkFileName('SSPU_Standard_Program_Registry_Preset.xlsx');
+    setBulkFilter('ALL');
+  };
+
+  // Handle file selection and parsing
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setBulkFileName(file.name);
+    try {
+      const buffer = await file.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: 'array' });
+      const sheetName = wb.SheetNames.includes('Program_Mapping_Registry') 
+        ? 'Program_Mapping_Registry' 
+        : wb.SheetNames[0];
+
+      const ws = wb.Sheets[sheetName];
+      if (!ws) {
+        window.alert(`No worksheets found in ${file.name}`);
+        return;
+      }
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
+      if (rows.length === 0) {
+        window.alert('The selected sheet has no data rows. Please use the template or preload preset.');
+        return;
+      }
+
+      const items = parseRowsToItems(rows);
+      setParsedItems(items);
+      setBulkFilter('ALL');
+    } catch (err) {
+      console.error('File parsing failed:', err);
+      window.alert('Failed to parse file: ' + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  // Commit parsed items to database
+  const handleBulkCommit = async () => {
+    if (parsedItems.length === 0) return;
+    const validItems = parsedItems.filter(item => item.program_code && item.program_name);
+    if (validItems.length === 0) {
+      window.alert('No valid programs found to import.');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const programsToSync: Program[] = validItems.map((item, idx) => ({
+        id: item.existingId || `prog-${item.program_code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+        sr_no: item.sr_no || (idx + 1),
+        program_code: item.program_code,
+        program_name: item.program_name,
+        school_name: item.school_name,
+        primary_coordinator_id: item.primary_coordinator_id || null,
+        alternate_coordinator_id: item.alternate_coordinator_id || null,
+      }));
+
+      const newUsersToCreate: UserProfile[] = [];
+      for (const item of validItems) {
+        if (item.newUserPrimary && !newUsersToCreate.some(u => u.email === item.newUserPrimary?.email)) {
+          newUsersToCreate.push(item.newUserPrimary);
+        }
+        if (item.newUserAlt && !newUsersToCreate.some(u => u.email === item.newUserAlt?.email)) {
+          newUsersToCreate.push(item.newUserAlt);
+        }
+      }
+
+      if (onAddPrograms) {
+        await onAddPrograms(programsToSync, newUsersToCreate);
+      } else {
+        for (const p of programsToSync) {
+          const existing = programs.find(ep => ep.program_code.toLowerCase() === p.program_code.toLowerCase());
+          if (existing) {
+            await onUpdateProgram({ ...existing, ...p });
+          } else {
+            await onAddProgram(p);
+          }
+        }
+      }
+
+      const updateCount = validItems.filter(i => i.isUpdate).length;
+      const newCount = validItems.filter(i => !i.isUpdate).length;
+
+      try {
+        confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
+      } catch {}
+
+      setUploadSuccessMessage(`Successfully synchronized ${validItems.length} programs (${updateCount} updated, ${newCount} added).`);
+      setTimeout(() => {
+        setBulkModalOpen(false);
+        setParsedItems([]);
+        setBulkFileName(null);
+        setUploadSuccessMessage(null);
+      }, 1400);
+    } catch (err) {
+      console.error('Failed to commit programs:', err);
+      window.alert(err instanceof Error ? err.message : 'Failed to synchronize programs.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Counters for preview modal
+  const updateCount = parsedItems.filter(i => i.isUpdate).length;
+  const newCount = parsedItems.filter(i => !i.isUpdate).length;
+  const warningCount = parsedItems.filter(i => i.warnings.length > 0).length;
+
+  const filteredParsedItems = parsedItems.filter(item => {
+    if (bulkFilter === 'NEW') return !item.isUpdate;
+    if (bulkFilter === 'UPDATE') return item.isUpdate;
+    if (bulkFilter === 'WARNING') return item.warnings.length > 0;
+    return true;
+  });
+
   return (
     <div className="space-y-4">
       {/* Header & stats */}
@@ -144,7 +609,18 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {isSuperAdmin && selectedPrograms.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-rose-700 bg-rose-100 hover:bg-rose-200 rounded-lg shadow-xs transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete ({selectedPrograms.size})</span>
+            </button>
+          )}
+
           <button
             onClick={exportProgramsToExcel}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 shadow-xs transition-colors"
@@ -154,16 +630,33 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
           </button>
 
           {isSuperAdmin && (
-            <button
-              onClick={() => {
-                setNewSrNo(programs.length + 1);
-                setAddModalOpen(true);
-              }}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Program</span>
-            </button>
+            <>
+              {/* Bulk Upload Button */}
+              <button
+                onClick={() => {
+                  setBulkModalOpen(true);
+                  if (parsedItems.length === 0) {
+                    loadPreloadedSSPUPrograms();
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-xs transition-colors"
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>Bulk Upload Programs</span>
+              </button>
+
+              {/* Add Program Button */}
+              <button
+                onClick={() => {
+                  setNewSrNo(programs.length + 1);
+                  setAddModalOpen(true);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Program</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -201,10 +694,26 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
 
       {/* Programs Table */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold text-[11px] uppercase tracking-wider">
+        <div className="overflow-auto max-h-[620px]">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold text-[11px] uppercase tracking-wider shadow-2xs">
               <tr>
+                {isSuperAdmin && (
+                  <th className="py-3 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                      checked={filteredPrograms.length > 0 && selectedPrograms.size === filteredPrograms.length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedPrograms(new Set(filteredPrograms.map(p => p.id)));
+                        } else {
+                          setSelectedPrograms(new Set());
+                        }
+                      }}
+                    />
+                  </th>
+                )}
                 <th className="py-3 px-3 w-16 text-center font-mono">Sr</th>
                 <th className="py-3 px-3 w-32 font-mono">Program Code</th>
                 <th className="py-3 px-3 min-w-[220px]">Program Title & School</th>
@@ -216,7 +725,7 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredPrograms.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-400">
+                  <td colSpan={isSuperAdmin ? 7 : 6} className="py-8 text-center text-slate-400">
                     No academic programs found matching criteria.
                   </td>
                 </tr>
@@ -231,6 +740,21 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
 
                   return (
                     <tr key={p.id} className="hover:bg-slate-50 transition-colors">
+                      {isSuperAdmin && (
+                        <td className="py-3 px-3 text-center border-r border-slate-100">
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            checked={selectedPrograms.has(p.id)}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedPrograms);
+                              if (e.target.checked) newSet.add(p.id);
+                              else newSet.delete(p.id);
+                              setSelectedPrograms(newSet);
+                            }}
+                          />
+                        </td>
+                      )}
                       <td className="py-3 px-3 text-center font-mono text-slate-500">
                         {p.sr_no}
                       </td>
@@ -372,6 +896,260 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
         </div>
       </div>
 
+      {/* Bulk Upload Programs Modal */}
+      {bulkModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col border border-slate-200 animate-in fade-in zoom-in-95 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-200 flex items-start justify-between bg-slate-50">
+              <div>
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
+                    <UploadCloud className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">
+                      Bulk Upload Academic Programs & Coordinators
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Upload an Excel or CSV file. Existing program codes are automatically detected and updated; new codes are registered.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setBulkModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 overflow-y-auto flex-1">
+              {uploadSuccessMessage && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center gap-3 text-emerald-800 text-sm font-semibold animate-in fade-in">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span>{uploadSuccessMessage}</span>
+                </div>
+              )}
+
+              {/* Action Bar: Download Template & Preset */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-indigo-50/60 border border-indigo-100 rounded-xl">
+                <div className="flex items-center gap-2 text-xs text-indigo-950 font-medium">
+                  <FileSpreadsheet className="w-4 h-4 text-indigo-600" />
+                  <span>Need the standard column headers or full university registry?</span>
+                </div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={downloadSampleTemplate}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-50 shadow-2xs transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Download Template (.xlsx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={loadPreloadedSSPUPrograms}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-colors"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Preload SSPU Master Preset</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* File Dropzone */}
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-300 hover:border-indigo-400 hover:bg-slate-50/80 rounded-xl p-5 text-center cursor-pointer transition-colors group"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                />
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <div className="p-3 bg-slate-100 group-hover:bg-indigo-50 text-slate-500 group-hover:text-indigo-600 rounded-full transition-colors">
+                    <UploadCloud className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-slate-800">
+                      {bulkFileName ? `Loaded: ${bulkFileName}` : 'Choose an Excel (.xlsx, .xls) or CSV file'}
+                    </span>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      Drag and drop here, or click to browse from your device
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upsert Preview Section */}
+              {parsedItems.length > 0 && (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <Layers className="w-4 h-4 text-slate-500" />
+                        <span>Parsed Records ({parsedItems.length})</span>
+                      </h4>
+                      {/* Summary Badges */}
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        {newCount} New (To Register)
+                      </span>
+                      <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200">
+                        {updateCount} Existing (To Update)
+                      </span>
+                      {warningCount > 0 && (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                          {warningCount} Warnings
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Filter Tabs */}
+                    <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs">
+                      <button
+                        onClick={() => setBulkFilter('ALL')}
+                        className={`px-2.5 py-1 rounded-md font-medium transition-colors ${bulkFilter === 'ALL' ? 'bg-white shadow-2xs text-slate-900 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        All ({parsedItems.length})
+                      </button>
+                      <button
+                        onClick={() => setBulkFilter('NEW')}
+                        className={`px-2.5 py-1 rounded-md font-medium transition-colors ${bulkFilter === 'NEW' ? 'bg-white shadow-2xs text-emerald-800 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        New ({newCount})
+                      </button>
+                      <button
+                        onClick={() => setBulkFilter('UPDATE')}
+                        className={`px-2.5 py-1 rounded-md font-medium transition-colors ${bulkFilter === 'UPDATE' ? 'bg-white shadow-2xs text-amber-800 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        Updates ({updateCount})
+                      </button>
+                      {warningCount > 0 && (
+                        <button
+                          onClick={() => setBulkFilter('WARNING')}
+                          className={`px-2.5 py-1 rounded-md font-medium transition-colors ${bulkFilter === 'WARNING' ? 'bg-white shadow-2xs text-rose-800 font-bold' : 'text-slate-600 hover:text-slate-900'}`}
+                        >
+                          Warnings ({warningCount})
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Scrollable Preview Table with Sticky Header */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                    <div className="overflow-auto max-h-[340px]">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700 border-b border-slate-200 font-semibold text-[11px] uppercase tracking-wider shadow-2xs">
+                          <tr>
+                            <th className="py-2.5 px-3 w-28 text-center">Action / Status</th>
+                            <th className="py-2.5 px-3 w-12 text-center font-mono">Sr</th>
+                            <th className="py-2.5 px-3 w-28 font-mono">Code</th>
+                            <th className="py-2.5 px-3 min-w-[200px]">Program Title & School</th>
+                            <th className="py-2.5 px-3 min-w-[180px]">Primary Coordinator</th>
+                            <th className="py-2.5 px-3 min-w-[180px]">Alternate Coordinator</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {filteredParsedItems.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50 transition-colors">
+                              <td className="py-2.5 px-3 text-center">
+                                {item.isUpdate ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                                    <RefreshCw className="w-2.5 h-2.5" />
+                                    <span>UPDATE</span>
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                                    <Plus className="w-2.5 h-2.5" />
+                                    <span>NEW</span>
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3 text-center font-mono text-slate-500">
+                                {item.sr_no}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-100">
+                                  {item.program_code}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="font-semibold text-slate-900 leading-snug">
+                                  {item.program_name}
+                                </div>
+                                <div className="text-[11px] text-slate-500 mt-0.5">
+                                  {item.school_name}
+                                </div>
+                                {item.warnings.length > 0 && (
+                                  <div className="mt-1 flex items-center gap-1 text-[10px] text-rose-600 font-semibold">
+                                    <AlertTriangle className="w-3 h-3 shrink-0" />
+                                    <span>{item.warnings.join(', ')}</span>
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-1.5 font-medium text-slate-800">
+                                  <UserCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                  <span className="truncate max-w-[170px]">{item.primary_name_display}</span>
+                                </div>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <div className="flex items-center gap-1.5 font-medium text-slate-800">
+                                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                                  <span className="truncate max-w-[170px]">{item.alternate_name_display}</span>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setBulkModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+              >
+                Cancel
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={parsedItems.length === 0 || isUploading}
+                  onClick={handleBulkCommit}
+                  className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition-colors"
+                >
+                  {isUploading ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Synchronizing Registry...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Commit & Synchronize ({parsedItems.length} Programs)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Program Modal */}
       {addModalOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
@@ -380,7 +1158,7 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
               Add Academic Program to Registry
             </h3>
             <p className="text-xs text-slate-500 mb-4">
-              Map new degree program with assigned and alternate faculty coordinators.
+              Map new degree program with assigned and alternate faculty coordinators. If the program code exists, it will be updated.
             </p>
 
             <form onSubmit={handleAddProgramSubmit} className="space-y-3 text-xs">
@@ -474,7 +1252,7 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
                   type="submit"
                   className="px-4 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors"
                 >
-                  Register Program
+                  Register / Update Program
                 </button>
               </div>
             </form>

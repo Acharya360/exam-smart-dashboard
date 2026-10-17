@@ -291,8 +291,9 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                       } else {
                         alert(`Failed to import. Errors: ${result.errors.join(', ')}`);
                       }
-                    } catch (err: any) {
-                      alert(`Upload failed: ${err.message || 'Unknown error occurred during upload.'}`);
+                    } catch (err: unknown) {
+                      const msg = err instanceof Error ? err.message : 'Unknown error occurred during upload.';
+                      alert(`Upload failed: ${msg}`);
                       console.error('Upload Error:', err);
                     } finally {
                       e.target.value = ''; // reset
@@ -314,10 +315,10 @@ export const ExamTable: React.FC<ExamTableProps> = ({
         </div>
 
         {/* Timetable Data Grid */}
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[620px] rounded-b-xl border-t border-slate-200">
           <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50/50 backdrop-blur-sm text-slate-500 border-b border-white/60 font-bold text-[11px] uppercase tracking-wider">
+            <thead className="sticky top-0 z-10 bg-slate-50 shadow-2xs">
+              <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold text-[11px] uppercase tracking-wider">
                 {!isCoordinatorView && (
                   <th className="py-2.5 px-3 w-10 text-center">
                     <input

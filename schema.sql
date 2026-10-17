@@ -233,7 +233,249 @@
   );
 
   -- ============================================================================
-  -- 6. SEED DEFAULT USERS (Run this only once for fresh setup)
+  -- 6. Student Marks Table (Component-wise marks per student per subject)
+  -- ============================================================================
+  CREATE TABLE public.student_marks (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      prn TEXT NOT NULL,
+      student_name TEXT NOT NULL,
+      cm_course_name TEXT NOT NULL,
+      semester TEXT NOT NULL,
+      paper_code TEXT NOT NULL,
+      sm_subject_name TEXT NOT NULL,
+      academic_year TEXT NOT NULL,
+      exam_year TEXT NOT NULL,
+      assessment_type TEXT NOT NULL, -- 'CAT', 'EST', 'CAP', 'ESP', 'IA', 'EXTERNAL'
+      theory DECIMAL(5,2) DEFAULT 0,
+      practical DECIMAL(5,2) DEFAULT 0,
+      skills DECIMAL(5,2) DEFAULT 0,
+      uploaded_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL,
+      uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX idx_student_marks_prn ON public.student_marks(prn);
+  CREATE INDEX idx_student_marks_paper ON public.student_marks(paper_code);
+  CREATE INDEX idx_student_marks_course ON public.student_marks(cm_course_name);
+  CREATE INDEX idx_student_marks_assessment ON public.student_marks(assessment_type);
+
+  -- ============================================================================
+  -- 7. Student Results Table (Computed final results per subject per student)
+  -- ============================================================================
+  CREATE TABLE public.student_results (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      prn TEXT NOT NULL,
+      student_name TEXT NOT NULL,
+      cm_course_name TEXT NOT NULL,
+      semester TEXT NOT NULL,
+      paper_code TEXT NOT NULL,
+      sm_subject_name TEXT NOT NULL,
+      academic_year TEXT NOT NULL,
+      exam_year TEXT NOT NULL,
+      total_theory DECIMAL(5,2) DEFAULT 0,
+      total_practical DECIMAL(5,2) DEFAULT 0,
+      total_skills DECIMAL(5,2) DEFAULT 0,
+      total_marks_obtained DECIMAL(6,2) DEFAULT 0,
+      total_marks_max DECIMAL(6,2) DEFAULT 0,
+      percentage DECIMAL(5,2) DEFAULT 0,
+      grade TEXT, -- 'O', 'A+', 'A', 'B+', 'B', 'C', 'P', 'F'
+      grade_point DECIMAL(3,2) DEFAULT 0,
+      credits INTEGER DEFAULT 0,
+      result_status TEXT DEFAULT 'PENDING', -- 'PENDING', 'PASS', 'FAIL', 'ABSENT', 'WITHHELD'
+      computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      computed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX idx_student_results_prn ON public.student_results(prn);
+  CREATE INDEX idx_student_results_course_sem ON public.student_results(cm_course_name, semester);
+  CREATE INDEX idx_student_results_paper ON public.student_results(paper_code);
+  CREATE UNIQUE INDEX uq_student_results_unique ON public.student_results(prn, cm_course_name, semester, paper_code, academic_year, exam_year);
+
+  -- ============================================================================
+  -- 8. SGPA Table (Semester Grade Point Average per student per semester)
+  -- ============================================================================
+  CREATE TABLE public.student_sgpa (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      prn TEXT NOT NULL,
+      student_name TEXT NOT NULL,
+      cm_course_name TEXT NOT NULL,
+      semester TEXT NOT NULL,
+      academic_year TEXT NOT NULL,
+      exam_year TEXT NOT NULL,
+      total_credits INTEGER DEFAULT 0,
+      total_grade_points DECIMAL(8,4) DEFAULT 0,
+      sgpa DECIMAL(4,2) DEFAULT 0,
+      result_status TEXT DEFAULT 'PENDING', -- 'PASS', 'FAIL', 'ATKT'
+      computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      computed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX idx_student_sgpa_prn ON public.student_sgpa(prn);
+  CREATE INDEX idx_student_sgpa_course_sem ON public.student_sgpa(cm_course_name, semester);
+  CREATE UNIQUE INDEX uq_student_sgpa_unique ON public.student_sgpa(prn, cm_course_name, semester, academic_year, exam_year);
+
+  -- ============================================================================
+  -- 9. CGPA Table (Cumulative Grade Point Average per student)
+  -- ============================================================================
+  CREATE TABLE public.student_cgpa (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      prn TEXT NOT NULL,
+      student_name TEXT NOT NULL,
+      cm_course_name TEXT NOT NULL,
+      academic_year TEXT NOT NULL,
+      total_credits INTEGER DEFAULT 0,
+      total_grade_points DECIMAL(10,4) DEFAULT 0,
+      cgpa DECIMAL(4,2) DEFAULT 0,
+      semesters_completed INTEGER DEFAULT 0,
+      computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      computed_by UUID REFERENCES public.profiles(id) ON DELETE SET NULL
+  );
+
+  CREATE INDEX idx_student_cgpa_prn ON public.student_cgpa(prn);
+  CREATE INDEX idx_student_cgpa_course ON public.student_cgpa(cm_course_name);
+  CREATE UNIQUE INDEX uq_student_cgpa_unique ON public.student_cgpa(prn, cm_course_name, academic_year);
+
+  -- ============================================================================
+  -- 10. Course Master Table (LTPS & Marks Configuration)
+  -- ============================================================================
+  CREATE TABLE public.course_master (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      sr_no INTEGER,
+      cm_course_name TEXT NOT NULL,
+      semester TEXT NOT NULL,
+      paper_code TEXT NOT NULL,
+      sm_subject_name TEXT NOT NULL,
+      l INTEGER DEFAULT 0,
+      t INTEGER DEFAULT 0,
+      p INTEGER DEFAULT 0,
+      s INTEGER DEFAULT 0,
+      total_credits INTEGER DEFAULT 0,
+      cat_max_marks DECIMAL(5,2) DEFAULT 0,
+      cat_min_marks DECIMAL(5,2) DEFAULT 0,
+      est_max_marks DECIMAL(5,2) DEFAULT 0,
+      est_min_marks DECIMAL(5,2) DEFAULT 0,
+      cap_max_marks DECIMAL(5,2) DEFAULT 0,
+      cap_min_marks DECIMAL(5,2) DEFAULT 0,
+      esp_max_marks DECIMAL(5,2) DEFAULT 0,
+      esp_min_marks DECIMAL(5,2) DEFAULT 0,
+      ia_max_marks DECIMAL(5,2) DEFAULT 0,
+      ia_min_marks DECIMAL(5,2) DEFAULT 0,
+      total_marks DECIMAL(6,2) DEFAULT 0,
+      total_marks_min DECIMAL(6,2) DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  );
+
+  CREATE INDEX idx_course_master_course_sem ON public.course_master(cm_course_name, semester);
+  CREATE INDEX idx_course_master_paper ON public.course_master(paper_code);
+  CREATE UNIQUE INDEX uq_course_master_unique ON public.course_master(cm_course_name, semester, paper_code);
+
+  -- ============================================================================
+  -- RLS POLICIES: student_marks, student_results, student_sgpa, student_cgpa, course_master
+  -- ============================================================================
+  ALTER TABLE public.student_marks ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.student_results ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.student_sgpa ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.student_cgpa ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE public.course_master ENABLE ROW LEVEL SECURITY;
+
+  -- Student Marks: Super Admins manage all; Coordinators see their program's marks
+  CREATE POLICY "Student marks select policy"
+  ON public.student_marks FOR SELECT
+  TO authenticated
+  USING (
+    public.is_super_admin() OR
+    EXISTS (
+      SELECT 1 FROM public.programs 
+      WHERE program_code = public.student_marks.cm_course_name
+      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+    )
+  );
+
+  CREATE POLICY "Super Admins can manage student marks"
+  ON public.student_marks FOR ALL
+  TO authenticated
+  USING (public.is_super_admin())
+  WITH CHECK (public.is_super_admin());
+
+  -- Student Results: Super Admins manage all; Coordinators see their program's results
+  CREATE POLICY "Student results select policy"
+  ON public.student_results FOR SELECT
+  TO authenticated
+  USING (
+    public.is_super_admin() OR
+    EXISTS (
+      SELECT 1 FROM public.programs 
+      WHERE program_code = public.student_results.cm_course_name
+      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+    )
+  );
+
+  CREATE POLICY "Super Admins can manage student results"
+  ON public.student_results FOR ALL
+  TO authenticated
+  USING (public.is_super_admin())
+  WITH CHECK (public.is_super_admin());
+
+  -- Student SGPA: Super Admins manage all; Coordinators see their program's SGPA
+  CREATE POLICY "Student SGPA select policy"
+  ON public.student_sgpa FOR SELECT
+  TO authenticated
+  USING (
+    public.is_super_admin() OR
+    EXISTS (
+      SELECT 1 FROM public.programs 
+      WHERE program_code = public.student_sgpa.cm_course_name
+      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+    )
+  );
+
+  CREATE POLICY "Super Admins can manage student SGPA"
+  ON public.student_sgpa FOR ALL
+  TO authenticated
+  USING (public.is_super_admin())
+  WITH CHECK (public.is_super_admin());
+
+  -- Student CGPA: Super Admins manage all; Coordinators see their program's CGPA
+  CREATE POLICY "Student CGPA select policy"
+  ON public.student_cgpa FOR SELECT
+  TO authenticated
+  USING (
+    public.is_super_admin() OR
+    EXISTS (
+      SELECT 1 FROM public.programs 
+      WHERE program_code = public.student_cgpa.cm_course_name
+      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+    )
+  );
+
+  CREATE POLICY "Super Admins can manage student CGPA"
+  ON public.student_cgpa FOR ALL
+  TO authenticated
+  USING (public.is_super_admin())
+  WITH CHECK (public.is_super_admin());
+
+  -- Course Master: Super Admins manage all; Coordinators can view
+  CREATE POLICY "Course master select policy"
+  ON public.course_master FOR SELECT
+  TO authenticated
+  USING (
+    public.is_super_admin() OR
+    EXISTS (
+      SELECT 1 FROM public.programs 
+      WHERE program_code = public.course_master.cm_course_name
+      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+    )
+  );
+
+  CREATE POLICY "Super Admins can manage course master"
+  ON public.course_master FOR ALL
+  TO authenticated
+  USING (public.is_super_admin())
+  WITH CHECK (public.is_super_admin());
+
+  -- ============================================================================
+  -- 11. SEED DEFAULT USERS (Run this only once for fresh setup)
   -- ============================================================================
 
   DO $$

@@ -355,7 +355,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
           {/* Preview Table */}
           <div className="overflow-x-auto border border-slate-200 rounded-lg max-h-80 overflow-y-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-700 sticky top-0 font-semibold text-[11px]">
+              <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-2xs font-semibold text-[11px]">
                 <tr>
                   <th className="py-2 px-2.5">PKG</th>
                   <th className="py-2 px-2.5">Course Name</th>
@@ -428,7 +428,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
 
           <div className="overflow-x-auto border border-slate-200 rounded-lg max-h-80 overflow-y-auto">
             <table className="w-full text-left text-xs">
-              <thead className="bg-slate-100 text-slate-700 sticky top-0 font-semibold text-[11px]">
+              <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 shadow-2xs font-semibold text-[11px]">
                 <tr>
                   <th className="py-2 px-2.5">Sr. No.</th>
                   <th className="py-2 px-2.5">Program Code</th>

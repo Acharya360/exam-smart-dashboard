@@ -6,16 +6,15 @@ import {
   Mail, 
   Eye, 
   EyeOff, 
-  CheckCircle2, 
   AlertCircle, 
   ShieldCheck, 
-  KeyRound, 
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Zap
 } from 'lucide-react';
 
 export const LoginScreen: React.FC = () => {
-  const { login, users } = useAuth();
+  const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,14 +33,6 @@ export const LoginScreen: React.FC = () => {
     setIsLoading(false);
   };
 
-  const handleQuickLogin = async (demoEmail: string) => {
-    const targetUser = users.find((u) => u.email.toLowerCase() === demoEmail.toLowerCase());
-    const demoPassword = targetUser?.password || 'Admin@123';
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setErrorMessage(null);
-    await login(demoEmail, demoPassword);
-  };
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 selection:bg-indigo-600 selection:text-white">
@@ -95,6 +86,9 @@ export const LoginScreen: React.FC = () => {
                 <label className="block text-xs font-semibold text-slate-300">
                   Password
                 </label>
+                <span className="text-[10px] text-slate-500">
+                  Default: <span className="font-mono text-indigo-400">Admin@123</span>
+                </span>
               </div>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -120,7 +114,7 @@ export const LoginScreen: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all disabled:opacity-50"
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all disabled:opacity-50 cursor-pointer"
               >
                 {isLoading ? (
                   <span>Authenticating...</span>
@@ -135,12 +129,13 @@ export const LoginScreen: React.FC = () => {
           </form>
 
           {/* Security badge footer */}
-        <div className="mt-4 text-center flex items-center justify-center gap-1.5 text-xs text-slate-500">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          <span>PostgreSQL Row-Level Security (RLS) Enforced</span>
+          <div className="mt-5 text-center flex items-center justify-center gap-1.5 text-xs text-slate-500">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+            <span>Secure session · Local university database</span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
   );
 };
+

@@ -1,3 +1,4 @@
+import { DetailDrawer } from '../common/DetailDrawer';
 import React, { useState, useMemo } from 'react';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../../context/AuthContext';
@@ -53,6 +54,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   onClearScheduleFocus,
 }) => {
   const { currentUser, isSuperAdmin, getUserPrograms } = useAuth();
+  const [detailTask,setDetailTask]=useState<ExamTask|null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
 
   // Advanced filter state
@@ -82,14 +84,14 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newScheduleId, setNewScheduleId] = useState(schedules[0]?.id || '');
-  const [newDueDate, setNewDueDate] = useState('2026-05-14');
+  const [newDueDate, setNewDueDate] = useState(new Date().toLocaleDateString('en-CA'));
   const [newNotes, setNewNotes] = useState('');
 
   const userProgs = getUserPrograms();
   const userProgCodes = new Set(userProgs.all.map((p) => p.program_code));
 
   // Current reference timestamp (Exam period: May 2026)
-  const nowTime = new Date('2026-05-13T09:00:00').getTime();
+  const nowTime = Date.now();
 
   // Filter tasks based on role and advanced criteria
   const filteredTasks = useMemo(() => {
@@ -419,7 +421,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
                           {/* Task title */}
                           <h4 className="font-semibold text-slate-900 text-xs leading-snug">
-                            {task.task_title}
+                            <button className="text-left hover:text-violet-700" onClick={()=>setDetailTask(task)}>{task.task_title}</button>
                           </h4>
 
                           {/* Notes snippet */}
@@ -517,9 +519,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
       ) : (
         /* List View */
         <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500 tracking-wider">
+          <div className="overflow-auto max-h-[620px]">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500 tracking-wider shadow-2xs">
                 <tr>
                   <th className="py-3 px-4">Task Milestone</th>
                   <th className="py-3 px-3">Program</th>
@@ -545,7 +547,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                     return (
                       <tr key={task.id} className="hover:bg-slate-50 transition-colors">
                         <td className="py-3 px-4">
-                          <div className="font-semibold text-slate-900">{task.task_title}</div>
+                          <button className="text-left font-semibold text-violet-800" onClick={()=>setDetailTask(task)}>{task.task_title}</button>
                           {task.notes && (
                             <div className="text-[11px] text-slate-500 italic mt-0.5">
                               {task.notes}
@@ -785,6 +787,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
           </div>
         </div>
       )}
+      {detailTask&&<DetailDrawer title={detailTask.task_title} onClose={()=>setDetailTask(null)}><dl className="grid grid-cols-2 gap-4 text-sm">{[['Reference',detailTask.id],['Programme',detailTask.program_code],['Status',detailTask.status.replaceAll('_',' ')],['Due',detailTask.due_date],['Owner',users.find(u=>u.id===detailTask.assigned_to)?.full_name||'Unassigned'],['Alternate',users.find(u=>u.id===detailTask.alternate_user_id)?.full_name||'Unassigned'],['Last updated',detailTask.updated_at]].map(([k,v])=><div key={k}><dt className="text-xs text-slate-500">{k}</dt><dd className="mt-1 break-words">{v}</dd></div>)}</dl><section><h3 className="font-semibold">Operational notes</h3><p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{detailTask.notes||'No notes recorded.'}</p></section>{detailTask.escalation_reason&&<section className="rounded-lg bg-amber-50 p-4"><h3 className="font-semibold">Escalation rationale</h3><p className="mt-2 text-sm">{detailTask.escalation_reason}</p><p className="mt-2 text-xs">{detailTask.escalated_at}</p></section>}</DetailDrawer>}
     </div>
   );
 };

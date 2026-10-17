@@ -79,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const changeOwnPassword = async (currentPassword: string, newPassword: string) => {
-    const result = await db.updateUserPassword(currentUser.id, newPassword, `${currentUser.full_name} (Self)`);
+    const result = await db.updateUserPassword(currentUser.id, newPassword, `${currentUser.full_name} (Self)`, currentPassword);
     if (result.success) {
       await refreshUsers();
     }

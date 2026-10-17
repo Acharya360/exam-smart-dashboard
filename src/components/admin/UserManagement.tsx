@@ -20,11 +20,13 @@ import {
 } from 'lucide-react';
 
 export const UserManagement: React.FC = () => {
-  const { isSuperAdmin, users, refreshUsers } = useAuth();
+  const { isSuperAdmin, users, refreshUsers, currentUser } = useAuth();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('ALL');
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const handleDeleteUser = async (user: UserProfile) => {
     if (confirm(`Are you sure you want to delete user ${user.full_name}?`)) {
@@ -34,6 +36,22 @@ export const UserManagement: React.FC = () => {
       } else {
         alert(res.error || 'Failed to delete user.');
       }
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedUsers.size === 0) return;
+    if (confirm(`Are you sure you want to delete ${selectedUsers.size} user accounts?`)) {
+      setIsDeleting(true);
+      const ids = Array.from(selectedUsers);
+      const res = await db.deleteUsers(ids);
+      if (res.success) {
+        setSelectedUsers(new Set());
+        refreshUsers();
+      } else {
+        alert(res.error || 'Failed to delete users.');
+      }
+      setIsDeleting(false);
     }
   };
 
@@ -97,13 +115,25 @@ export const UserManagement: React.FC = () => {
             Create and manage staff accounts for the examination department
           </p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-xs"
-        >
-          <UserPlus className="w-4 h-4" />
-          Create New User
-        </button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {selectedUsers.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+              className="flex items-center gap-1.5 px-3 py-2 bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg hover:bg-rose-200 transition-colors shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete ({selectedUsers.size})
+            </button>
+          )}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 transition-colors shadow-xs"
+          >
+            <UserPlus className="w-4 h-4" />
+            Create New User
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -149,70 +179,106 @@ export const UserManagement: React.FC = () => {
 
       {/* Users Table */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">User</th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Email</th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Role</th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Title</th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Department</th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Phone</th>
-                <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Created</th>
-                <th className="text-center px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredUsers.map((user) => (
-                <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                        {user.full_name.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="font-semibold text-slate-900">{user.full_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="font-mono text-slate-600">{user.email}</span>
-                  </td>
-                  <td className="px-4 py-3">{roleBadge(user.role)}</td>
-                  <td className="px-4 py-3 text-slate-600">{user.title || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{user.department || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600 font-mono">{user.phone || '—'}</td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button
-                        onClick={() => setEditingUser(user)}
-                        className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
-                        title="Edit User"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUser(user)}
-                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
-                        title="Delete User"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {filteredUsers.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-slate-400">
-                    No users found matching your filters.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+        <div className="overflow-auto max-h-[620px]">
+          {(() => {
+            const selectableUsers = filteredUsers.filter((u) => u.id !== currentUser.id);
+            return (
+              <table className="w-full text-xs border-collapse">
+                <thead className="sticky top-0 z-10 bg-slate-50 shadow-2xs">
+                  <tr className="bg-slate-50 border-b border-slate-200">
+                    <th className="text-center px-4 py-3 w-10">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                        checked={selectableUsers.length > 0 && selectedUsers.size === selectableUsers.length}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedUsers(new Set(selectableUsers.map((u) => u.id)));
+                          } else {
+                            setSelectedUsers(new Set());
+                          }
+                        }}
+                      />
+                    </th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">User</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Email</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Role</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Title</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Department</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Phone</th>
+                    <th className="text-left px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Created</th>
+                    <th className="text-center px-4 py-3 font-semibold text-slate-600 uppercase tracking-wider text-[10px]">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3 text-center border-r border-slate-100">
+                        {user.id !== currentUser.id ? (
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                            checked={selectedUsers.has(user.id)}
+                            onChange={(e) => {
+                              const newSet = new Set(selectedUsers);
+                              if (e.target.checked) newSet.add(user.id);
+                              else newSet.delete(user.id);
+                              setSelectedUsers(newSet);
+                            }}
+                          />
+                        ) : (
+                          <span className="text-[10px] text-slate-400 font-semibold" title="Active Account">You</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                            {user.full_name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-semibold text-slate-900">{user.full_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="font-mono text-slate-600">{user.email}</span>
+                      </td>
+                      <td className="px-4 py-3">{roleBadge(user.role)}</td>
+                      <td className="px-4 py-3 text-slate-600">{user.title || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600">{user.department || '—'}</td>
+                      <td className="px-4 py-3 text-slate-600 font-mono">{user.phone || '—'}</td>
+                      <td className="px-4 py-3 text-slate-500">
+                        {user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => setEditingUser(user)}
+                            className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            title="Edit User"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUser(user)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            title="Delete User"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredUsers.length === 0 && (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-8 text-center text-slate-400">
+                        No users found matching your filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            );
+          })()}
         </div>
       </div>
 

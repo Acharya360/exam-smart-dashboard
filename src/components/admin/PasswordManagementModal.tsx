@@ -36,7 +36,7 @@ export const PasswordManagementModal: React.FC<PasswordManagementModalProps> = (
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isSuperAdmin) return null;
 
   const filteredUsers = users.filter((u) => {
     const q = searchTerm.toLowerCase();
@@ -57,10 +57,7 @@ export const PasswordManagementModal: React.FC<PasswordManagementModalProps> = (
   };
 
   const generateStrongPassword = () => {
-    const words = ['Apex', 'Exam', 'Shield', 'Secure', 'Portal', 'Matrix'];
-    const word = words[Math.floor(Math.random() * words.length)];
-    const num = Math.floor(100 + Math.random() * 900);
-    const generated = `${word}#${num}!`;
+    const generated = Array.from(crypto.getRandomValues(new Uint8Array(18)), n => n.toString(16).padStart(2, '0')).join('');
     setNewPassword(generated);
     setConfirmPassword(generated);
   };
@@ -70,10 +67,10 @@ export const PasswordManagementModal: React.FC<PasswordManagementModalProps> = (
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (!selectedUser) return;
+    if (!selectedUser || !isSuperAdmin) return;
 
-    if (newPassword.length < 6) {
-      setErrorMessage('Password must be at least 6 characters long.');
+    if (newPassword.length < 8) {
+      setErrorMessage('Password must be at least 8 characters long.');
       return;
     }
 
@@ -82,6 +79,7 @@ export const PasswordManagementModal: React.FC<PasswordManagementModalProps> = (
       return;
     }
 
+    if (!window.confirm(`Reset the password for ${selectedUser.full_name}? Their other active sessions will end.`)) return;
     const res = await changeUserPassword(selectedUser.id, newPassword);
     if (res.success) {
       setSuccessMessage(

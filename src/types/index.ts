@@ -139,6 +139,25 @@ export interface CourseMaster {
   p: number;
   s: number;
   total_credits: number;
+  grading_category?: 'Architecture' | 'Non-Architecture';
+  cat1_max?: number;
+  cat1_min?: number;
+  cat2_max?: number;
+  cat2_min?: number;
+  cat3_max?: number;
+  cat3_min?: number;
+  cap1_max?: number;
+  cap1_min?: number;
+  cap2_max?: number;
+  cap2_min?: number;
+  cap3_max?: number;
+  cap3_min?: number;
+  cas1_max?: number;
+  cas1_min?: number;
+  cas2_max?: number;
+  cas2_min?: number;
+  cas3_max?: number;
+  cas3_min?: number;
   cat_max_marks: number;
   cat_min_marks: number;
   est_max_marks: number;
@@ -147,10 +166,14 @@ export interface CourseMaster {
   cap_min_marks: number;
   esp_max_marks: number;
   esp_min_marks: number;
+  ess_max_marks?: number;
+  ess_min_marks?: number;
   ia_max_marks: number;
   ia_min_marks: number;
   total_marks: number;
   total_marks_min: number;
+  scheme?: AssessmentScheme | null;
+  program_id?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -166,6 +189,25 @@ export interface CourseMasterRow {
   P?: number | string;
   S?: number | string;
   'Total Credits'?: number | string;
+  'Grading Category'?: string;
+  'CAT1 Max Marks'?: number | string;
+  'CAT1 Min Marks'?: number | string;
+  'CAT2 Max Marks'?: number | string;
+  'CAT2 Min Marks'?: number | string;
+  'CAT3 Max Marks'?: number | string;
+  'CAT3 Min Marks'?: number | string;
+  'CAP1 Max Marks'?: number | string;
+  'CAP1 Min Marks'?: number | string;
+  'CAP2 Max Marks'?: number | string;
+  'CAP2 Min Marks'?: number | string;
+  'CAP3 Max Marks'?: number | string;
+  'CAP3 Min Marks'?: number | string;
+  'CAS1 Max Marks'?: number | string;
+  'CAS1 Min Marks'?: number | string;
+  'CAS2 Max Marks'?: number | string;
+  'CAS2 Min Marks'?: number | string;
+  'CAS3 Max Marks'?: number | string;
+  'CAS3 Min Marks'?: number | string;
   'CAT Max Marks'?: number | string;
   'CAT Min Marks'?: number | string;
   'EST Max Marks'?: number | string;
@@ -174,6 +216,8 @@ export interface CourseMasterRow {
   'CAP Min Marks'?: number | string;
   'ESP Max Marks'?: number | string;
   'ESP Min Marks'?: number | string;
+  'ESS Max Marks'?: number | string;
+  'ESS Min Marks'?: number | string;
   'IA Max Marks'?: number | string;
   'IA Min Marks'?: number | string;
   'Total Marks'?: number | string;
@@ -196,9 +240,9 @@ export interface StudentMark {
   academic_year: string;
   exam_year: string;
   assessment_type: string;
-  theory: number;
-  practical: number;
-  skills: number;
+  theory: AssessmentMark;
+  practical: AssessmentMark;
+  skills: AssessmentMark;
   uploaded_by?: string;
   uploaded_at?: string;
   updated_at?: string;
@@ -219,6 +263,219 @@ export interface StudentMarkRow {
   Practical?: number | string;
   Skills?: number | string;
   [key: string]: unknown;
+}
+
+// ============================================================================
+// Student Results (Computed Final Results)
+// ============================================================================
+
+export interface StudentResult {
+  id: string;
+  prn: string;
+  student_name: string;
+  cm_course_name: string;
+  semester: string;
+  paper_code: string;
+  sm_subject_name: string;
+  academic_year: string;
+  exam_year: string;
+  total_theory: number;
+  total_practical: number;
+  total_skills: number;
+  total_marks_obtained: number;
+  total_marks_max: number;
+  percentage: number;
+  grade: string;
+  grade_point: number;
+  credits: number;
+  result_status: 'PENDING' | 'PASS' | 'FAIL' | 'ABSENT' | 'WITHHELD';
+  computed_at: string;
+  computed_by?: string;
+}
+
+export interface StudentResultRow {
+  PRN?: string;
+  'Student Name'?: string;
+  CM_Course_Name?: string;
+  Semester?: string;
+  PaperCode?: string;
+  Subject_Name?: string;
+  Academic_Year?: string;
+  Exam_Year?: string;
+  Theory?: number | string;
+  Practical?: number | string;
+  Skills?: number | string;
+  'Total Obtained'?: number | string;
+  'Total Max'?: number | string;
+  Percentage?: number | string;
+  Grade?: string;
+  'Grade Point'?: number | string;
+  Credits?: number | string;
+  Status?: string;
+  [key: string]: unknown;
+}
+
+// ============================================================================
+// SGPA (Semester Grade Point Average)
+// ============================================================================
+
+export interface StudentSGPA {
+  id: string;
+  prn: string;
+  student_name: string;
+  cm_course_name: string;
+  semester: string;
+  academic_year: string;
+  exam_year: string;
+  total_credits: number;
+  total_grade_points: number;
+  sgpa: number;
+  result_status: 'PENDING' | 'PASS' | 'FAIL' | 'ATKT';
+  computed_at: string;
+  computed_by?: string;
+}
+
+export interface StudentSGPARow {
+  PRN?: string;
+  'Student Name'?: string;
+  CM_Course_Name?: string;
+  Semester?: string;
+  Academic_Year?: string;
+  Exam_Year?: string;
+  'Total Credits'?: number | string;
+  'Total Grade Points'?: number | string;
+  SGPA?: number | string;
+  Status?: string;
+  [key: string]: unknown;
+}
+
+// ============================================================================
+// CGPA (Cumulative Grade Point Average)
+// ============================================================================
+
+export interface StudentCGPA {
+  id: string;
+  prn: string;
+  student_name: string;
+  cm_course_name: string;
+  academic_year: string;
+  total_credits: number;
+  total_grade_points: number;
+  cgpa: number;
+  semesters_completed: number;
+  computed_at: string;
+  computed_by?: string;
+}
+
+export interface StudentCGPARow {
+  PRN?: string;
+  'Student Name'?: string;
+  CM_Course_Name?: string;
+  Academic_Year?: string;
+  'Total Credits'?: number | string;
+  'Total Grade Points'?: number | string;
+  CGPA?: number | string;
+  'Semesters Completed'?: number | string;
+  [key: string]: unknown;
+}
+
+export type AssessmentHead = 'theory' | 'practical' | 'skills';
+export type AssessmentMark = number | null | 'AB';
+export type ComponentStatus = 'Pending' | 'Absent' | 'NA' | 'Evaluated';
+
+export interface AssessmentComponentDetail {
+  code: 'CAT1' | 'CAT2' | 'CAT3' | 'CAP1' | 'CAP2' | 'CAP3' | 'CAS1' | 'CAS2' | 'CAS3' | 'EST' | 'ESP' | 'ESS';
+  name: string;
+  head: AssessmentHead;
+  applicable: boolean;
+  max: number;
+  obtained: number | null | 'AB';
+  status: ComponentStatus;
+  display: string;
+}
+
+export interface AssessmentComponentsMap {
+  cat1: AssessmentComponentDetail;
+  cat2: AssessmentComponentDetail;
+  cat3: AssessmentComponentDetail;
+  cap1: AssessmentComponentDetail;
+  cap2: AssessmentComponentDetail;
+  cap3: AssessmentComponentDetail;
+  cas1: AssessmentComponentDetail;
+  cas2: AssessmentComponentDetail;
+  cas3: AssessmentComponentDetail;
+  caTotal: number;
+  caMax: number;
+  caPercentage: number;
+  caStatus: 'TG' | 'TNG' | 'PENDING';
+  est: AssessmentComponentDetail;
+  esp: AssessmentComponentDetail;
+  ess: AssessmentComponentDetail;
+  extTotal: number;
+  extMax: number;
+  grandTotal: number;
+  grandMax: number;
+  remark: 'P' | 'F' | 'Pending' | 'AB' | 'TNG';
+}
+
+export interface AssessmentScheme {
+  category: 'Architecture' | 'Non-Architecture';
+  internalPass: number;
+  overallPass: number;
+  integerMarks: boolean;
+  approved: boolean;
+  approvalReference: string;
+  credits: number;
+  heads: Record<AssessmentHead, { active: boolean; ca: [number, number, number]; ese: number; pass: number }>;
+}
+export interface AssessmentRecord {
+  assessment_type: string;
+  theory: AssessmentMark;
+  practical: AssessmentMark;
+  skills: AssessmentMark;
+}
+export interface CourseOutcome {
+  status: 'PASS' | 'FAIL' | 'TNG' | 'ABSENT' | 'PENDING' | 'WITHHELD';
+  internalStatus: 'TG' | 'TNG' | 'PENDING';
+  total: number;
+  maximum: number;
+  percentage: number;
+  internalTotal: number;
+  internalMaximum: number;
+  internalRequired: number;
+  grade: string;
+  gradePoint: number;
+  creditPoints: number;
+  earnedCredits: number;
+  reasons: string[];
+  components?: AssessmentComponentsMap;
+}
+export interface ExaminationCourse extends CourseMaster {
+  program_id: string | null;
+  scheme: AssessmentScheme | null;
+}
+export interface RegistrationResult extends CourseOutcome {
+  id: number;
+  prn: string;
+  student_name: string;
+  cm_course_name: string;
+  semester: string;
+  academic_year: string;
+  exam_year: string;
+  paper_code: string;
+  course_id: string | null;
+  program_id: string | null;
+  credits: number;
+  records: number;
+  school_name?: string;
+  sm_subject_name?: string;
+  grading_category?: 'Architecture' | 'Non-Architecture';
+}
+export interface ExaminationData {
+  programs: Program[];
+  courses: ExaminationCourse[];
+  registrations: RegistrationResult[];
+  audit: { id: number; action: string; actor: string; created_at: string; detail: string }[];
 }
 
 // ============================================================================
