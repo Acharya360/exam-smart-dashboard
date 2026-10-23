@@ -31,26 +31,31 @@ export async function localRequest<T>(path: string, method = 'GET', body?: unkno
     throw new Error('Database backend unreachable. In cloud deployments (Vercel), please configure Supabase credentials.');
   }
 
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    const text = await response.text();
-    if (text.startsWith('<!DOCTYPE') || text.startsWith('<html') || !text) {
-      throw new Error(
-        'Cloud database not connected. On Vercel, please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your Vercel Project Settings -> Environment Variables.'
-      );
+  const rawText = await response.text();
+
+  if (!rawText || !rawText.trim()) {
+    if (response.ok) {
+      return {} as T;
     }
+    throw new Error(`Server returned HTTP ${response.status} with empty response.`);
+  }
+
+  if (rawText.includes('<!DOCTYPE') || rawText.includes('<html')) {
+    throw new Error(
+      'Cloud database not connected. On Vercel, please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your Vercel Project Settings -> Environment Variables.'
+    );
   }
 
   let data: any;
   try {
-    data = await response.json();
+    data = JSON.parse(rawText);
   } catch {
     throw new Error(
-      'API server returned an empty or non-JSON response. On Vercel, please configure Supabase credentials in your project environment variables.'
+      'API server returned a non-JSON response. On Vercel, please configure Supabase credentials in your project environment variables.'
     );
   }
 
-  if (!response.ok) throw new Error(data.error || 'Database request failed. Please retry.');
+  if (!response.ok) throw new Error(data.error || data.message || `Database request failed with status ${response.status}`);
   return data as T;
 }
 const message = (e: unknown) => e instanceof Error ? e.message : 'Database request failed.';
