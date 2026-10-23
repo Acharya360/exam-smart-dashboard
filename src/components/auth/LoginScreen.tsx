@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { isSupabaseConfigured } from '../../services/supabaseClient';
 import { 
   Building2, 
   Lock, 
@@ -131,7 +132,9 @@ export const LoginScreen: React.FC = () => {
           {/* Security badge footer */}
           <div className="mt-5 text-center flex items-center justify-center gap-1.5 text-xs text-slate-500">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>Secure session · Local university database</span>
+            <span>
+              Secure session · {isSupabaseConfigured() ? 'Supabase Cloud Database' : 'Local university database'}
+            </span>
           </div>
         </div>
       </div>

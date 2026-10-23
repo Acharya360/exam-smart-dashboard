@@ -267,4 +267,93 @@ CREATE POLICY "Public write exam_course_settings" ON public.exam_course_settings
 CREATE POLICY "Public read exam_processing_audit" ON public.exam_processing_audit FOR SELECT USING (true);
 CREATE POLICY "Public write exam_processing_audit" ON public.exam_processing_audit FOR ALL USING (true) WITH CHECK (true);
 
+-- 13. TIMETABLE GENERATOR & FACULTY ALLOCATION TABLES
+CREATE TABLE IF NOT EXISTS public.timetable_sessions (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    basis TEXT NOT NULL DEFAULT 'Both',
+    odd_start_date_1 DATE,
+    odd_start_date_2 DATE,
+    even_start_date_1 DATE,
+    even_start_date_2 DATE,
+    holidays_json TEXT,
+    has_break_day BOOLEAN NOT NULL DEFAULT false,
+    use_calendar_dates BOOLEAN NOT NULL DEFAULT true,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.timetable_slots (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    semester TEXT NOT NULL,
+    slot_name TEXT NOT NULL,
+    slot_time TEXT NOT NULL,
+    odd_even TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.timetable_electives (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    group_name TEXT NOT NULL,
+    course_codes TEXT NOT NULL,
+    is_fuzzy BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.timetable_student_records (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    centre TEXT NOT NULL,
+    program TEXT NOT NULL,
+    specialization TEXT,
+    semester TEXT NOT NULL,
+    prn TEXT NOT NULL,
+    student_name TEXT NOT NULL,
+    official_email TEXT,
+    course_code TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.faculty_course_allocations (
+    id TEXT PRIMARY KEY,
+    course_master_id TEXT,
+    subject_code TEXT NOT NULL,
+    subject_name TEXT NOT NULL,
+    staff_code TEXT NOT NULL,
+    staff_name TEXT NOT NULL,
+    additional_staff TEXT,
+    section TEXT NOT NULL DEFAULT 'A',
+    semester TEXT NOT NULL,
+    program_name TEXT NOT NULL,
+    academic_year TEXT NOT NULL DEFAULT '2025-2026',
+    department TEXT,
+    workload_hours INTEGER NOT NULL DEFAULT 4,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+ALTER TABLE public.timetable_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.timetable_slots ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.timetable_electives ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.timetable_student_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.faculty_course_allocations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Public read timetable_sessions" ON public.timetable_sessions FOR SELECT USING (true);
+CREATE POLICY "Public write timetable_sessions" ON public.timetable_sessions FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Public read timetable_slots" ON public.timetable_slots FOR SELECT USING (true);
+CREATE POLICY "Public write timetable_slots" ON public.timetable_slots FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Public read timetable_electives" ON public.timetable_electives FOR SELECT USING (true);
+CREATE POLICY "Public write timetable_electives" ON public.timetable_electives FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Public read timetable_student_records" ON public.timetable_student_records FOR SELECT USING (true);
+CREATE POLICY "Public write timetable_student_records" ON public.timetable_student_records FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Public read faculty_course_allocations" ON public.faculty_course_allocations FOR SELECT USING (true);
+CREATE POLICY "Public write faculty_course_allocations" ON public.faculty_course_allocations FOR ALL USING (true) WITH CHECK (true);
+
 -- End of Supabase Migration Script

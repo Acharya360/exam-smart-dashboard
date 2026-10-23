@@ -19,8 +19,37 @@ import type {
 
 export async function localRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
   const baseUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
-  const response = await fetch(`${baseUrl}${path}`, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
-  const data = await response.json();
+  let response: Response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      method,
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch {
+    throw new Error('Database backend unreachable. In cloud deployments (Vercel), please configure Supabase credentials.');
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    const text = await response.text();
+    if (text.startsWith('<!DOCTYPE') || text.startsWith('<html') || !text) {
+      throw new Error(
+        'Cloud database not connected. On Vercel, please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your Vercel Project Settings -> Environment Variables.'
+      );
+    }
+  }
+
+  let data: any;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error(
+      'API server returned an empty or non-JSON response. On Vercel, please configure Supabase credentials in your project environment variables.'
+    );
+  }
+
   if (!response.ok) throw new Error(data.error || 'Database request failed. Please retry.');
   return data as T;
 }
