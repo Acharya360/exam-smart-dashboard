@@ -10,3 +10,13 @@ coverage/
 .vercel
 .test-artifacts/
 .local-backups/
+scratch/
+backups/
+*.tmp
+*.bak
+*.inspect.ndjson
+
+.agents/skills/
+
+media/
+*.csv

@@ -6,7 +6,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { randomBytes } from 'node:crypto';
 import { registerExamination } from './server/examination.js';
-import { calculateResult } from './src/services/resultEngine.ts';
+import { registerTimetable } from './server/timetable.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -58,8 +58,8 @@ function initSqlWorker() {
     '-NoProfile',
     '-ExecutionPolicy', 'Bypass',
     '-File', scriptPath,
-    '-Server', 'acharya360\\SQLEXPRESS',
-    '-Database', 'SSPU_Exam'
+    '-Server', process.env.SQL_SERVER || 'localhost\\SQLEXPRESS',
+    '-Database', process.env.SQL_DATABASE || 'SSPU_Exam'
   ]);
 
   const rl = readline.createInterface({ input: psProcess.stdout });
@@ -133,8 +133,8 @@ function executeSql(sql, params = {}, type = 'query') {
 // API ROUTES
 // ============================================================================
 
-// 1. Health & Status
-app.get('/api/health', async (req, res) => {
+// 1. Health & Status (authenticated: exposes database name, instance and row counts)
+app.get('/api/health', requireSession, async (req, res) => {
   try {
     const statsQuery = `
       SELECT 'profiles' AS tbl, COUNT(*) AS cnt FROM dbo.profiles
@@ -153,7 +153,7 @@ app.get('/api/health', async (req, res) => {
       status: 'ok',
       data_mode: (await executeSql('SELECT data_mode FROM dbo.exam_environment WHERE id=1')).data[0]?.data_mode || 'LIVE',
       database: 'SSPU_Exam',
-      server: 'acharya360\\SQLEXPRESS',
+      server: process.env.SQL_SERVER || 'localhost\\SQLEXPRESS',
       auth: 'Windows Integrated Security',
       counts
     });
@@ -218,6 +218,7 @@ app.use('/api', async (req,res,next) => {
   } catch { res.status(503).json({error:'Unable to verify programme access.'}); }
 });
 const examination = registerExamination(app, executeSql, requireSession);
+const timetable = registerTimetable(app, executeSql, requireSession);
 app.get('/api/examination/template',(req,res)=>{
   if(req.user.role==='COORDINATOR')return res.status(403).json({error:'Super Admin access required.'});
   res.download(path.join(__dirname,'docs','Sample Templete.xlsx'),'Examination_Marks_Template.xlsx');
@@ -359,15 +360,108 @@ app.get('/api/programs', async (req, res) => {
 
 app.post('/api/programs/bulk', async (req, res) => {
   try {
-    const { programs } = req.body;
+    const { programs, clearExisting } = req.body;
     if (!Array.isArray(programs) || programs.length === 0) {
       return res.status(400).json({ error: 'Programs array is required' });
     }
 
-    if (programs.some(p=>p.primary_coordinator_id && p.primary_coordinator_id===p.alternate_coordinator_id)) return res.status(400).json({error:'Primary and alternate coordinators must be different staff members.'});
-    if (new Set(programs.map(p=>String(p.program_code).trim().toLowerCase())).size!==programs.length) return res.status(400).json({error:'Duplicate programme codes in this request.'});
+    if (new Set(programs.map(p => String(p.program_code).trim().toLowerCase())).size !== programs.length) {
+      return res.status(400).json({ error: 'Duplicate programme codes in this request.' });
+    }
+
+    // If user requested to clear old records before importing fresh ones
+    if (clearExisting) {
+      try {
+        await executeSql(`
+          DELETE FROM dbo.exam_tasks WHERE schedule_id IN (SELECT id FROM dbo.exam_schedules);
+          DELETE FROM dbo.exam_schedules;
+          DELETE FROM dbo.exam_registrations;
+          DELETE FROM dbo.programs;
+        `, {}, 'execute');
+      } catch (clearErr) {
+        console.warn('[Programs Bulk] Safe delete fallback:', clearErr.message);
+        await executeSql('DELETE FROM dbo.programs', {}, 'execute');
+      }
+    }
+
+    // Fetch all existing profiles to resolve foreign key IDs safely
+    const profRes = await executeSql('SELECT id, email, full_name, role FROM dbo.profiles');
+    const existingProfiles = profRes.data || [];
+
+    // Resolver to guarantee that every assigned coordinator ID is valid in dbo.profiles
+    const resolveCoordinatorId = async (coordVal, coordEmail, coordName) => {
+      if (!coordVal && !coordEmail && !coordName) return null;
+
+      // 1. Direct match on existing profile ID
+      if (coordVal) {
+        const byId = existingProfiles.find(u => u.id === coordVal);
+        if (byId) return byId.id;
+      }
+
+      // 2. Extract potential email from coordEmail or coordVal
+      let email = null;
+      if (coordEmail) {
+        const m = String(coordEmail).match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+        if (m) email = m[1].toLowerCase();
+      }
+      if (!email && coordVal) {
+        const m = String(coordVal).match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+        if (m) email = m[1].toLowerCase();
+      }
+
+      if (email) {
+        const byEmail = existingProfiles.find(u => u.email && u.email.toLowerCase() === email);
+        if (byEmail) return byEmail.id;
+
+        // Auto-create coordinator profile in dbo.profiles so FK_programs_primary constraint is satisfied
+        const newId = coordVal && String(coordVal).startsWith('user-') ? coordVal : `user-coord-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+        const cleanName = coordName || (coordVal ? String(coordVal).replace(/\(.*?\)/g, '').trim() : '') || email.split('@')[0];
+        const defaultPasswordHash = await hashPassword('Admin@123');
+        await executeSql(`
+          IF NOT EXISTS (SELECT 1 FROM dbo.profiles WHERE LOWER(email) = LOWER(@email))
+          BEGIN
+            INSERT INTO dbo.profiles (id, email, password, full_name, role, department, title, created_at)
+            VALUES (@id, @email, @password, @full_name, 'COORDINATOR', '', 'Exam Coordinator', GETDATE());
+          END
+        `, {
+          id: newId,
+          email,
+          password: defaultPasswordHash,
+          full_name: cleanName
+        }, 'execute');
+
+        const fetchCreated = await executeSql('SELECT TOP 1 id, email, full_name FROM dbo.profiles WHERE LOWER(email) = LOWER(@email)', { email });
+        const createdUser = fetchCreated.data?.[0];
+        if (createdUser) {
+          existingProfiles.push(createdUser);
+          return createdUser.id;
+        }
+      }
+
+      // 3. Match by name
+      const targetName = (coordName || (coordVal ? String(coordVal).replace(/\(.*?\)/g, '').trim() : '')).toLowerCase();
+      if (targetName && targetName.length > 2) {
+        const byName = existingProfiles.find(u => {
+          const uName = (u.full_name || '').toLowerCase();
+          return uName === targetName || uName.includes(targetName) || targetName.includes(uName);
+        });
+        if (byName) return byName.id;
+      }
+
+      // If cannot be matched to any real profile in dbo.profiles, return null so FK constraint is NEVER violated!
+      return null;
+    };
+
     for (const p of programs) {
       const id = p.id || `prog-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
+
+      let primaryId = await resolveCoordinatorId(p.primary_coordinator_id, p.primary_coordinator_email, p.primary_name);
+      let alternateId = await resolveCoordinatorId(p.alternate_coordinator_id, p.alternate_coordinator_email, p.alternate_name);
+
+      if (primaryId && alternateId && primaryId === alternateId) {
+        alternateId = null;
+      }
+
       const sql = `
         IF EXISTS (SELECT 1 FROM dbo.programs WHERE LOWER(TRIM(program_code)) = LOWER(TRIM(@program_code)) OR id = @id)
         BEGIN
@@ -395,8 +489,8 @@ app.post('/api/programs/bulk', async (req, res) => {
         program_code: p.program_code,
         program_name: p.program_name,
         school_name: p.school_name,
-        primary_coordinator_id: p.primary_coordinator_id || null,
-        alternate_coordinator_id: p.alternate_coordinator_id || null
+        primary_coordinator_id: primaryId,
+        alternate_coordinator_id: alternateId
       }, 'execute');
     }
 
@@ -425,6 +519,15 @@ app.get('/api/schedules', async (req, res) => {
   }
 });
 
+// The mandated 4-phase preparation suite. Titles are a domain contract (see AGENTS.md) and
+// must stay identical to src/services/localDb.ts and the seed generator.
+const EXAM_MILESTONE_TITLES = [
+  'Question Paper Printing & Secure Vault Packaging',
+  'Hall Seating Plan, Attendance Sheets & Roll Labels',
+  'Invigilation Duty Assignment & Verification',
+  'Answer Booklet Collection & Counterfoil Verification'
+];
+
 app.post('/api/schedules/bulk', async (req, res) => {
   try {
     const { schedules } = req.body;
@@ -448,7 +551,17 @@ app.post('/api/schedules/bulk', async (req, res) => {
         ELSE
         BEGIN
           INSERT INTO dbo.exam_schedules (id, pkg_no, logic1, cm_school_name, cm_course_name, program_code, semester, elective, paper_code, sm_subject_name, student_count, regular_count, backlog_count, exam_day, exam_date, date_odd_even, am_pm, exam_time, exam_type, exam_year)
-          VALUES (@id, @pkg_no, @logic1, @cm_school_name, @cm_course_name, @program_code, @semester, @elective, @paper_code, @sm_subject_name, @student_count, @regular_count, @backlog_count, @exam_day, @exam_date, @date_odd_even, @am_pm, @exam_time, @exam_type, @exam_year)
+          VALUES (@id, @pkg_no, @logic1, @cm_school_name, @cm_course_name, @program_code, @semester, @elective, @paper_code, @sm_subject_name, @student_count, @regular_count, @backlog_count, @exam_day, @exam_date, @date_odd_even, @am_pm, @exam_time, @exam_type, @exam_year);
+
+          -- A brand-new paper gets its preparation workflow here, so schedules created outside
+          -- the browser are not left taskless. Skipped silently until coordinators are mapped.
+          INSERT INTO dbo.exam_tasks (id, schedule_id, program_code, task_title, status, assigned_to, alternate_user_id, notes, due_date, updated_at, created_at)
+          SELECT CAST(NEWID() AS NVARCHAR(100)), s.id, s.program_code, m.task_title, 'PENDING', p.primary_coordinator_id, p.alternate_coordinator_id,
+                 'Automated 4-phase examination suite', s.exam_date, GETDATE(), GETDATE()
+          FROM dbo.exam_schedules s
+          JOIN dbo.programs p ON p.program_code = s.program_code AND p.primary_coordinator_id IS NOT NULL AND p.alternate_coordinator_id IS NOT NULL
+          CROSS JOIN (VALUES ${EXAM_MILESTONE_TITLES.map(t => `(N'${t}')`).join(', ')}) m(task_title)
+          WHERE s.id = @id;
         END
       `;
       await executeSql(sql, {
@@ -529,9 +642,13 @@ app.get('/api/tasks', async (req, res) => {
   }
 });
 
+const TASK_STATUSES = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'ESCALATED_TO_ALTERNATE'];
+
 app.post('/api/tasks', async (req, res) => {
   try {
     const t = req.body;
+    if (!String(t.task_title || '').trim()) return res.status(400).json({ error: 'Task title is required.' });
+    if (!TASK_STATUSES.includes(t.status || 'PENDING')) return res.status(400).json({ error: 'Invalid task status.' });
     const id = t.id || `task-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`;
     const sql = `
       INSERT INTO dbo.exam_tasks (id, schedule_id, program_code, task_title, status, assigned_to, alternate_user_id, notes, due_date, updated_at, created_at)
@@ -552,6 +669,7 @@ app.post('/api/tasks', async (req, res) => {
     const created = await executeSql('SELECT TOP 1 * FROM dbo.exam_tasks WHERE id = @id', { id });
     res.json(created.data ? created.data[0] : null);
   } catch (err) {
+    if (/FOREIGN KEY constraint/i.test(err.message)) return res.status(400).json({ error: 'The schedule or staff account referenced by this task does not exist.' });
     res.status(500).json({ error: err.message });
   }
 });
@@ -561,7 +679,7 @@ app.patch('/api/tasks/:id', async (req, res) => {
     const { id } = req.params;
     const { status, notes, escalation_reason } = req.body;
     let { escalated_at, alternate_user_id, assigned_to } = req.body;
-    if (!['PENDING','IN_PROGRESS','COMPLETED','ESCALATED_TO_ALTERNATE',undefined].includes(status)) return res.status(400).json({error:'Invalid task status.'});
+    if (status !== undefined && !TASK_STATUSES.includes(status)) return res.status(400).json({error:'Invalid task status.'});
     if (status === 'ESCALATED_TO_ALTERNATE') {
       const task = (await executeSql('SELECT * FROM dbo.exam_tasks WHERE id=@id',{id})).data[0];
       if (!task?.alternate_user_id || !String(escalation_reason||'').trim()) return res.status(400).json({error:'An alternate coordinator and escalation rationale are required.'});
@@ -647,41 +765,52 @@ app.post('/api/course-master/bulk', async (req, res) => {
 
       const id = existing && existing.length > 0 ? existing[0].id : (c.id || `cm-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`);
 
+      const grading_category = (c.grading_category === 'Architecture' ? 'Architecture' : 'Non-Architecture');
+      const passRate = grading_category === 'Architecture' ? 0.45 : 0.40;
+
+      const calcMin = (maxVal, explicitMin) => {
+        if (explicitMin !== undefined && explicitMin !== null && explicitMin !== '') {
+          const num = Number(explicitMin);
+          if (num > 0) return num;
+        }
+        return maxVal > 0 ? Math.round(maxVal * passRate) : 0;
+      };
+
       const cat1_max = Number(c.cat1_max || 0);
-      const cat1_min = Number(c.cat1_min || 0);
+      const cat1_min = calcMin(cat1_max, c.cat1_min);
       const cat2_max = Number(c.cat2_max || 0);
-      const cat2_min = Number(c.cat2_min || 0);
+      const cat2_min = calcMin(cat2_max, c.cat2_min);
       const cat3_max = Number(c.cat3_max || 0);
-      const cat3_min = Number(c.cat3_min || 0);
+      const cat3_min = calcMin(cat3_max, c.cat3_min);
 
       const cap1_max = Number(c.cap1_max || 0);
-      const cap1_min = Number(c.cap1_min || 0);
+      const cap1_min = calcMin(cap1_max, c.cap1_min);
       const cap2_max = Number(c.cap2_max || 0);
-      const cap2_min = Number(c.cap2_min || 0);
+      const cap2_min = calcMin(cap2_max, c.cap2_min);
       const cap3_max = Number(c.cap3_max || 0);
-      const cap3_min = Number(c.cap3_min || 0);
+      const cap3_min = calcMin(cap3_max, c.cap3_min);
 
       const cas1_max = Number(c.cas1_max || 0);
-      const cas1_min = Number(c.cas1_min || 0);
+      const cas1_min = calcMin(cas1_max, c.cas1_min);
       const cas2_max = Number(c.cas2_max || 0);
-      const cas2_min = Number(c.cas2_min || 0);
+      const cas2_min = calcMin(cas2_max, c.cas2_min);
       const cas3_max = Number(c.cas3_max || 0);
-      const cas3_min = Number(c.cas3_min || 0);
+      const cas3_min = calcMin(cas3_max, c.cas3_min);
+
+      const est_max_marks = Number(c.est_max_marks || 0);
+      const est_min_marks = calcMin(est_max_marks, c.est_min_marks);
+
+      const esp_max_marks = Number(c.esp_max_marks || 0);
+      const esp_min_marks = calcMin(esp_max_marks, c.esp_min_marks);
+
+      const ess_max_marks = Number(c.ess_max_marks || 0);
+      const ess_min_marks = calcMin(ess_max_marks, c.ess_min_marks);
 
       const cat_max_marks = Number(c.cat_max_marks ?? (cat1_max + cat2_max + cat3_max));
       const cat_min_marks = Number(c.cat_min_marks ?? (cat1_min + cat2_min + cat3_min));
 
       const cap_max_marks = Number(c.cap_max_marks ?? (cap1_max + cap2_max + cap3_max));
       const cap_min_marks = Number(c.cap_min_marks ?? (cap1_min + cap2_min + cap3_min));
-
-      const est_max_marks = Number(c.est_max_marks || 0);
-      const est_min_marks = Number(c.est_min_marks || 0);
-
-      const esp_max_marks = Number(c.esp_max_marks || 0);
-      const esp_min_marks = Number(c.esp_min_marks || 0);
-
-      const ess_max_marks = Number(c.ess_max_marks || 0);
-      const ess_min_marks = Number(c.ess_min_marks || 0);
 
       const cas_max_marks = cas1_max + cas2_max + cas3_max;
       const cas_min_marks = cas1_min + cas2_min + cas3_min;
@@ -691,8 +820,6 @@ app.post('/api/course-master/bulk', async (req, res) => {
 
       const total_marks = Number(c.total_marks ?? (ia_max_marks + est_max_marks + esp_max_marks + ess_max_marks));
       const total_marks_min = Number(c.total_marks_min ?? (ia_min_marks + est_min_marks + esp_min_marks + ess_min_marks));
-
-      const grading_category = (c.grading_category === 'Architecture' ? 'Architecture' : 'Non-Architecture');
 
       const params = {
         id,
@@ -915,12 +1042,23 @@ app.get('/api/student-marks', async (req, res) => {
     const total = countResult.data?.[0]?.total || 0;
 
     sql += ' ORDER BY prn ASC, assessment_type ASC, id ASC OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY';
-    params.offset = parseInt(offset) || 0;
-    params.limit = Math.min(parseInt(limit) || 500, 5000);
+    const pageNum = parseInt(req.query.page);
+    const pageSizeNum = parseInt(req.query.pageSize);
+    if (!isNaN(pageNum) && pageNum > 0 && !isNaN(pageSizeNum) && pageSizeNum > 0) {
+      params.offset = (pageNum - 1) * pageSizeNum;
+      params.limit = Math.min(pageSizeNum, 5000);
+    } else {
+      params.offset = parseInt(offset) || 0;
+      params.limit = Math.min(parseInt(limit) || 500, 5000);
+    }
 
     const result = await executeSql(sql, params);
     const rows = (result.data || []).map(m=>({...m,theory:m.theory_absent?'AB':m.theory,practical:m.practical_absent?'AB':m.practical,skills:m.skills_absent?'AB':m.skills}));
-    res.json({ data: rows, total, page: Math.floor(params.offset / params.limit) + 1, pageSize: params.limit });
+    if (req.query.limit && !req.query.page && !req.query.pageSize) {
+      res.json(rows);
+    } else {
+      res.json({ data: rows, total, page: Math.floor(params.offset / params.limit) + 1, pageSize: params.limit });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -937,10 +1075,231 @@ app.delete('/api/student-marks/:id', async (req, res) => {
   }
 });
 
+// 10. Faculty Course Allocations (Teaching Staff against Course Master)
+app.get('/api/faculty-allocations/template', (req, res) => {
+  const filePath = path.join(__dirname, 'docs', 'Faculty_Allocation_Template.xlsx');
+  res.download(filePath, 'Faculty_Allocation_Template.xlsx');
+});
+
+app.get('/api/faculty-allocations', async (req, res) => {
+  try {
+    const { subject_code, semester, staff_code, program_name, exam_role } = req.query;
+    let sql = `
+      SELECT fa.*, cm.l, cm.t, cm.p, cm.s, cm.total_credits, cm.total_marks, cm.total_marks_min, cm.grading_category
+      FROM dbo.faculty_course_allocations fa
+      LEFT JOIN dbo.course_master cm ON fa.subject_code = cm.paper_code
+      WHERE 1=1
+    `;
+    const params = {};
+    if (subject_code) {
+      sql += ' AND fa.subject_code = @subject_code';
+      params.subject_code = subject_code;
+    }
+    if (semester) {
+      sql += ' AND fa.semester = @semester';
+      params.semester = semester;
+    }
+    if (staff_code) {
+      sql += ' AND fa.staff_code = @staff_code';
+      params.staff_code = staff_code;
+    }
+    if (program_name) {
+      sql += ' AND fa.program_name LIKE @program_name';
+      params.program_name = `%${program_name}%`;
+    }
+    if (exam_role) {
+      sql += ' AND fa.exam_role LIKE @exam_role';
+      params.exam_role = `%${exam_role}%`;
+    }
+    sql += ' ORDER BY fa.program_name ASC, fa.semester ASC, fa.subject_code ASC';
+
+    const result = await executeSql(sql, params);
+    res.json(result.data || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/faculty-allocations', async (req, res) => {
+  try {
+    const {
+      id = `fac-alloc-${Date.now()}`,
+      course_master_id = null,
+      subject_code,
+      subject_name,
+      staff_code,
+      staff_name,
+      additional_staff = null,
+      section = 'A',
+      semester,
+      program_name,
+      academic_year = '2025-2026',
+      department = null,
+      workload_hours = 4,
+      exam_role = 'Course Instructor & Evaluator',
+      invigilation_sessions = 2,
+      exam_center = 'Main Campus Examination Block'
+    } = req.body;
+
+    if (!subject_code || !subject_name || !staff_code || !staff_name) {
+      return res.status(400).json({ error: 'Subject code, subject name, staff code, and staff name are required.' });
+    }
+
+    const sql = `
+      IF EXISTS (SELECT 1 FROM dbo.faculty_course_allocations WHERE id = @id)
+      BEGIN
+        UPDATE dbo.faculty_course_allocations SET
+          course_master_id = @course_master_id,
+          subject_code = @subject_code,
+          subject_name = @subject_name,
+          staff_code = @staff_code,
+          staff_name = @staff_name,
+          additional_staff = @additional_staff,
+          section = @section,
+          semester = @semester,
+          program_name = @program_name,
+          academic_year = @academic_year,
+          department = @department,
+          workload_hours = @workload_hours,
+          exam_role = @exam_role,
+          invigilation_sessions = @invigilation_sessions,
+          exam_center = @exam_center,
+          updated_at = SYSUTCDATETIME()
+        WHERE id = @id;
+      END
+      ELSE
+      BEGIN
+        INSERT INTO dbo.faculty_course_allocations
+        (id, course_master_id, subject_code, subject_name, staff_code, staff_name, additional_staff, section, semester, program_name, academic_year, department, workload_hours, exam_role, invigilation_sessions, exam_center)
+        VALUES
+        (@id, @course_master_id, @subject_code, @subject_name, @staff_code, @staff_name, @additional_staff, @section, @semester, @program_name, @academic_year, @department, @workload_hours, @exam_role, @invigilation_sessions, @exam_center);
+      END
+    `;
+
+    await executeSql(sql, {
+      id, course_master_id, subject_code, subject_name, staff_code, staff_name,
+      additional_staff, section, semester: String(semester || '1'), program_name: program_name || 'General Program',
+      academic_year, department, workload_hours: Number(workload_hours) || 4,
+      exam_role: exam_role || 'Course Instructor & Evaluator',
+      invigilation_sessions: Number(invigilation_sessions) || 2,
+      exam_center: exam_center || 'Main Campus Examination Block'
+    }, 'execute');
+
+    const created = (await executeSql('SELECT * FROM dbo.faculty_course_allocations WHERE id = @id', { id })).data?.[0];
+    res.json(created);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.patch('/api/faculty-allocations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updates = req.body;
+    const allowed = ['subject_code', 'subject_name', 'staff_code', 'staff_name', 'additional_staff', 'section', 'semester', 'program_name', 'academic_year', 'department', 'workload_hours', 'exam_role', 'invigilation_sessions', 'exam_center'];
+    const sets = [];
+    const params = { id };
+
+    for (const key of allowed) {
+      if (updates[key] !== undefined) {
+        sets.push(`${key} = @${key}`);
+        params[key] = updates[key];
+      }
+    }
+
+    if (sets.length === 0) return res.status(400).json({ error: 'No fields to update.' });
+    sets.push('updated_at = SYSUTCDATETIME()');
+
+    await executeSql(`UPDATE dbo.faculty_course_allocations SET ${sets.join(', ')} WHERE id = @id`, params, 'execute');
+    const updated = (await executeSql('SELECT * FROM dbo.faculty_course_allocations WHERE id = @id', { id })).data?.[0];
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/faculty-allocations/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await executeSql('DELETE FROM dbo.faculty_course_allocations WHERE id = @id', { id }, 'execute');
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/faculty-allocations/bulk-upload', async (req, res) => {
+  try {
+    const { allocations } = req.body;
+    if (!Array.isArray(allocations) || allocations.length === 0) {
+      return res.status(400).json({ error: 'Allocations array is required.' });
+    }
+
+    let inserted = 0;
+    for (const item of allocations) {
+      const id = item.id || `fac-alloc-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+      const sql = `
+        INSERT INTO dbo.faculty_course_allocations
+        (id, course_master_id, subject_code, subject_name, staff_code, staff_name, additional_staff, section, semester, program_name, academic_year, department, workload_hours, exam_role, invigilation_sessions, exam_center)
+        VALUES
+        (@id, @course_master_id, @subject_code, @subject_name, @staff_code, @staff_name, @additional_staff, @section, @semester, @program_name, @academic_year, @department, @workload_hours, @exam_role, @invigilation_sessions, @exam_center);
+      `;
+      await executeSql(sql, {
+        id,
+        course_master_id: item.course_master_id || null,
+        subject_code: item.subject_code || item.Subject_Code || '',
+        subject_name: item.subject_name || item.Subject_Name || '',
+        staff_code: item.staff_code || item.Staff_Code || '',
+        staff_name: item.staff_name || item.Staff_name || '',
+        additional_staff: item.additional_staff || item.Additional_Staff || null,
+        section: item.section || item.Section || 'A',
+        semester: String(item.semester || item.Sem || '1'),
+        program_name: item.program_name || item.ACADEMIC_COURSE_ID || 'General',
+        academic_year: item.academic_year || '2025-2026',
+        department: item.department || null,
+        workload_hours: Number(item.workload_hours) || 4,
+        exam_role: item.exam_role || item.Exam_Role || 'Course Instructor & Evaluator',
+        invigilation_sessions: Number(item.invigilation_sessions || item.Invigilation_Sessions) || 2,
+        exam_center: item.exam_center || item.Exam_Center || 'Main Campus Examination Block'
+      }, 'execute');
+      inserted++;
+    }
+
+    res.json({ success: true, count: inserted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 11. Performance Reports Analytics
+app.get('/api/performance-reports/summary', async (req, res) => {
+  try {
+    // Pull real DB counts
+    const programs = (await executeSql('SELECT * FROM dbo.programs')).data || [];
+    const courses = (await executeSql('SELECT * FROM dbo.course_master')).data || [];
+    const schedules = (await executeSql('SELECT * FROM dbo.exam_schedules')).data || [];
+    const faculty = (await executeSql('SELECT * FROM dbo.faculty_course_allocations')).data || [];
+    const marks = (await executeSql('SELECT * FROM dbo.student_marks')).data || [];
+
+    res.json({
+      success: true,
+      data: {
+        programs,
+        courses,
+        schedules,
+        faculty,
+        marksCount: marks.length
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Start Express server
 const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`[Express API] SSPU_Exam Backend Server running at http://localhost:${PORT}`);
-  console.log(`[Express API] Connected to Microsoft SQL Server: acharya360\\SQLEXPRESS (Database: SSPU_Exam)`);
+  console.log(`[Express API] Connected to Microsoft SQL Server: ${process.env.SQL_SERVER || 'localhost\\SQLEXPRESS'} (Database: SSPU_Exam)`);
 });
 
 process.on('SIGINT', () => {

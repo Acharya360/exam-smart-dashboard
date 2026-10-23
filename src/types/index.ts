@@ -483,6 +483,7 @@ export interface ExaminationData {
 // ============================================================================
 
 export interface CreateUserPayload {
+  id?: string;
   email: string;
   password: string;
   full_name: string;
@@ -491,3 +492,159 @@ export interface CreateUserPayload {
   phone: string;
   title: string;
 }
+
+// ============================================================================
+// Timetable Generation Engine Types
+// ============================================================================
+
+export interface StudentRecord {
+  id?: string;
+  centre: string;
+  program: string;
+  specialization?: string;
+  semester: string;
+  prn: string;
+  studentName: string;
+  officialEmail?: string;
+  courseCode: string;
+  courseTitle: string;
+  courseType?: string;
+  internalExternal?: 'INTERNAL' | 'EXTERNAL' | 'BOTH';
+  applicationStatus?: string;
+  isApplied?: boolean;
+}
+
+export interface SlotMaster {
+  id?: string;
+  semester: string;
+  slotName: string;
+  slotTime: string;
+  oddEven: 'Odd' | 'Even';
+}
+
+export interface ElectiveGroup {
+  id: string;
+  name: string;
+  courseCodes: string[];
+  isFuzzy?: boolean;
+}
+
+export interface ScheduleRow {
+  schoolName: string;
+  programName: string;
+  specialization: string;
+  semester: string;
+  oddEven: 'Odd' | 'Even';
+  slotName: string;
+  slotTime: string;
+  courseCode: string;
+  courseName: string;
+  date: string;
+  day: string;
+  appliedStudents: number;
+  notAppliedStudents: number;
+  totalStudents: number;
+  isManualOverride?: boolean;
+}
+
+export interface ProgramStream {
+  id: string;
+  name: string;
+  programsOrSchools: string[];
+  startDateOdd?: string;
+  startDateEven?: string;
+  dayOffset: number;
+  dayStep: number;
+  preferredSlot?: string;
+  appliesTo: 'Both' | 'Regular' | 'Backlog';
+}
+
+export interface ScheduleConfig {
+  useCalendarDates: boolean;
+  hasBreakDay: boolean;
+  oddStartDate1: string;
+  oddStartDate2: string;
+  evenStartDate1: string;
+  evenStartDate2: string;
+  holidays: string[];
+  examinationBasis: 'Both' | 'Odd' | 'Even';
+  schedulingStrategy?: 'SEMESTER_BASED' | 'PROGRAM_STREAMS';
+  programStreams?: ProgramStream[];
+}
+
+export interface ManualOverride {
+  date: string;
+  day: string;
+  slotName: string;
+  slotTime: string;
+}
+
+export interface TimetableSession {
+  id: string;
+  name: string;
+  basis: 'Both' | 'Odd' | 'Even';
+  odd_start_date_1?: string;
+  odd_start_date_2?: string;
+  even_start_date_1?: string;
+  even_start_date_2?: string;
+  holidays_json?: string;
+  has_break_day: boolean;
+  use_calendar_dates: boolean;
+  is_active: boolean;
+  scheduling_strategy?: 'SEMESTER_BASED' | 'PROGRAM_STREAMS';
+  streams_json?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface TimetableClashInfo {
+  prn: string;
+  studentName?: string;
+  date: string;
+  slotName: string;
+  courseCodes: string[];
+  courseTitles: string[];
+}
+
+// ============================================================================
+// Faculty Course Allocation (Teaching Staff against Course Master)
+// ============================================================================
+
+export interface FacultyCourseAllocation {
+  id: string;
+  course_master_id?: string | null;
+  subject_code: string;
+  subject_name: string;
+  staff_code: string;
+  staff_name: string;
+  additional_staff?: string | null;
+  section: string;
+  semester: string;
+  program_name: string;
+  academic_year?: string;
+  department?: string | null;
+  workload_hours?: number;
+  exam_role?: string;
+  invigilation_sessions?: number;
+  exam_center?: string | null;
+  l?: number;
+  t?: number;
+  p?: number;
+  s?: number;
+  total_credits?: number;
+  total_marks?: number;
+  total_marks_min?: number;
+  grading_category?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PerformanceAnalyticsSummary {
+  programs: Program[];
+  courses: CourseMaster[];
+  schedules: ExamSchedule[];
+  faculty: FacultyCourseAllocation[];
+  marksCount: number;
+}
+
+

@@ -174,7 +174,7 @@ echo    [4] Preview Production Build
 echo    [5] Run TypeScript Verification and Lint
 echo.
 echo  DATABASE and SQL SERVER (SSPU_Exam):
-echo    [S] Check SQL Server DB Status (SSPU_Exam on acharya360\SQLEXPRESS)
+echo    [S] Check SQL Server DB Status (SSPU_Exam on localhost\SQLEXPRESS)
 echo    [M] Apply Versioned Additive Migrations (verified backup first)
 echo.
 echo  DEPLOYMENT and GIT:
@@ -216,7 +216,7 @@ goto :menu
 call :resolve_port
 echo ----------------------------------------------------------------------------
 echo  Acharya360 ExamTrack - Full Stack Development Mode
-echo  Database Server : Microsoft SQL Server (acharya360\SQLEXPRESS)
+echo  Database Server : Microsoft SQL Server (localhost\SQLEXPRESS)
 echo  Database Name   : SSPU_Exam
 echo  Backend API     : http://localhost:5000 (Express + SQL Bridge)
 echo  Frontend UI     : http://localhost:%PORT% (Vite + React 19)
@@ -249,9 +249,9 @@ goto :finish_action
 :action_sql_status
 echo ----------------------------------------------------------------------------
 echo  Checking Microsoft SQL Server Database Status: SSPU_Exam
-echo  Server: acharya360\SQLEXPRESS
+echo  Server: localhost\SQLEXPRESS
 echo ----------------------------------------------------------------------------
-sqlcmd -S "acharya360\SQLEXPRESS" -E -d SSPU_Exam -Q "SET NOCOUNT ON; SELECT 'profiles' as [Table], count(*) as [Records] FROM profiles UNION ALL SELECT 'programs', count(*) FROM programs UNION ALL SELECT 'exam_schedules', count(*) FROM exam_schedules UNION ALL SELECT 'exam_tasks', count(*) FROM exam_tasks UNION ALL SELECT 'course_master', count(*) FROM course_master UNION ALL SELECT 'student_marks', count(*) FROM student_marks;"
+sqlcmd -S "localhost\SQLEXPRESS" -E -C -d SSPU_Exam -Q "SET NOCOUNT ON; SELECT 'profiles' as [Table], count(*) as [Records] FROM profiles UNION ALL SELECT 'programs', count(*) FROM programs UNION ALL SELECT 'exam_schedules', count(*) FROM exam_schedules UNION ALL SELECT 'exam_tasks', count(*) FROM exam_tasks UNION ALL SELECT 'course_master', count(*) FROM course_master UNION ALL SELECT 'student_marks', count(*) FROM student_marks;"
 echo.
 goto :finish_action
 

@@ -13,7 +13,7 @@ test('every shipped migration is additive', () => {
   assert.ok(migrations.length > 0);
   for (const migration of migrations) {
     assert.doesNotThrow(() => assertAdditive(migration.body, migration.name));
-    assert.match(migration.body, /IF OBJECT_ID|IF COL_LENGTH/, `${migration.name} must guard every statement for re-runnability`);
+    assert.match(migration.body, /IF (?:OBJECT_ID|COL_LENGTH|NOT EXISTS)/i, `${migration.name} must guard every statement for re-runnability`);
   }
 });
 

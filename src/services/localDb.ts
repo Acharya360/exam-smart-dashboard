@@ -1,7 +1,25 @@
-import type { CourseMaster, CreateUserPayload, ExaminationData, ExamSchedule, ExamTask, Program, StudentMark, UserProfile } from '../types';
+import type {
+  CourseMaster,
+  CreateUserPayload,
+  ExaminationData,
+  ExamSchedule,
+  ExamTask,
+  Program,
+  StudentMark,
+  UserProfile,
+  StudentRecord,
+  SlotMaster,
+  ElectiveGroup,
+  ScheduleRow,
+  ManualOverride,
+  TimetableSession,
+  FacultyCourseAllocation,
+  PerformanceAnalyticsSummary,
+} from '../types';
 
 export async function localRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
-  const response = await fetch(`/api${path}`, { method, credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
+  const baseUrl = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL}/api` : '/api';
+  const response = await fetch(`${baseUrl}${path}`, { method, credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) });
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Database request failed. Please retry.');
   return data as T;
@@ -26,7 +44,7 @@ export class LocalDBService {
   async updateUserPassword(id:string,newPassword:string,_actor:string,currentPassword?:string) { try {await localRequest('/auth/change-password','POST',{email:(await this.getUsers()).find(u=>u.id===id)?.email,newPassword,currentPassword});return {success:true};}catch(e){return {success:false,error:message(e)};} }
   getPrograms() { return localRequest<Program[]>('/programs'); }
   async addOrUpdateProgram(program:Program) { await localRequest('/programs/bulk','POST',{programs:[program]}); }
-  async addOrUpdatePrograms(programs:Program[]) { return await localRequest<Program[]>('/programs/bulk','POST',{programs}); }
+  async addOrUpdatePrograms(programs:Program[], clearExisting: boolean = false) { return await localRequest<Program[]>('/programs/bulk','POST',{programs, clearExisting}); }
   async deleteProgram(id:string) { await localRequest(`/programs/${encodeURIComponent(id)}`,'DELETE'); }
   async deletePrograms(ids:string[]) { try {await localRequest('/programs/bulk-delete','POST',{ids});}catch{for(const id of ids) await this.deleteProgram(id);} }
   getSchedules() { return localRequest<ExamSchedule[]>('/schedules'); }
@@ -64,4 +82,92 @@ export class LocalDBService {
   async deleteStudentMarks(ids:string[]) { try {await localRequest('/student-marks/bulk-delete','POST',{ids});}catch{for(const id of ids) await this.deleteStudentMark(id);} }
   getExaminationData() { return localRequest<ExaminationData>('/examination'); }
   async resetToDefaults() { throw new Error('Database reset is unavailable. Existing university data is preserved.'); }
+
+  // Timetable Generator Engine
+  async getTimetableState(sessionId?: string) {
+    const query = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+    return localRequest<{
+      sessions: TimetableSession[];
+      activeSession: TimetableSession;
+      slots: SlotMaster[];
+      electives: ElectiveGroup[];
+      recordsCount: number;
+      records: StudentRecord[];
+      schedule: ScheduleRow[];
+      manualOverrides: Record<string, ManualOverride>;
+      programs: Program[];
+    }>(`/timetable/state${query}`);
+  }
+
+  async saveTimetableSession(session: Partial<TimetableSession>) {
+    return localRequest<{ success: boolean; sessionId: string }>('/timetable/sessions', 'POST', session);
+  }
+
+  async saveTimetableSlots(sessionId: string, slots: SlotMaster[]) {
+    return localRequest<{ success: boolean; count: number }>('/timetable/slots', 'POST', { sessionId, slots });
+  }
+
+  async saveTimetableElectives(sessionId: string, electives: ElectiveGroup[]) {
+    return localRequest<{ success: boolean; count: number }>('/timetable/electives', 'POST', { sessionId, electives });
+  }
+
+  async uploadTimetableRecords(sessionId: string, records: StudentRecord[], append = false) {
+    return localRequest<{ success: boolean; imported: number }>('/timetable/records/bulk', 'POST', { sessionId, records, append });
+  }
+
+  async clearTimetableRecords(sessionId: string) {
+    return localRequest<{ success: boolean }>('/timetable/records/clear', 'POST', { sessionId });
+  }
+
+  async saveGeneratedTimetable(sessionId: string, schedule: ScheduleRow[], overrides: Record<string, ManualOverride>) {
+    return localRequest<{ success: boolean; savedCount: number }>('/timetable/save-schedule', 'POST', { sessionId, schedule, overrides });
+  }
+
+  async publishTimetableToSchedules(scheduleRows: ScheduleRow[]) {
+    return localRequest<{ success: boolean; publishedCount: number; tasksCreated: number; message: string }>(
+      '/timetable/publish-to-schedules',
+      'POST',
+      { scheduleRows }
+    );
+  }
+
+  // ============================================================================
+  // Faculty Course Allocations (Teaching Staff against Course Master)
+  // ============================================================================
+
+  async getFacultyAllocations(filters?: { subject_code?: string; semester?: string; staff_code?: string; program_name?: string; exam_role?: string }) {
+    const params = new URLSearchParams();
+    if (filters?.subject_code) params.set('subject_code', filters.subject_code);
+    if (filters?.semester) params.set('semester', filters.semester);
+    if (filters?.staff_code) params.set('staff_code', filters.staff_code);
+    if (filters?.program_name) params.set('program_name', filters.program_name);
+    if (filters?.exam_role) params.set('exam_role', filters.exam_role);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return localRequest<FacultyCourseAllocation[]>(`/faculty-allocations${qs}`);
+  }
+
+  async createFacultyAllocation(allocation: Partial<FacultyCourseAllocation>) {
+    return localRequest<FacultyCourseAllocation>('/faculty-allocations', 'POST', allocation);
+  }
+
+  async updateFacultyAllocation(id: string, updates: Partial<FacultyCourseAllocation>) {
+    return localRequest<FacultyCourseAllocation>(`/faculty-allocations/${encodeURIComponent(id)}`, 'PATCH', updates);
+  }
+
+  async deleteFacultyAllocation(id: string) {
+    return localRequest<{ success: boolean }>(`/faculty-allocations/${encodeURIComponent(id)}`, 'DELETE');
+  }
+
+  async bulkUploadFacultyAllocations(allocations: Partial<FacultyCourseAllocation>[]) {
+    return localRequest<{ success: boolean; count: number }>('/faculty-allocations/bulk-upload', 'POST', { allocations });
+  }
+
+  // ============================================================================
+  // Exam Performance Reports & Analytics
+  // ============================================================================
+
+  async getPerformanceAnalyticsSummary() {
+    return localRequest<{ success: boolean; data: PerformanceAnalyticsSummary }>('/performance-reports/summary');
+  }
 }
+

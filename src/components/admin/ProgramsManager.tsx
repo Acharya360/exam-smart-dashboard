@@ -1,11 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import confetti from 'canvas-confetti';
 import { useAuth } from '../../context/AuthContext';
 import { Program, UserProfile } from '../../types';
-import { 
+import { validateParsedEntities, generateImportErrorReport } from '../../utils/validation';
+import {
   Search, 
   Plus, 
+  PlusCircle,
   Download, 
   Edit3, 
   Trash2, 
@@ -18,12 +20,90 @@ import {
   FileSpreadsheet,
   Sparkles,
   RefreshCw,
-  AlertCircle,
   CheckCircle2,
   AlertTriangle,
   Layers,
-  ArrowRight
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
+
+const SSPU_STANDARD_PROGRAM_ROWS = [
+  {
+    'Sr. No.': 1,
+    'Program Code': 'BTECH-CEM',
+    'Program Name': 'B.Tech. Construction Engineering & Management',
+    'School Name': 'School of Construction Engineering and Infrastructure Management',
+    'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
+    'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
+  },
+  {
+    'Sr. No.': 2,
+    'Program Code': 'BTECH-MECH',
+    'Program Name': 'B.Tech. Mechatronics Engineering',
+    'School Name': 'School of Mechatronics Engineering',
+    'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
+    'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
+  },
+  {
+    'Sr. No.': 3,
+    'Program Code': 'BTECH-CSAI',
+    'Program Name': 'B.Tech. Computer Science & AI',
+    'School Name': 'School of Computer Science & Artificial Intelligence',
+    'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
+    'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
+  },
+  {
+    'Sr. No.': 4,
+    'Program Code': 'BTECH-EEE',
+    'Program Name': 'B.Tech. Electrical & Electronics',
+    'School Name': 'School of Electrical & Electronics Engineering',
+    'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
+    'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
+  },
+  {
+    'Sr. No.': 5,
+    'Program Code': 'BARCH',
+    'Program Name': 'B.Arch. Architecture & Urban Design',
+    'School Name': 'School of Architecture, Urban Development & Planning',
+    'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
+    'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
+  },
+  {
+    'Sr. No.': 6,
+    'Program Code': 'BBA-LSCM',
+    'Program Name': 'BBA Logistics & Supply Chain Management',
+    'School Name': 'School of Management & Commerce',
+    'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
+    'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
+  },
+  {
+    'Sr. No.': 7,
+    'Program Code': 'BBA-RET',
+    'Program Name': 'BBA Retail & E-Commerce Management',
+    'School Name': 'School of Management & Commerce',
+    'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
+    'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
+  },
+  {
+    'Sr. No.': 8,
+    'Program Code': 'BSC-DS',
+    'Program Name': 'B.Sc. Data Science & Artificial Intelligence',
+    'School Name': 'School of Computer Science & Artificial Intelligence',
+    'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
+    'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
+  }
+];
+
+type ProgramSortKey = 'sr_no' | 'program_code' | 'program_name' | 'primary' | 'alternate';
+
+const PROGRAM_SORT_LABELS: Record<ProgramSortKey, string> = {
+  sr_no: 'Sr',
+  program_code: 'Program Code',
+  program_name: 'Program Title & School',
+  primary: 'Primary Coordinator',
+  alternate: 'Alternate Coordinator',
+};
 
 interface ProgramsManagerProps {
   programs: Program[];
@@ -32,7 +112,7 @@ interface ProgramsManagerProps {
   onDeleteProgram: (programId: string) => void | Promise<void>;
   onDeletePrograms?: (programIds: string[]) => void | Promise<void>;
   onAddProgram: (program: Program) => void | Promise<void>;
-  onAddPrograms?: (programs: Program[], newUsers?: UserProfile[]) => Promise<void>;
+  onAddPrograms?: (programs: Program[], newUsers?: UserProfile[], clearExisting?: boolean) => Promise<void>;
 }
 
 interface ParsedProgramItem {
@@ -63,6 +143,7 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
 }) => {
   const { isSuperAdmin, currentUser, getUserPrograms } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
+  const [sort, setSort] = useState<{ key: ProgramSortKey; dir: 'asc' | 'desc' }>({ key: 'sr_no', dir: 'asc' });
   const [selectedSchool, setSelectedSchool] = useState<string>('ALL');
   const [selectedPrograms, setSelectedPrograms] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -78,6 +159,7 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
   const [bulkFilter, setBulkFilter] = useState<'ALL' | 'NEW' | 'UPDATE' | 'WARNING'>('ALL');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccessMessage, setUploadSuccessMessage] = useState<string | null>(null);
+  const [importMode, setImportMode] = useState<'merge' | 'replace'>('merge');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleBulkDelete = async () => {
@@ -120,6 +202,59 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
     const schoolMatch = selectedSchool === 'ALL' || p.school_name === selectedSchool;
     return searchMatch && schoolMatch;
   });
+
+  const toggleSort = (key: ProgramSortKey) =>
+    setSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }
+    );
+
+  const SortHeader = ({ k, className = '' }: { k: ProgramSortKey; className?: string }) => {
+    const active = sort.key === k;
+    const Icon = !active ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
+    return (
+      <th className={`py-3 px-3 ${className}`}>
+        <button
+          onClick={() => toggleSort(k)}
+          className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-slate-800 transition-colors ${
+            active ? 'text-indigo-700' : ''
+          }`}
+          title={`Sort by ${PROGRAM_SORT_LABELS[k]}`}
+        >
+          <span>{PROGRAM_SORT_LABELS[k]}</span>
+          <Icon className="w-3 h-3" />
+        </button>
+      </th>
+    );
+  };
+
+  const sortedPrograms = useMemo(() => {
+    const coordName = (id: string | null) => (users.find((u) => u.id === id)?.full_name || '').toLowerCase();
+    const valueOf = (p: Program): string | number => {
+      switch (sort.key) {
+        case 'sr_no':
+          return p.sr_no ?? 0;
+        case 'program_code':
+          return (p.program_code || '').toLowerCase();
+        case 'program_name':
+          return (p.program_name || '').toLowerCase();
+        case 'primary':
+          return coordName(p.primary_coordinator_id);
+        case 'alternate':
+          return coordName(p.alternate_coordinator_id);
+        default:
+          return '';
+      }
+    };
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...filteredPrograms].sort((a, b) => {
+      const av = valueOf(a);
+      const bv = valueOf(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return (a.sr_no ?? 0) - (b.sr_no ?? 0);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredPrograms, sort, users]);
 
   const startInlineEdit = (p: Program) => {
     setEditingProgId(p.id);
@@ -327,74 +462,7 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
 
   // Download Sample Excel Template
   const downloadSampleTemplate = () => {
-    const templateRows = [
-      {
-        'Sr. No.': 1,
-        'Program Code': 'BTECH-CEM',
-        'Program Name': 'B.Tech. Construction Engineering & Management',
-        'School Name': 'School of Construction Engineering and Infrastructure Management',
-        'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 2,
-        'Program Code': 'BTECH-MECH',
-        'Program Name': 'B.Tech. Mechatronics Engineering',
-        'School Name': 'School of Mechatronics Engineering',
-        'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 3,
-        'Program Code': 'BTECH-CSAI',
-        'Program Name': 'B.Tech. Computer Science & AI',
-        'School Name': 'School of Computer Science & Artificial Intelligence',
-        'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 4,
-        'Program Code': 'BTECH-EEE',
-        'Program Name': 'B.Tech. Electrical & Electronics',
-        'School Name': 'School of Electrical & Electronics Engineering',
-        'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 5,
-        'Program Code': 'BARCH',
-        'Program Name': 'B.Arch. Architecture & Urban Design',
-        'School Name': 'School of Architecture, Urban Development & Planning',
-        'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 6,
-        'Program Code': 'BBA-LSCM',
-        'Program Name': 'BBA Logistics & Supply Chain Management',
-        'School Name': 'School of Management & Commerce',
-        'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 7,
-        'Program Code': 'BBA-RET',
-        'Program Name': 'BBA Retail & E-Commerce Management',
-        'School Name': 'School of Management & Commerce',
-        'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 8,
-        'Program Code': 'BSC-DS',
-        'Program Name': 'B.Sc. Data Science & Artificial Intelligence',
-        'School Name': 'School of Computer Science & Artificial Intelligence',
-        'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
-      }
-    ];
-
-    const ws = XLSX.utils.json_to_sheet(templateRows);
+    const ws = XLSX.utils.json_to_sheet(SSPU_STANDARD_PROGRAM_ROWS);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Program_Mapping_Registry');
     XLSX.writeFile(wb, 'SSPU_Academic_Programs_Template.xlsx');
@@ -402,74 +470,7 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
 
   // Preload SSPU Standard Programs Preset
   const loadPreloadedSSPUPrograms = () => {
-    const templateRows = [
-      {
-        'Sr. No.': 1,
-        'Program Code': 'BTECH-CEM',
-        'Program Name': 'B.Tech. Construction Engineering & Management',
-        'School Name': 'School of Construction Engineering and Infrastructure Management',
-        'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 2,
-        'Program Code': 'BTECH-MECH',
-        'Program Name': 'B.Tech. Mechatronics Engineering',
-        'School Name': 'School of Mechatronics Engineering',
-        'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 3,
-        'Program Code': 'BTECH-CSAI',
-        'Program Name': 'B.Tech. Computer Science & AI',
-        'School Name': 'School of Computer Science & Artificial Intelligence',
-        'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 4,
-        'Program Code': 'BTECH-EEE',
-        'Program Name': 'B.Tech. Electrical & Electronics',
-        'School Name': 'School of Electrical & Electronics Engineering',
-        'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 5,
-        'Program Code': 'BARCH',
-        'Program Name': 'B.Arch. Architecture & Urban Design',
-        'School Name': 'School of Architecture, Urban Development & Planning',
-        'Primary Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 6,
-        'Program Code': 'BBA-LSCM',
-        'Program Name': 'BBA Logistics & Supply Chain Management',
-        'School Name': 'School of Management & Commerce',
-        'Primary Coordinator Email/Name': 'Mr. Prathmesh Londhe (prathmesh.londhe@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 7,
-        'Program Code': 'BBA-RET',
-        'Program Name': 'BBA Retail & E-Commerce Management',
-        'School Name': 'School of Management & Commerce',
-        'Primary Coordinator Email/Name': 'Mr. Rajkumar Wankhade (Rajkumar.wankhade@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)'
-      },
-      {
-        'Sr. No.': 8,
-        'Program Code': 'BSC-DS',
-        'Program Name': 'B.Sc. Data Science & Artificial Intelligence',
-        'School Name': 'School of Computer Science & Artificial Intelligence',
-        'Primary Coordinator Email/Name': 'Ms. Shreyasi Joshi (shreyasi.joshi@sspu.ac.in)',
-        'Alternate Coordinator Email/Name': 'Mr. Amit Vartikar (Amit.Vartikar@sspu.ac.in)'
-      }
-    ];
-
-    const items = parseRowsToItems(templateRows);
+    const items = parseRowsToItems(SSPU_STANDARD_PROGRAM_ROWS);
     setParsedItems(items);
     setBulkFileName('SSPU_Standard_Program_Registry_Preset.xlsx');
     setBulkFilter('ALL');
@@ -520,9 +521,16 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
       return;
     }
 
+    if (importMode === 'replace') {
+      const confirmed = window.confirm(
+        `Are you sure you want to clear old records?\n\nThis will remove all existing academic programs from the database and import fresh the ${validItems.length} programs parsed from this upload.\n\nClick OK to proceed.`
+      );
+      if (!confirmed) return;
+    }
+
     setIsUploading(true);
     try {
-      const programsToSync: Program[] = validItems.map((item, idx) => ({
+      const programsToSync: (Program & { primary_coordinator_email?: string; alternate_coordinator_email?: string })[] = validItems.map((item, idx) => ({
         id: item.existingId || `prog-${item.program_code.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
         sr_no: item.sr_no || (idx + 1),
         program_code: item.program_code,
@@ -530,6 +538,8 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
         school_name: item.school_name,
         primary_coordinator_id: item.primary_coordinator_id || null,
         alternate_coordinator_id: item.alternate_coordinator_id || null,
+        primary_coordinator_email: item.newUserPrimary?.email || users.find(u => u.id === item.primary_coordinator_id)?.email,
+        alternate_coordinator_email: item.newUserAlt?.email || users.find(u => u.id === item.alternate_coordinator_id)?.email,
       }));
 
       const newUsersToCreate: UserProfile[] = [];
@@ -543,11 +553,14 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
       }
 
       if (onAddPrograms) {
-        await onAddPrograms(programsToSync, newUsersToCreate);
+        await onAddPrograms(programsToSync, newUsersToCreate, importMode === 'replace');
       } else {
+        if (importMode === 'replace' && onDeletePrograms) {
+          await onDeletePrograms(programs.map(p => p.id));
+        }
         for (const p of programsToSync) {
           const existing = programs.find(ep => ep.program_code.toLowerCase() === p.program_code.toLowerCase());
-          if (existing) {
+          if (existing && importMode !== 'replace') {
             await onUpdateProgram({ ...existing, ...p });
           } else {
             await onAddProgram(p);
@@ -562,12 +575,18 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
         confetti({ particleCount: 80, spread: 70, origin: { y: 0.6 } });
       } catch {}
 
-      setUploadSuccessMessage(`Successfully synchronized ${validItems.length} programs (${updateCount} updated, ${newCount} added).`);
+      if (importMode === 'replace') {
+        setUploadSuccessMessage(`Successfully cleared old records and imported ${validItems.length} fresh programs.`);
+      } else {
+        setUploadSuccessMessage(`Successfully synchronized ${validItems.length} programs (${updateCount} updated, ${newCount} added).`);
+      }
+
       setTimeout(() => {
         setBulkModalOpen(false);
         setParsedItems([]);
         setBulkFileName(null);
         setUploadSuccessMessage(null);
+        setImportMode('merge');
       }, 1400);
     } catch (err) {
       console.error('Failed to commit programs:', err);
@@ -581,6 +600,22 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
   const updateCount = parsedItems.filter(i => i.isUpdate).length;
   const newCount = parsedItems.filter(i => !i.isUpdate).length;
   const warningCount = parsedItems.filter(i => i.warnings.length > 0).length;
+
+  // Shared-framework pass on the parsed items: within-upload duplicate program
+  // codes (import protection) + the structured multi-sheet error report.
+  const programValidation = useMemo(() => {
+    if (parsedItems.length === 0) return null;
+    return validateParsedEntities<ParsedProgramItem>({
+      moduleName: 'Program & Coordinator Registry',
+      fileName: bulkFileName || 'program_import.xlsx',
+      items: parsedItems,
+      labels: { program_code: 'Program Code' },
+      duplicateKeyFields: ['program_code'],
+      parserErrors: parsedItems.flatMap(i => i.warnings.map(w => `Row ${i.sr_no + 1}: ${w}`)),
+      fieldsOf: (i) => ({ program_code: i.program_code }),
+    });
+  }, [parsedItems, bulkFileName]);
+  const duplicateCodeCount = programValidation?.summary.duplicateRows ?? 0;
 
   const filteredParsedItems = parsedItems.filter(item => {
     if (bulkFilter === 'NEW') return !item.isUpdate;
@@ -694,6 +729,9 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
 
       {/* Programs Table */}
       <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+        <p className="text-[11px] text-slate-500 px-4 pt-3">
+          Sorted by <span className="font-semibold text-slate-700">{PROGRAM_SORT_LABELS[sort.key]}</span> · {sort.dir === 'asc' ? 'ascending' : 'descending'} — click any column header to reorder.
+        </p>
         <div className="overflow-auto max-h-[620px]">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="sticky top-0 z-10 bg-slate-50 text-slate-600 border-b border-slate-200 font-semibold text-[11px] uppercase tracking-wider shadow-2xs">
@@ -714,23 +752,23 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
                     />
                   </th>
                 )}
-                <th className="py-3 px-3 w-16 text-center font-mono">Sr</th>
-                <th className="py-3 px-3 w-32 font-mono">Program Code</th>
-                <th className="py-3 px-3 min-w-[220px]">Program Title & School</th>
-                <th className="py-3 px-3 min-w-[200px]">Primary Coordinator</th>
-                <th className="py-3 px-3 min-w-[200px]">Alternate Coordinator</th>
+                <SortHeader k="sr_no" className="w-16 text-center font-mono" />
+                <SortHeader k="program_code" className="w-32 font-mono" />
+                <SortHeader k="program_name" className="min-w-[220px]" />
+                <SortHeader k="primary" className="min-w-[200px]" />
+                <SortHeader k="alternate" className="min-w-[200px]" />
                 <th className="py-3 px-3 w-28 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredPrograms.length === 0 ? (
+              {sortedPrograms.length === 0 ? (
                 <tr>
                   <td colSpan={isSuperAdmin ? 7 : 6} className="py-8 text-center text-slate-400">
                     No academic programs found matching criteria.
                   </td>
                 </tr>
               ) : (
-                filteredPrograms.map((p) => {
+                sortedPrograms.map((p) => {
                   const isEditing = editingProgId === p.id;
                   const primaryUser = users.find((u) => u.id === p.primary_coordinator_id);
                   const altUser = users.find((u) => u.id === p.alternate_coordinator_id);
@@ -987,6 +1025,65 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
                 </div>
               </div>
 
+              {/* Import Synchronization Strategy: Add & Update (Keep Old) vs Clear Old Records & Replace */}
+              {parsedItems.length > 0 && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                        <Layers className="w-4 h-4 text-indigo-600" />
+                        <span>Import Strategy & Synchronization Mode</span>
+                      </span>
+                      <p className="text-[11px] text-slate-500 mt-0.5">
+                        Choose whether to preserve existing programs or clear old records before importing.
+                      </p>
+                    </div>
+                    <div className="inline-flex p-1 bg-white border border-slate-200 rounded-xl shadow-2xs shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setImportMode('merge')}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                          importMode === 'merge'
+                            ? 'bg-indigo-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                        }`}
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>Add & Update (Keep Old)</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImportMode('replace')}
+                        className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                          importMode === 'replace'
+                            ? 'bg-rose-600 text-white shadow-xs'
+                            : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50'
+                        }`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Clear Old & Replace All</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {importMode === 'replace' ? (
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-2 text-rose-900 text-[11px]">
+                      <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold">Clear Old Records Mode Active:</span> All current programs in the database will be cleared, and only the {parsedItems.length} programs loaded here will be registered. Coordinator profiles and login credentials will be preserved.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-emerald-900 text-[11px]">
+                      <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                      <span>
+                        <span className="font-bold">Add & Update Mode Active:</span> Existing programs will be retained. Matching program codes will be updated and new codes will be appended.
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Upsert Preview Section */}
               {parsedItems.length > 0 && (
                 <div className="space-y-3">
@@ -1126,21 +1223,44 @@ export const ProgramsManager: React.FC<ProgramsManagerProps> = ({
               </button>
 
               <div className="flex items-center gap-2">
+                {duplicateCodeCount > 0 && (
+                  <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+                    {duplicateCodeCount} duplicate code(s)
+                  </span>
+                )}
+                {programValidation && (
+                  <button
+                    type="button"
+                    onClick={() => generateImportErrorReport(programValidation)}
+                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-white border border-slate-300 rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    <span>Validation Report</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   disabled={parsedItems.length === 0 || isUploading}
                   onClick={handleBulkCommit}
-                  className="flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition-colors"
+                  className={`flex items-center gap-1.5 px-5 py-2 text-xs font-bold text-white disabled:opacity-50 disabled:cursor-not-allowed rounded-xl shadow-xs transition-colors ${
+                    importMode === 'replace'
+                      ? 'bg-rose-600 hover:bg-rose-700'
+                      : 'bg-emerald-600 hover:bg-emerald-700'
+                  }`}
                 >
                   {isUploading ? (
                     <>
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>Synchronizing Registry...</span>
+                      <span>{importMode === 'replace' ? 'Clearing & Importing...' : 'Synchronizing Registry...'}</span>
                     </>
                   ) : (
                     <>
-                      <Check className="w-4 h-4" />
-                      <span>Commit & Synchronize ({parsedItems.length} Programs)</span>
+                      {importMode === 'replace' ? <Trash2 className="w-4 h-4" /> : <Check className="w-4 h-4" />}
+                      <span>
+                        {importMode === 'replace'
+                          ? `Clear Old & Import (${parsedItems.length} Programs)`
+                          : `Commit & Synchronize (${parsedItems.length} Programs)`}
+                      </span>
                     </>
                   )}
                 </button>

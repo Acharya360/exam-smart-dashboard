@@ -13,8 +13,13 @@ import {
   Layers,
   Award,
   ChevronRight,
+  ChevronLeft,
   Eye,
-  X
+  X,
+  LayoutTemplate,
+  FileSpreadsheet,
+  BarChart3,
+  ShieldAlert,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { db } from '../../services/db';
@@ -41,19 +46,40 @@ interface StudentTRRecord {
   finalRemark: 'PASS' | 'FAIL' | 'TNG' | 'PENDING' | 'WITHHELD';
 }
 
-export const TRSheetView: React.FC = () => {
+export interface TRSheetViewProps {
+  initialProgram?: string;
+  initialSemester?: string;
+  onNavigateToMarks?: () => void;
+  onNavigateToReports?: (program?: string) => void;
+  onNavigateToTNG?: () => void;
+}
+
+export const TRSheetView: React.FC<TRSheetViewProps> = ({
+  initialProgram,
+  initialSemester,
+  onNavigateToMarks,
+  onNavigateToReports,
+  onNavigateToTNG,
+}) => {
   const [data, setData] = useState<ExaminationData>({ programs: [], courses: [], registrations: [], audit: [] });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   // Filtering selections
   const [schoolFilter, setSchoolFilter] = useState('');
-  const [programFilter, setProgramFilter] = useState('');
-  const [semesterFilter, setSemesterFilter] = useState('');
+  const [programFilter, setProgramFilter] = useState(initialProgram || '');
+  const [semesterFilter, setSemesterFilter] = useState(initialSemester || '');
   const [academicYearFilter, setAcademicYearFilter] = useState('');
   const [sessionFilter, setSessionFilter] = useState('');
   const [studentSearch, setStudentSearch] = useState('');
   const [selectedPRN, setSelectedPRN] = useState<string>(''); // empty means All Students (consolidated)
+  const [activeTemplate, setActiveTemplate] = useState<'01' | '02'>('01');
+  const [activeStudentIndex, setActiveStudentIndex] = useState(0);
+
+  useEffect(() => {
+    if (initialProgram) setProgramFilter(initialProgram);
+    if (initialSemester) setSemesterFilter(initialSemester);
+  }, [initialProgram, initialSemester]);
 
   // Single student preview modal state
   const [previewStudent, setPreviewStudent] = useState<StudentTRRecord | null>(null);
@@ -360,11 +386,41 @@ export const TRSheetView: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          {onNavigateToMarks && (
+            <button
+              onClick={onNavigateToMarks}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 rounded-lg shadow-xs transition-colors"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-violet-600" />
+              <span>Marks Import</span>
+            </button>
+          )}
+
+          {onNavigateToReports && (
+            <button
+              onClick={() => onNavigateToReports(programFilter || undefined)}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg shadow-xs transition-colors"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
+              <span>Analytics</span>
+            </button>
+          )}
+
+          {onNavigateToTNG && (
+            <button
+              onClick={onNavigateToTNG}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-200 rounded-lg shadow-xs transition-colors"
+            >
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+              <span>TNG Review</span>
+            </button>
+          )}
+
           <button
             onClick={() => void loadData()}
             disabled={loading}
-            className="inline-flex items-center gap-2 px-3.5 py-2 text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg shadow-xs transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3 py-2 text-xs font-medium bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg shadow-xs transition-colors disabled:opacity-50"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
             <span>Refresh</span>
@@ -482,11 +538,11 @@ export const TRSheetView: React.FC = () => {
 
         {/* Student-level filter row */}
         <div className="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-xs font-semibold text-slate-700">Display Scope:</span>
             <select
               value={selectedPRN}
-              onChange={e => setSelectedPRN(e.target.value)}
+              onChange={e => { setSelectedPRN(e.target.value); setActiveStudentIndex(0); }}
               className="px-3 py-1.5 text-xs bg-slate-50 border border-slate-300 rounded-lg font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
             >
               <option value="">Consolidated Semester Register (All {allStudentTRRecords.length} Students)</option>
@@ -499,12 +555,22 @@ export const TRSheetView: React.FC = () => {
 
             {selectedPRN && (
               <button
-                onClick={() => setSelectedPRN('')}
+                onClick={() => { setSelectedPRN(''); setActiveStudentIndex(0); }}
                 className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg transition-colors"
               >
                 Reset to All Students
               </button>
             )}
+
+            <span className="text-xs font-semibold text-slate-700 ml-2">Template:</span>
+            <select
+              value={activeTemplate}
+              onChange={e => { setActiveTemplate(e.target.value as '01' | '02'); setActiveStudentIndex(0); }}
+              className="px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg font-medium text-slate-800 focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+            >
+              <option value="01">Template 01 — Full Assessment Matrix</option>
+              <option value="02">Template 02 — Compact Summary</option>
+            </select>
           </div>
 
           <div className="w-72">
@@ -521,15 +587,41 @@ export const TRSheetView: React.FC = () => {
 
       {/* Main Printable / Rendered TR Sheets Area */}
       <div id="printable-tr-area" ref={printAreaRef} className="space-y-8">
-        {displayedStudents.map((student, studentIndex) => (
-          <div 
-            key={`${student.prn}__${student.cm_course_name}__${student.semester}__${student.academic_year}__${student.exam_year}__${studentIndex}`} 
-            className="tr-sheet-page bg-white border border-slate-300 rounded-2xl p-6 print:p-2.5 print:rounded-md shadow-sm text-slate-900 font-sans"
+        {displayedStudents.length > 0 && (
+          <div className="no-print flex items-center justify-between bg-white border border-slate-200 rounded-xl px-4 py-2.5 shadow-sm">
+            <button
+              onClick={() => setActiveStudentIndex(i => Math.max(0, i - 1))}
+              disabled={activeStudentIndex <= 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" /> Previous
+            </button>
+            <span className="text-xs font-bold text-slate-700">
+              Student {activeStudentIndex + 1} of {displayedStudents.length}
+              <span className="ml-2 font-mono text-slate-500">{displayedStudents[activeStudentIndex]?.prn}</span>
+            </span>
+            <button
+              onClick={() => setActiveStudentIndex(i => Math.min(displayedStudents.length - 1, i + 1))}
+              disabled={activeStudentIndex >= displayedStudents.length - 1}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200"
+            >
+              Next <ChevronRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        {displayedStudents.map((student, studentIndex) => {
+          const globalIndex = studentIndex;
+          const isActive = studentIndex === activeStudentIndex;
+          return (
+          <div
+            key={`${student.prn}__${student.cm_course_name}__${student.semester}__${student.academic_year}__${student.exam_year}__${globalIndex}`}
+            className={`tr-sheet-page bg-white border border-slate-300 rounded-2xl p-6 print:p-2.5 print:rounded-md shadow-sm text-slate-900 font-sans ${isActive ? '' : 'screen-only'}`}
           >
             {/* Action Bar for Single Student on Screen (Hidden on Print) */}
             <div className="no-print flex items-center justify-between pb-2 mb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-700">Student #{studentIndex + 1} of {displayedStudents.length}</span>
+                <span className="text-xs font-bold text-slate-700">Student #{globalIndex + 1} of {displayedStudents.length}</span>
                 <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-800">{student.prn}</span>
                 <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold">
                   A4 Single Page Fit
@@ -598,12 +690,14 @@ export const TRSheetView: React.FC = () => {
                 <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500 tracking-wider">Registered Credits</span>
                 <p className="font-mono font-semibold text-slate-800 mt-0.5 print:mt-0 leading-tight print:text-[9px]">{student.totalCredits} Credits</p>
               </div>
-              <div>
-                <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500 tracking-wider">Semester SGPA</span>
-                <p className="font-mono font-extrabold text-sm print:text-[10px] text-indigo-900 mt-0.5 print:mt-0 leading-tight">
-                  {student.sgpa !== null ? student.sgpa.toFixed(2) : 'WITHHELD'}
-                </p>
-              </div>
+              {activeTemplate === '01' && (
+                <div>
+                  <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500 tracking-wider">Semester SGPA</span>
+                  <p className="font-mono font-extrabold text-sm print:text-[10px] text-indigo-900 mt-0.5 print:mt-0 leading-tight">
+                    {student.sgpa !== null ? student.sgpa.toFixed(2) : 'WITHHELD'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Assessment Component Matrix Table */}
@@ -613,27 +707,37 @@ export const TRSheetView: React.FC = () => {
                   {/* Multi-tiered header matching university standards */}
                   <tr className="bg-slate-100 text-slate-800 border-b border-slate-300 font-semibold text-center text-[10px] print:text-[7.5px]">
                     <th rowSpan={2} className="px-2.5 py-1.5 print:px-1 print:py-0.5 text-left border-r border-slate-300">Course Code & Subject Title</th>
-                    <th colSpan={3} className="px-2 py-1 print:px-1 print:py-0.5 border-r border-slate-300 bg-blue-50/60">Theory Internal (CAT)</th>
-                    <th colSpan={3} className="px-2 py-1 print:px-1 print:py-0.5 border-r border-slate-300 bg-emerald-50/60">Practical Internal (CAP)</th>
-                    <th colSpan={3} className="px-2 py-1 print:px-1 print:py-0.5 border-r border-slate-300 bg-amber-50/60">Skills Internal (CAS)</th>
+                    {activeTemplate === '01' && (
+                      <>
+                        <th colSpan={3} className="px-2 py-1 print:px-1 print:py-0.5 border-r border-slate-300 bg-blue-50/60">Theory Internal (CAT)</th>
+                        <th colSpan={3} className="px-2 py-1 print:px-1 print:py-0.5 border-r border-slate-300 bg-emerald-50/60">Practical Internal (CAP)</th>
+                        <th colSpan={3} className="px-2 py-1 print:px-1 print:py-0.5 border-r border-slate-300 bg-amber-50/60">Skills Internal (CAS)</th>
+                      </>
+                    )}
                     <th rowSpan={2} className="px-2 py-1.5 print:px-1 print:py-0.5 border-r border-slate-300 bg-slate-200/80 font-bold">CA Total</th>
                     <th colSpan={3} className="px-2 py-1 print:px-1 print:py-0.5 border-r border-slate-300 bg-purple-50/60">End-Semester Exam (ESE)</th>
                     <th rowSpan={2} className="px-2 py-1.5 print:px-1 print:py-0.5 border-r border-slate-300 bg-slate-200/80 font-bold">EXT Total</th>
                     <th rowSpan={2} className="px-2 py-1.5 print:px-1 print:py-0.5 border-r border-slate-300 font-bold">Grand Total</th>
-                    <th rowSpan={2} className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 border-r border-slate-300 font-bold">Grade</th>
+                    {activeTemplate === '01' && (
+                      <th rowSpan={2} className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 border-r border-slate-300 font-bold">Grade</th>
+                    )}
                     <th rowSpan={2} className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 border-r border-slate-300 font-bold">Credits</th>
                     <th rowSpan={2} className="px-2 py-1.5 print:px-1 print:py-0.5 font-bold">Remark</th>
                   </tr>
                   <tr className="bg-slate-50 text-slate-700 border-b border-slate-300 text-center text-[10px] print:text-[7px]">
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAT1</th>
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAT2</th>
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-300">CAT3</th>
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAP1</th>
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAP2</th>
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-300">CAP3</th>
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAS1</th>
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAS2</th>
-                    <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-300">CAS3</th>
+                    {activeTemplate === '01' && (
+                      <>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAT1</th>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAT2</th>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-300">CAT3</th>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAP1</th>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAP2</th>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-300">CAP3</th>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAS1</th>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">CAS2</th>
+                        <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-300">CAS3</th>
+                      </>
+                    )}
                     <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">EST</th>
                     <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-200">ESP</th>
                     <th className="px-1.5 py-1 print:px-0.5 print:py-0.2 border-r border-slate-300">ESS</th>
@@ -654,27 +758,31 @@ export const TRSheetView: React.FC = () => {
                           <div className="text-[10px] print:text-[7.5px] text-slate-600 truncate max-w-xs leading-tight">{course.sm_subject_name || course.paper_code}</div>
                         </td>
 
-                        {/* CAT1, CAT2, CAT3 */}
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cat1.display : '—'}</td>
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cat2.display : '—'}</td>
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300">{comp ? comp.cat3.display : '—'}</td>
+                        {activeTemplate === '01' && (
+                          <>
+                            {/* CAT1, CAT2, CAT3 */}
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cat1.display : '—'}</td>
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cat2.display : '—'}</td>
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300">{comp ? comp.cat3.display : '—'}</td>
 
-                        {/* CAP1, CAP2, CAP3 */}
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cap1.display : '—'}</td>
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cap2.display : '—'}</td>
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300">{comp ? comp.cap3.display : '—'}</td>
+                            {/* CAP1, CAP2, CAP3 */}
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cap1.display : '—'}</td>
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cap2.display : '—'}</td>
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300">{comp ? comp.cap3.display : '—'}</td>
 
-                        {/* CAS1, CAS2, CAS3 */}
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cas1.display : '—'}</td>
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cas2.display : '—'}</td>
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300">{comp ? comp.cas3.display : '—'}</td>
+                            {/* CAS1, CAS2, CAS3 */}
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cas1.display : '—'}</td>
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-200">{comp ? comp.cas2.display : '—'}</td>
+                            <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300">{comp ? comp.cas3.display : '—'}</td>
+                          </>
+                        )}
 
                         {/* CA Total */}
                         <td className={`px-2 py-1.5 print:px-1 print:py-0.5 text-center border-r border-slate-300 font-bold ${
                           isTNG ? 'text-rose-600 bg-rose-50/40' : 'text-slate-900 bg-slate-100/60'
                         }`}>
                           {course.internalTotal}
-                          <span className="text-slate-400 text-[9px] print:text-[6.5px] font-normal block leading-none">/{course.internalMaximum}</span>
+                          <span className={`text-slate-400 text-[9px] print:text-[6.5px] font-normal ${activeTemplate === '02' ? 'inline' : 'block leading-none'}`}>/{course.internalMaximum}</span>
                         </td>
 
                         {/* EST, ESP, ESS */}
@@ -685,19 +793,21 @@ export const TRSheetView: React.FC = () => {
                         {/* EXT Total */}
                         <td className="px-2 py-1.5 print:px-1 print:py-0.5 text-center border-r border-slate-300 font-bold text-slate-800 bg-slate-100/60">
                           {comp ? comp.extTotal : '—'}
-                          <span className="text-slate-400 text-[9px] print:text-[6.5px] font-normal block leading-none">/{comp ? comp.extMax : '—'}</span>
+                          <span className={`text-slate-400 text-[9px] print:text-[6.5px] font-normal ${activeTemplate === '02' ? 'inline' : 'block leading-none'}`}>/{comp ? comp.extMax : '—'}</span>
                         </td>
 
                         {/* Grand Total */}
                         <td className="px-2 py-1.5 print:px-1 print:py-0.5 text-center border-r border-slate-300 font-bold text-slate-900">
                           {course.total}
-                          <span className="text-slate-400 text-[9px] print:text-[6.5px] font-normal block leading-none">/{course.maximum}</span>
+                          <span className={`text-slate-400 text-[9px] print:text-[6.5px] font-normal ${activeTemplate === '02' ? 'inline' : 'block leading-none'}`}>/{course.maximum}</span>
                         </td>
 
                         {/* Grade */}
-                        <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300 font-bold text-slate-900">
-                          {course.grade}
-                        </td>
+                        {activeTemplate === '01' && (
+                          <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300 font-bold text-slate-900">
+                            {course.grade}
+                          </td>
+                        )}
 
                         {/* Credits */}
                         <td className="px-1.5 py-1.5 print:px-0.5 print:py-0.5 text-center border-r border-slate-300">
@@ -723,31 +833,35 @@ export const TRSheetView: React.FC = () => {
             </div>
 
             {/* Performance Summary Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 print:gap-1 p-3 print:p-1 bg-slate-100/90 rounded-xl print:rounded border border-slate-300 mb-6 print:mb-1 text-xs print:text-[9px]">
-              <div>
-                <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Total Credits Earned</span>
-                <p className="font-mono font-bold text-slate-900 mt-0.5 print:mt-0 leading-tight">
-                  {student.earnedCredits} / {student.totalCredits}
-                </p>
-              </div>
-              <div>
-                <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Grand Total Obtained</span>
-                <p className="font-mono font-bold text-slate-900 mt-0.5 print:mt-0 leading-tight">
-                  {student.totalObtained} / {student.totalMax}
-                </p>
-              </div>
-              <div>
-                <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Aggregate Percentage</span>
-                <p className="font-mono font-bold text-slate-900 mt-0.5 print:mt-0 leading-tight">
-                  {student.totalMax > 0 ? student.percentage.toFixed(2) + '%' : '—'}
-                </p>
-              </div>
-              <div>
-                <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Semester SGPA</span>
-                <p className="font-mono font-extrabold text-indigo-900 text-sm print:text-[10px] mt-0.5 print:mt-0 leading-tight">
-                  {student.sgpa !== null ? student.sgpa.toFixed(2) : 'WITHHELD'}
-                </p>
-              </div>
+            <div className={`grid gap-3 print:gap-1 p-3 print:p-1 bg-slate-100/90 rounded-xl print:rounded border border-slate-300 mb-6 print:mb-1 text-xs print:text-[9px] ${activeTemplate === '02' ? 'grid-cols-1 md:grid-cols-1' : 'grid-cols-2 md:grid-cols-5'}`}>
+              {activeTemplate === '01' && (
+                <>
+                  <div>
+                    <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Total Credits Earned</span>
+                    <p className="font-mono font-bold text-slate-900 mt-0.5 print:mt-0 leading-tight">
+                      {student.earnedCredits} / {student.totalCredits}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Grand Total Obtained</span>
+                    <p className="font-mono font-bold text-slate-900 mt-0.5 print:mt-0 leading-tight">
+                      {student.totalObtained} / {student.totalMax}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Aggregate Percentage</span>
+                    <p className="font-mono font-bold text-slate-900 mt-0.5 print:mt-0 leading-tight">
+                      {student.totalMax > 0 ? student.percentage.toFixed(2) + '%' : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Semester SGPA</span>
+                    <p className="font-mono font-extrabold text-indigo-900 text-sm print:text-[10px] mt-0.5 print:mt-0 leading-tight">
+                      {student.sgpa !== null ? student.sgpa.toFixed(2) : 'WITHHELD'}
+                    </p>
+                  </div>
+                </>
+              )}
               <div>
                 <span className="text-[10px] print:text-[7px] uppercase font-bold text-slate-500">Semester Result</span>
                 <p className="font-bold text-xs print:text-[9px] mt-0.5 print:mt-0 leading-tight">
@@ -788,10 +902,10 @@ export const TRSheetView: React.FC = () => {
             {/* Footer page identifier */}
             <div className="mt-4 print:mt-0.5 pt-2 print:pt-0.5 border-t border-slate-100 print:border-slate-200 flex items-center justify-between text-[9px] print:text-[7px] text-slate-400 font-mono">
               <span>PRN: {student.prn} · {student.student_name}</span>
-              <span>SSPU Exam Registry · Page {studentIndex + 1} of {displayedStudents.length}</span>
+              <span>SSPU Exam Registry · Page {globalIndex + 1} of {displayedStudents.length}</span>
             </div>
           </div>
-        ))}
+        ); })}
 
         {!displayedStudents.length && !loading && (
           <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl">

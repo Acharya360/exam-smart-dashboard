@@ -3,6 +3,8 @@ import {
   ChevronDown,
   PanelLeftClose,
   PanelLeftOpen,
+  Pin,
+  PinOff,
   GraduationCap,
   LogOut,
   X,
@@ -24,8 +26,11 @@ import {
   Search,
   Settings,
   Sparkles,
+  BarChart3,
+  UserCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { VIEW_TO_PATH } from '../../utils/routes';
 
 interface SidebarProps {
   currentView: string;
@@ -55,45 +60,46 @@ const groups: NavGroupDef[] = [
     name: 'Command Center',
     items: [
       { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
-      { id: 'motionVideo', label: 'Project Motion Video', icon: Sparkles },
     ],
   },
   {
-    name: 'Examination Workflow',
+    name: 'Phase 1: Academic & Faculty Registry',
+    items: [
+      { id: 'programs', label: 'Programme & Member Mapping', icon: Building2 },
+      { id: 'courseMaster', label: 'Course Master', icon: BookOpen },
+      { id: 'facultyAllocation', label: 'Faculty Allocation & Duties', icon: GraduationCap },
+    ],
+  },
+  {
+    name: 'Phase 2: Timetable & Operations',
     items: [
       { id: 'timetable', label: 'Examination Timetable', icon: CalendarDays },
+      { id: 'timetableGenerator', label: 'Timetable Generator (EMS)', icon: Sparkles },
       { id: 'tasks', label: 'Tasks & Workflow', icon: ListChecks },
     ],
   },
   {
-    name: 'Academic Registry',
+    name: 'Phase 3: Students & Marks Entry',
     items: [
-      { id: 'programs', label: 'Programme & Member Mapping', icon: Building2 },
-      { id: 'courseMaster', label: 'Course Master', icon: BookOpen },
-    ],
-  },
-  {
-    name: 'Students & Registrations',
-    items: [{ id: 'students', label: 'Students & Registrations', icon: Users }],
-  },
-  {
-    name: 'Assessment & Marks',
-    items: [
+      { id: 'students', label: 'Students & Registrations', icon: Users },
       { id: 'assessment', label: 'Assessment & Grading', icon: SlidersHorizontal },
       { id: 'studentMarks', label: 'Student Marks Import', icon: FileSpreadsheet },
     ],
   },
   {
-    name: 'Results & Eligibility',
+    name: 'Phase 4: Results & Tabulation',
     items: [
       { id: 'results', label: 'Eligibility & Results', icon: ShieldCheck },
       { id: 'tng', label: 'TNG Candidates', icon: ShieldAlert },
       { id: 'sgpa', label: 'Semester SGPA', icon: ChartColumn },
+      { id: 'trsheet', label: 'Tabulation Register (TR)', icon: FileText },
     ],
   },
   {
-    name: 'Reports & Registers',
-    items: [{ id: 'trsheet', label: 'Tabulation Register', icon: FileText }],
+    name: 'Phase 5: Institutional Analytics',
+    items: [
+      { id: 'performanceReports', label: 'Performance Analytics', icon: BarChart3 },
+    ],
   },
   {
     name: 'Governance & Settings',
@@ -115,10 +121,67 @@ export function Sidebar({
   onClose,
 }: SidebarProps) {
   const { isSuperAdmin, currentUser, logout } = useAuth();
-  const [collapsed, setCollapsed] = useState(false);
+  const [autoHide, setAutoHide] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('sspu_sidebar_autohide');
+      return stored !== null ? stored === 'true' : true; // Auto-hide enabled by default
+    } catch {
+      return true;
+    }
+  });
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('sspu_sidebar_autohide');
+      return stored !== null ? stored === 'true' : false;
+    } catch {
+      return false;
+    }
+  });
   const [closed, setClosed] = useState<string[]>([]);
   const [filterQuery, setFilterQuery] = useState('');
   const ref = useRef<HTMLElement>(null);
+
+  // Auto-hide when user moves mouse to or clicks inside main content area to work with screen
+  useEffect(() => {
+    if (!autoHide) return;
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) return;
+
+    const handleWorkWithScreen = () => {
+      setCollapsed(true);
+    };
+
+    mainContent.addEventListener('mouseenter', handleWorkWithScreen);
+    mainContent.addEventListener('mousedown', handleWorkWithScreen);
+
+    return () => {
+      mainContent.removeEventListener('mouseenter', handleWorkWithScreen);
+      mainContent.removeEventListener('mousedown', handleWorkWithScreen);
+    };
+  }, [autoHide]);
+
+  const toggleAutoHide = () => {
+    setAutoHide((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('sspu_sidebar_autohide', String(next));
+      } catch {}
+      if (next) setCollapsed(true);
+      return next;
+    });
+  };
+
+  const handleSidebarMouseEnter = () => {
+    if (autoHide && collapsed) {
+      setCollapsed(false);
+    }
+  };
+
+  const handleSidebarMouseLeave = () => {
+    if (autoHide && !collapsed) {
+      setCollapsed(true);
+    }
+  };
 
   // Keyboard accessibility — trap focus while mobile sheet is open
   useEffect(() => {
@@ -130,7 +193,7 @@ export function Sidebar({
       if (e.key === 'Escape') onClose?.();
       if (e.key === 'Tab') {
         const nodes = Array.from(
-          ref.current?.querySelectorAll<HTMLButtonElement>('button') || [],
+          ref.current?.querySelectorAll<HTMLElement>('button, a') || [],
         ).filter((n) => n.getClientRects().length);
         const first = nodes[0];
         const last = nodes.at(-1);
@@ -183,6 +246,7 @@ export function Sidebar({
   const handleItemClick = (id: string) => {
     if (id === 'passwords') onOpenPasswordModal();
     else onNavigate(id);
+    if (autoHide) setCollapsed(true);
     if (isOpen && window.innerWidth < 768) onClose?.();
   };
 
@@ -208,38 +272,55 @@ export function Sidebar({
       <aside
         ref={ref}
         aria-label="Application navigation"
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
         className={`app-sidebar ${collapsed ? 'is-collapsed' : ''} ${isOpen ? 'is-open' : ''}`}
       >
         {/* ─── Brand header ─── */}
-        <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-700/40">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
-            <GraduationCap className="w-[18px] h-[18px] text-white" />
+        <div className="flex items-center gap-2.5 px-3.5 py-3.5 border-b border-slate-700/40">
+          <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+            <GraduationCap className="w-4 h-4 text-white" />
           </div>
           <div className="nav-copy min-w-0 flex-1">
-            <strong className="block text-sm font-bold text-white tracking-tight truncate">
+            <strong className="block text-xs font-bold text-white tracking-tight truncate">
               SSPU ExamTrack
             </strong>
-            <span className="text-[11px] text-slate-400 leading-none">
+            <span className="text-[10px] text-slate-400 leading-none">
               Examination Operations
             </span>
           </div>
 
-          {/* Desktop collapse */}
+          {/* Desktop auto-hide pin toggle */}
+          <button
+            onClick={toggleAutoHide}
+            className="hidden md:flex p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors ml-auto"
+            title={
+              autoHide
+                ? 'Auto-hide active (collapses while working on screen). Click to pin open.'
+                : 'Sidebar pinned open. Click to enable auto-hide.'
+            }
+            aria-label={autoHide ? 'Disable auto-hide' : 'Enable auto-hide'}
+          >
+            {autoHide ? <PinOff size={14} className="text-violet-400" /> : <Pin size={14} className="text-slate-400" />}
+          </button>
+
+          {/* Desktop manual collapse */}
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="hidden md:flex p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors ml-auto"
+            className="hidden md:flex p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
             aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {collapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
+            {collapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
           </button>
 
           {/* Mobile close */}
           <button
             aria-label="Close sidebar"
             onClick={onClose}
-            className="p-1.5 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors ml-auto md:hidden"
+            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors ml-auto md:hidden"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
@@ -268,8 +349,41 @@ export function Sidebar({
         )}
 
         {/* ─── Navigation list ─── */}
-        <nav className="flex-1 overflow-y-auto px-2.5 pt-2 pb-3">
+        <nav className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-2.5 pt-2 pb-3">
           {filteredGroups.map((group, gIdx) => {
+            const number = String(gIdx + 1).padStart(2, '0');
+            const soloItem = group.items.length === 1 ? group.items[0] : undefined;
+
+            /* Single-module section → one clickable row, no dropdown to collapse */
+            if (soloItem) {
+              const SoloIcon = soloItem.icon;
+              const isSoloActive = currentView === soloItem.id;
+              return (
+                <section key={group.name} className="mt-4 first:mt-1">
+                  <a
+                    href={VIEW_TO_PATH[soloItem.id] || '/'}
+                    title={soloItem.label}
+                    aria-label={soloItem.label}
+                    aria-current={isSoloActive ? 'page' : undefined}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleItemClick(soloItem.id);
+                    }}
+                    className={`nav-item is-solo group ${isSoloActive ? 'active' : ''}`}
+                  >
+                    <span className="nav-num shrink-0 w-4 text-right text-[10px] font-mono font-semibold text-slate-500">
+                      {number}
+                    </span>
+                    <SoloIcon
+                      size={15}
+                      className={`shrink-0 ${isSoloActive ? 'text-indigo-300' : 'text-slate-500 group-hover:text-slate-300'}`}
+                    />
+                    <span className="nav-copy flex-1 truncate">{soloItem.label}</span>
+                  </a>
+                </section>
+              );
+            }
+
             const isGroupActive = group.items.some((i) => i.id === currentView);
             const isExpanded =
               filterQuery.trim().length > 0 || !closed.includes(group.name) || isGroupActive;
@@ -284,7 +398,7 @@ export function Sidebar({
                   className="group flex w-full items-center gap-2 px-2 py-1 text-left"
                 >
                   <span className="text-[10px] font-mono font-semibold text-slate-500 w-4 text-right shrink-0">
-                    {String(gIdx + 1).padStart(2, '0')}
+                    {number}
                   </span>
                   <span className="nav-copy flex-1 text-[10.5px] font-semibold uppercase tracking-[0.06em] text-slate-500 group-hover:text-slate-400 transition-colors truncate">
                     {group.name}
@@ -305,13 +419,16 @@ export function Sidebar({
                       const isActive = currentView === item.id;
 
                       return (
-                        <button
+                        <a
                           key={item.id}
-                          type="button"
+                          href={VIEW_TO_PATH[item.id] || '#'}
                           title={item.label}
                           aria-label={item.label}
                           aria-current={isActive ? 'page' : undefined}
-                          onClick={() => handleItemClick(item.id)}
+                          onClick={(e) => {
+                            if (item.id !== 'passwords') e.preventDefault();
+                            handleItemClick(item.id);
+                          }}
                           className={`nav-item ${isActive ? 'active' : ''}`}
                         >
                           <Icon
@@ -330,7 +447,7 @@ export function Sidebar({
                               {pendingTasksCount}
                             </span>
                           )}
-                        </button>
+                        </a>
                       );
                     })}
                   </div>

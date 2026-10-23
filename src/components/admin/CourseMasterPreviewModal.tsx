@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CourseMaster } from '../../types';
+import type { ValidationResult } from '../../utils/validation';
 import {
   X,
   CheckCircle2,
@@ -10,15 +11,20 @@ import {
   Sparkles,
   Layers,
   Award,
+  FileSpreadsheet,
 } from 'lucide-react';
+
+type CourseDraft = Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>;
 
 interface CourseMasterPreviewModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: () => Promise<void>;
-  courses: Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[];
+  courses: CourseDraft[];
   existingCourses: CourseMaster[];
   errors: string[];
+  validation?: ValidationResult<CourseDraft> | null;
+  onDownloadReport?: () => void;
   isSaving: boolean;
 }
 
@@ -29,6 +35,8 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
   courses,
   existingCourses,
   errors,
+  validation,
+  onDownloadReport,
   isSaving,
 }) => {
   const [search, setSearch] = useState('');
@@ -77,14 +85,37 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            disabled={isSaving}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {validation && onDownloadReport && (
+              <button
+                onClick={onDownloadReport}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs"
+                title="Download the full validation report (summary, errors, duplicates, unmatched masters, suggestions)"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600" />
+                Validation Report
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              disabled={isSaving}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
+        {validation && (validation.summary.invalidRows > 0 || validation.summary.duplicateRows > 0 || validation.summary.warningRows > 0) && (
+          <div className="px-6 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] font-medium">
+            <span className="text-slate-500 uppercase tracking-wide font-bold">Data Validation</span>
+            <span className="text-emerald-700">{validation.summary.validRows} clean</span>
+            {validation.summary.warningRows > 0 && <span className="text-amber-700">{validation.summary.warningRows} warnings</span>}
+            {validation.summary.duplicateRows > 0 && <span className="text-rose-700">{validation.summary.duplicateRows} duplicates (excluded)</span>}
+            {validation.summary.invalidRows > 0 && <span className="text-rose-700">{validation.summary.invalidRows} invalid (excluded)</span>}
+            {validation.summary.unmatchedProgrammes > 0 && <span className="text-amber-700">{validation.summary.unmatchedProgrammes} programme(s) not in master</span>}
+          </div>
+        )}
 
         {/* Errors & Warnings Bar (if any) */}
         {errors.length > 0 && (
@@ -127,7 +158,7 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
             </div>
             <div>
               <div className="text-sm font-bold text-slate-900">{nonArchCount}</div>
-              <div className="text-[10px] text-slate-500 font-medium">Non-Architecture (40%)</div>
+              <div className="text-[10px] text-slate-500 font-medium">Non-Architecture (40% Cutoff)</div>
             </div>
           </div>
           <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-3 shadow-2xs">
@@ -136,7 +167,7 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
             </div>
             <div>
               <div className="text-sm font-bold text-slate-900">{archCount}</div>
-              <div className="text-[10px] text-slate-500 font-medium">Architecture (45%)</div>
+              <div className="text-[10px] text-slate-500 font-medium">Architecture (45% Cutoff)</div>
             </div>
           </div>
         </div>
@@ -147,7 +178,7 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="Search course, subject, code..."
+              placeholder="Search program, course name, code..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
@@ -164,15 +195,15 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
             <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 border-b border-slate-200 font-semibold shadow-2xs">
               <tr>
                 <th className="px-3 py-2.5 w-10 text-center">#</th>
-                <th className="px-3 py-2.5 min-w-[200px]">Program & Subject</th>
-                <th className="px-3 py-2.5 text-center">Code / Sem</th>
-                <th className="px-2 py-2.5 text-center">L-T-P-S</th>
-                <th className="px-2 py-2.5 text-center">Cr.</th>
+                <th className="px-3 py-2.5 min-w-[200px]">Program & Course Name</th>
+                <th className="px-3 py-2.5 text-center">Course Code / Sem</th>
+                <th className="px-2 py-2.5 text-center" title="L_Cr - T_Cr - P_Cr - S_Cr">L-T-P-S</th>
+                <th className="px-2 py-2.5 text-center" title="Total Credits">Total Cr.</th>
                 <th className="px-3 py-2.5 text-center">Grading Category</th>
-                <th className="px-3 py-2.5 text-center">Applicable Heads</th>
-                <th className="px-3 py-2.5 text-center">IA Total (Max / Min)</th>
-                <th className="px-3 py-2.5 text-center">ESE (T / P / S)</th>
-                <th className="px-3 py-2.5 text-center">Grand Total</th>
+                <th className="px-3 py-2.5 text-center">Heads (Theory/Practical/Skills)</th>
+                <th className="px-3 py-2.5 text-center">Internal (IA Max / Min)</th>
+                <th className="px-3 py-2.5 text-center" title="End Semester Exam: EST (Theory) / ESP (Practical) / ESS (Skills)">ESE (EST / ESP / ESS)</th>
+                <th className="px-3 py-2.5 text-center">Total Marks (Max / Min)</th>
                 <th className="px-3 py-2.5 text-center">Sync Action</th>
               </tr>
             </thead>
@@ -217,6 +248,7 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                         }`}
                       >
                         {c.grading_category || 'Non-Architecture'}
+                        <span className="text-[9px] font-semibold opacity-80">({isArch ? '45%' : '40%'})</span>
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center">
@@ -243,7 +275,7 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                       <span className="text-[10px] text-slate-400 mx-1">/</span>
                       <span className="text-emerald-700 font-semibold">{c.ia_min_marks}</span>
                     </td>
-                    <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600">
+                    <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600" title={`EST: ${c.est_max_marks || 0} (Min: ${c.est_min_marks || 0}), ESP: ${c.esp_max_marks || 0} (Min: ${c.esp_min_marks || 0}), ESS: ${c.ess_max_marks || 0} (Min: ${c.ess_min_marks || 0})`}>
                       {c.est_max_marks || 0} / {c.esp_max_marks || 0} / {c.ess_max_marks || 0}
                     </td>
                     <td className="px-3 py-2 text-center">

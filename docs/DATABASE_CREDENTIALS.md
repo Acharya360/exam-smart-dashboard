@@ -26,3 +26,26 @@ postgresql://postgres:ExamTrack%402026@db.woqhizacenduogpxglen.supabase.co:5432/
 postgresql://postgres.woqhizacenduogpxglen:ExamTrack%402026@aws-0-REGION.pooler.supabase.com:6543/postgres
 ```
 *Note: Replace `REGION` with the region your Supabase project is hosted in (e.g., `ap-south-1`, `us-east-1`). You can verify this in your Supabase Dashboard under Settings -> Database -> Connection String.*
+
+---
+
+## Local Microsoft SQL Server Configuration
+- **Server Instance:** `acharya360\SQLEXPRESS`
+- **Database Name:** `SSPU_Exam`
+- **Authentication:** Windows Integrated Authentication (`Integrated Security=True`)
+- **T-SQL Migration Script:** `create_sspu_exam.sql`
+- **T-SQL Seed Script:** `seed_sspu_exam.sql`
+- **Data Export & Import Utilities:** `export_marks_to_csv.js` & `import_marks_bulk.ps1`
+- **Local API Backend Server:** `server.js` (running on `http://localhost:5000`)
+- **Connection String:**
+  ```text
+  Data Source=acharya360\SQLEXPRESS;Initial Catalog=SSPU_Exam;Integrated Security=True;Persist Security Info=False;Pooling=False;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=True;Application Name="SQL Server Management Studio";Command Timeout=0
+  ```
+- **Quick Status Verification Command:**
+  ```bash
+  run.bat db
+  ```
+- **Full Re-migration Command:**
+  ```bash
+  run.bat migrate
+  ```

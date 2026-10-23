@@ -17,18 +17,24 @@ import {
   Lock,
   Mail,
   Building2,
-  Menu,
-  Sparkles
+  Menu
 } from 'lucide-react';
+import { WorkflowPipelineNav } from '../common/WorkflowPipelineBar';
 
 interface HeaderProps {
   currentView: string;
-  onNavigate: (view: string) => void;
+  onNavigate: (view: string, params?: Record<string, string>) => void;
   escalatedTasksCount: number;
   onOpenPasswordModal: () => void;
   onOpenProfileModal: (tab?: 'profile' | 'password' | 'duties') => void;
   onMenuToggle?: () => void;
-  onOpenMotionVideo?: () => void;
+  activeContext?: {
+    paperCode?: string;
+    staffCode?: string;
+    programName?: string;
+    semester?: string;
+  };
+  onClearContext?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -38,7 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenPasswordModal,
   onOpenProfileModal,
   onMenuToggle,
-  onOpenMotionVideo
+  activeContext,
+  onClearContext
 }) => {
   const { currentUser, getUserRoleLabel, isSuperAdmin, logout, getUserPrograms } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
@@ -77,7 +84,9 @@ export const Header: React.FC<HeaderProps> = ({
       case 'results': return 'Examination Processing / Eligibility & Results';
       case 'sgpa': return 'Semester Results / Credit-Weighted SGPA';
       case 'courseMaster': return 'Academic Registry / LTPS & Course Credits';
+      case 'facultyAllocation': return 'Academic Registry / Faculty Course Allocation & Teaching Staff';
       case 'studentMarks': return 'Examination Marks / Import & Review';
+      case 'performanceReports': return 'Reports & Analytics / Institutional Examination Performance';
       case 'dashboard':
         return isSuperAdmin ? 'Central Examination Command / Master Dashboard' : 'Assigned Programs / Examination Timetable';
       case 'tasks':
@@ -88,61 +97,52 @@ export const Header: React.FC<HeaderProps> = ({
         return 'Data Ingestion / Excel Sheet Parser';
       case 'schema':
         return 'System Architecture / PostgreSQL & Supabase RLS Engine';
-      case 'motionVideo':
-        return 'Experience / 60 FPS Cinematic Motion Video Showcase';
       default:
         return 'Examination Management System';
     }
   };
 
   return (
-    <header className="h-16 glass border-b border-white/50 px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 shadow-xs shadow-slate-200/50">
+    <header className="h-14 glass border-b border-white/50 px-3 sm:px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs shadow-slate-200/40 w-full max-w-full">
       {/* Zone 1 & 2: Institutional Brand & Contextual Breadcrumb */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2.5">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <button 
             onClick={onMenuToggle}
-            className="p-1 -ml-1 mr-1 text-slate-500 hover:text-slate-900 md:hidden rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-1.5 -ml-1 mr-0.5 text-slate-500 hover:text-slate-900 md:hidden rounded-lg hover:bg-slate-100 transition-colors shrink-0"
             aria-label="Toggle Menu"
           >
-            <Menu className="w-5 h-5" />
+            <Menu className="w-4 h-4" />
           </button>
-          <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs">
-            <GraduationCap className="w-5 h-5" />
+          <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs shrink-0">
+            <GraduationCap className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-base font-bold tracking-tight text-slate-900">SSPU ExamTrack</span>
-              <span className="text-xs font-semibold px-2 py-0.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-700">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs sm:text-sm font-bold tracking-tight text-slate-900 truncate">SSPU ExamTrack</span>
+              <span className="hidden sm:inline-block text-[10px] font-semibold px-1.5 py-0.2 rounded border border-indigo-200 bg-indigo-50 text-indigo-700 shrink-0">
                 CoE Cell
               </span>
             </div>
           </div>
         </div>
 
-        <div className="hidden lg:flex items-center text-xs text-slate-400 gap-1.5 pl-4 border-l border-slate-200">
+        <div className="hidden lg:flex items-center text-[11px] text-slate-400 gap-1.5 pl-3 border-l border-slate-200 truncate">
           <span>Examination Department</span>
           <span>/</span>
-          <span className="font-medium text-slate-700">{getBreadcrumbTitle(currentView)}</span>
+          <span className="font-medium text-slate-700 truncate">{getBreadcrumbTitle(currentView)}</span>
         </div>
       </div>
 
       {/* Zone 3: Actions, Notifications & Personal User Profile */}
-      <div className="flex items-center gap-2.5">
-        {/* Launch Cinematic Motion Video Button */}
-        {onOpenMotionVideo && (
-          <button
-            onClick={onOpenMotionVideo}
-            className="group relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-600 via-indigo-600 to-violet-700 hover:from-violet-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-xs shadow-violet-500/25 transition-all transform hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
-            title="Experience Project Motion Video Showcase"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-300 group-hover:rotate-12 transition-transform" />
-            <span className="tracking-wide">Motion Video</span>
-            <span className="hidden sm:inline-block px-1.5 py-0.2 rounded text-[10px] font-mono bg-white/20 text-white font-bold">
-              60 FPS
-            </span>
-          </button>
-        )}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+        {/* Next & Back Workflow Navigation (Zero extra vertical space) */}
+        <WorkflowPipelineNav
+          currentView={currentView}
+          onNavigate={onNavigate}
+          activeContext={activeContext}
+          onClearContext={onClearContext}
+        />
 
         {/* Escalation Notification Bell */}
         <div className="relative">
@@ -159,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {notificationsOpen && (
-            <div className="absolute right-0 mt-2 w-[min(320px,calc(100vw-32px))] bg-white rounded-xl shadow-lg border border-slate-200 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-[min(320px,calc(100vw-20px))] max-w-[calc(100vw-16px)] bg-white rounded-xl shadow-lg border border-slate-200 p-3 z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="flex items-center justify-between pb-2 border-b border-slate-100 mb-2">
                 <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Operational Alerts</span>
                 <span className="text-xs text-slate-400 font-mono">{escalatedTasksCount} active</span>
@@ -222,7 +222,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {dropdownOpen && (
-            <div className="absolute right-0 mt-2 w-[min(320px,calc(100vw-32px))] bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+            <div className="absolute right-0 mt-2 w-[min(320px,calc(100vw-20px))] max-w-[calc(100vw-16px)] bg-white rounded-2xl shadow-2xl border border-slate-200 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
               {/* User Identity Card */}
               <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/70 rounded-t-xl">
                 <div className="flex items-center gap-3">

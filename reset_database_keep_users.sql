@@ -42,6 +42,20 @@ SELECT 'dbo.exam_students', COUNT(*) FROM dbo.exam_students
 UNION ALL
 SELECT 'dbo.exam_registrations', COUNT(*) FROM dbo.exam_registrations
 UNION ALL
+SELECT 'dbo.faculty_course_allocations', COUNT(*) FROM dbo.faculty_course_allocations
+UNION ALL
+SELECT 'dbo.timetable_manual_overrides', COUNT(*) FROM dbo.timetable_manual_overrides
+UNION ALL
+SELECT 'dbo.timetable_generated_schedules', COUNT(*) FROM dbo.timetable_generated_schedules
+UNION ALL
+SELECT 'dbo.timetable_student_records', COUNT(*) FROM dbo.timetable_student_records
+UNION ALL
+SELECT 'dbo.timetable_electives', COUNT(*) FROM dbo.timetable_electives
+UNION ALL
+SELECT 'dbo.timetable_slots', COUNT(*) FROM dbo.timetable_slots
+UNION ALL
+SELECT 'dbo.timetable_sessions', COUNT(*) FROM dbo.timetable_sessions
+UNION ALL
 SELECT 'dbo.exam_processing_audit', COUNT(*) FROM dbo.exam_processing_audit;
 
 -- 2. EXECUTE RESET WITHIN ATOMIC TRANSACTION
@@ -93,28 +107,72 @@ BEGIN TRY
         PRINT '  [OK] Deleted all exam_course_settings';
     END
 
-    -- 2.7 Delete course master records (LTPS syllabus & mark limits)
+    -- 2.7 Delete faculty course allocations and duties
+    IF OBJECT_ID('dbo.faculty_course_allocations', 'U') IS NOT NULL
+    BEGIN
+        DELETE FROM dbo.faculty_course_allocations;
+        PRINT '  [OK] Deleted all faculty_course_allocations';
+    END
+
+    -- 2.8 Delete timetable generator records
+    IF OBJECT_ID('dbo.timetable_manual_overrides', 'U') IS NOT NULL
+    BEGIN
+        DELETE FROM dbo.timetable_manual_overrides;
+        PRINT '  [OK] Deleted all timetable_manual_overrides';
+    END
+
+    IF OBJECT_ID('dbo.timetable_generated_schedules', 'U') IS NOT NULL
+    BEGIN
+        DELETE FROM dbo.timetable_generated_schedules;
+        PRINT '  [OK] Deleted all timetable_generated_schedules';
+    END
+
+    IF OBJECT_ID('dbo.timetable_student_records', 'U') IS NOT NULL
+    BEGIN
+        DELETE FROM dbo.timetable_student_records;
+        PRINT '  [OK] Deleted all timetable_student_records';
+    END
+
+    IF OBJECT_ID('dbo.timetable_electives', 'U') IS NOT NULL
+    BEGIN
+        DELETE FROM dbo.timetable_electives;
+        PRINT '  [OK] Deleted all timetable_electives';
+    END
+
+    IF OBJECT_ID('dbo.timetable_slots', 'U') IS NOT NULL
+    BEGIN
+        DELETE FROM dbo.timetable_slots;
+        PRINT '  [OK] Deleted all timetable_slots';
+    END
+
+    IF OBJECT_ID('dbo.timetable_sessions', 'U') IS NOT NULL
+    BEGIN
+        DELETE FROM dbo.timetable_sessions;
+        PRINT '  [OK] Deleted all timetable_sessions';
+    END
+
+    -- 2.9 Delete course master records (LTPS syllabus & mark limits)
     IF OBJECT_ID('dbo.course_master', 'U') IS NOT NULL
     BEGIN
         DELETE FROM dbo.course_master;
         PRINT '  [OK] Deleted all course_master';
     END
 
-    -- 2.8 Delete university programs / degrees (references profiles)
+    -- 2.10 Delete university programs / degrees (references profiles)
     IF OBJECT_ID('dbo.programs', 'U') IS NOT NULL
     BEGIN
         DELETE FROM dbo.programs;
         PRINT '  [OK] Deleted all programs';
     END
 
-    -- 2.9 Delete examination processing audit logs
+    -- 2.11 Delete examination processing audit logs
     IF OBJECT_ID('dbo.exam_processing_audit', 'U') IS NOT NULL
     BEGIN
         DELETE FROM dbo.exam_processing_audit;
         PRINT '  [OK] Deleted all exam_processing_audit';
     END
 
-    -- 2.10 Reset environment data_mode to LIVE
+    -- 2.12 Reset environment data_mode to LIVE
     IF OBJECT_ID('dbo.exam_environment', 'U') IS NOT NULL
     BEGIN
         UPDATE dbo.exam_environment SET data_mode = 'LIVE' WHERE id = 1;
@@ -204,6 +262,20 @@ UNION ALL
 SELECT 'dbo.exam_students', COUNT(*) FROM dbo.exam_students
 UNION ALL
 SELECT 'dbo.exam_registrations', COUNT(*) FROM dbo.exam_registrations
+UNION ALL
+SELECT 'dbo.faculty_course_allocations', COUNT(*) FROM dbo.faculty_course_allocations
+UNION ALL
+SELECT 'dbo.timetable_manual_overrides', COUNT(*) FROM dbo.timetable_manual_overrides
+UNION ALL
+SELECT 'dbo.timetable_generated_schedules', COUNT(*) FROM dbo.timetable_generated_schedules
+UNION ALL
+SELECT 'dbo.timetable_student_records', COUNT(*) FROM dbo.timetable_student_records
+UNION ALL
+SELECT 'dbo.timetable_electives', COUNT(*) FROM dbo.timetable_electives
+UNION ALL
+SELECT 'dbo.timetable_slots', COUNT(*) FROM dbo.timetable_slots
+UNION ALL
+SELECT 'dbo.timetable_sessions', COUNT(*) FROM dbo.timetable_sessions
 UNION ALL
 SELECT 'dbo.exam_processing_audit', COUNT(*) FROM dbo.exam_processing_audit;
 GO

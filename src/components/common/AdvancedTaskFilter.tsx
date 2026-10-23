@@ -75,10 +75,10 @@ export const AdvancedTaskFilter: React.FC<AdvancedTaskFilterProps> = ({
   return (
     <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden mb-4 transition-all">
       {/* Primary Bar */}
-      <div className="p-3.5 flex flex-wrap items-center justify-between gap-3 bg-slate-50/70 border-b border-slate-200">
-        <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
+      <div className="p-3 sm:p-3.5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 bg-slate-50/70 border-b border-slate-200">
+        <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-0 sm:min-w-[260px]">
           {/* Robust Search across task title, program, paper, notes */}
-          <div className="relative flex-1 min-w-[240px] max-w-lg">
+          <div className="relative flex-1 min-w-0 sm:min-w-[220px] max-w-lg">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"

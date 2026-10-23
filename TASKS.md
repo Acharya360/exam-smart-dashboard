@@ -140,3 +140,28 @@ User selected the existing Vercel project. Its frontend depends on a Windows-hos
 | F02 | P1 | Add server-side paging for student marks grid (limit/offset + total count in `/api/student-marks`, client-side filter on fetched page) | Completed |
 
 Evidence: `npm run lint` clean; `npm run build` in 595ms — main chunk reduced from 1,110.05 kB to 1,110.01 kB (lazy chunks now loaded on demand); five new async chunks generated: ExcelUploader 15 kB, ExaminationWorkspace 20 kB, TNGStudentsView 28 kB, StudentMarksImport 31 kB, TRSheetView 32 kB. Marks grid now returns `{data, total, page, pageSize}` instead of streaming all rows.
+
+## Examination flow audit and fixes — 2026-10-17
+
+Overall status: **Verified working; six defects fixed, remaining gaps recorded below.**
+
+Rollback point: commit `9a13419` captured the previously untracked backend, result engine, migrations and test suites. `server.js`, `server/`, `src/services/resultEngine.ts`, `tests/`, `scripts/` and `migrations/` had never been committed before this.
+
+Dependency and backend verification: `npm ls` shows every declared package installed with no unmet peers; `npm run lint` (tsc) clean; `npm run build` clean; 66 automated tests pass (20 migration/password security + 46 result engine/workbook). All 9 read endpoints return 200 and both template downloads serve real .xlsx. Live SQL Server has 11 tables; the three `schema.sql` tables `student_results`, `student_sgpa`, `student_cgpa` do not exist there and no code references them. Additive demo data seeded with a verified backup (`SSPU_Exam_before_demo_2026-10-17T15-34-53-826Z.bak`): 5 programmes, 15 papers, 60 tasks, 15 courses, 600 marks, 150 registrations. Every flow stage renders with data and the browser console stays clean apart from the expected pre-login 401.
+
+Fixed and re-verified against the live API (11/11 checks pass):
+
+- Schedules created outside the browser received no workflow at all. `POST /api/schedules/bulk` now generates the mandated 4-phase suite on insert only, idempotent on re-import, and skips silently until a programme has both coordinators (`server.js`).
+- `POST /api/tasks` accepted any title and any status that `PATCH` rejects. It now requires a title, validates status against the shared `TASK_STATUSES`, and maps foreign-key violations to a clean 400 instead of leaking raw SQL text.
+- `GET /api/health` was registered before the auth gate and exposed database name, instance and row counts to anonymous callers. It now requires a session; no consumer needs it unauthenticated.
+- The Tasks "This Week" filter compared against a hardcoded 10–17 May 2026 window, so it always returned nothing. It now derives Monday-based bounds from the current date.
+- Three password forms advertised a 6-character minimum while the API requires 8, so valid-looking submissions failed server-side. All now say 8 with `minLength={8}`.
+- Removed the unused `calculateResult` import from `server.js`.
+
+Recorded, not fixed (needs a product decision):
+
+- Results, SGPA and CGPA are computed previews with no persistence, publication or correction workflow, matching the P0 line in the remaining-requirements table.
+- `ExcelUploader.tsx` is lazy-loaded but never rendered, so the documented "Upload Excel" journey is unreachable; `autoGenerateTasks` is hardcoded true and parse errors are dropped into an `alert()`.
+- Coordinator scoping is implemented twice with different keys (`program_code`/`program_name` in `server.js`, `programs.id` in `server/examination.js`); `/api/examination` bypasses the shared middleware and relies on its own guard.
+- `dbo.student_marks` is merged on seven columns with no unique index; there is no `DELETE /api/tasks/:id` route.
+- `docs/DATABASE_CREDENTIALS.md` holds a plaintext Supabase password already committed and pushed by an earlier `run.bat` auto-commit, and the Database Reference screen still presents the stale PostgreSQL/Supabase schema for a SQL Server deployment.

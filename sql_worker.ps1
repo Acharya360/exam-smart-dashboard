@@ -1,6 +1,6 @@
 param(
-    [string]$Server = "acharya360\SQLEXPRESS",
-    [string]$Database = "SSPU_Exam"
+    [string]$Server = $(if ($env:SQL_SERVER) { $env:SQL_SERVER } else { "localhost\SQLEXPRESS" }),
+    [string]$Database = $(if ($env:SQL_DATABASE) { $env:SQL_DATABASE } else { "SSPU_Exam" })
 )
 
 $ErrorActionPreference = "Stop"

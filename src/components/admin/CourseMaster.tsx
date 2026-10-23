@@ -1,15 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/db';
 import { CourseMaster } from '../../types';
 import { parseCourseMasterExcel, downloadCourseMasterTemplate } from '../../services/excelParser';
 import { CourseMasterPreviewModal } from './CourseMasterPreviewModal';
 import {
+  validateParsedEntities,
+  generateImportErrorReport,
+  type MasterRecord,
+  type ValidationResult,
+} from '../../utils/validation';
+
+type CourseDraft = Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>;
+import {
   BookOpen,
   UploadCloud,
   Download,
   Search,
-  Shield,
   Layers,
   CheckCircle2,
   AlertCircle,
@@ -18,22 +25,71 @@ import {
   Award,
   Info,
   X,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  GraduationCap,
+  CalendarDays,
+  BarChart3,
 } from 'lucide-react';
 
-export const CourseMasterUI: React.FC = () => {
+type CourseSortKey =
+  | 'sr_no'
+  | 'program'
+  | 'paper_code'
+  | 'semester'
+  | 'total_credits'
+  | 'grading_category'
+  | 'total_marks'
+  | 'total_marks_min';
+
+const COURSE_SORT_LABELS: Record<CourseSortKey, string> = {
+  sr_no: '#',
+  program: 'Program & Course Name',
+  paper_code: 'Course Code',
+  semester: 'Sem',
+  total_credits: 'Cr.',
+  grading_category: 'Category & Pass %',
+  total_marks: 'Total Max',
+  total_marks_min: 'Total Min',
+};
+
+export interface CourseMasterUIProps {
+  initialSearch?: string;
+  onNavigateToFaculty?: (subjectCode: string) => void;
+  onNavigateToMarks?: (paperCode: string) => void;
+  onNavigateToTimetable?: (paperCode: string) => void;
+  onNavigateToReports?: (paperCode: string) => void;
+}
+
+export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
+  initialSearch,
+  onNavigateToFaculty,
+  onNavigateToMarks,
+  onNavigateToTimetable,
+  onNavigateToReports,
+}) => {
   const { isSuperAdmin } = useAuth();
   const [courses, setCourses] = useState<CourseMaster[]>([]);
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearch || '');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'Non-Architecture' | 'Architecture'>('ALL');
+  const [sort, setSort] = useState<{ key: CourseSortKey; dir: 'asc' | 'desc' }>({ key: 'sr_no', dir: 'asc' });
+
+  useEffect(() => {
+    if (initialSearch !== undefined) {
+      setSearchQuery(initialSearch);
+    }
+  }, [initialSearch]);
   
   // Upload and preview state
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [previewCourses, setPreviewCourses] = useState<Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[]>([]);
+  const [previewCourses, setPreviewCourses] = useState<CourseDraft[]>([]);
   const [previewErrors, setPreviewErrors] = useState<string[]>([]);
+  const [previewResult, setPreviewResult] = useState<ValidationResult<CourseDraft> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Scheme detail inspection modal
@@ -67,8 +123,36 @@ export const CourseMasterUI: React.FC = () => {
         return;
       }
 
-      setPreviewCourses(result.data);
-      setPreviewErrors(result.errors);
+      // Master cross-validation: warn when a course programme is not yet in the
+      // Program master. Never blocks the import (Course Master legitimately
+      // introduces programmes); nearest-match is offered for confirmation.
+      const programs = await db.getPrograms().catch(() => []);
+      const programmes: MasterRecord[] = programs.map(p => ({
+        id: p.id, code: p.program_code, name: p.program_name,
+      }));
+
+      const validation = validateParsedEntities<CourseDraft>({
+        moduleName: 'Course Master',
+        fileName: file.name,
+        items: result.data,
+        labels: { cm_course_name: 'Programme', semester: 'Semester', paper_code: 'Subject Code', sm_subject_name: 'Subject Name' },
+        duplicateKeyFields: ['cm_course_name', 'semester', 'paper_code'],
+        masterChecks: programmes.length
+          ? [{ field: 'cm_course_name', fieldLabel: 'Programme', masterType: 'programme', severity: 'warning', allowSuggest: true, master: programmes }]
+          : [],
+        parserErrors: result.errors,
+        fieldsOf: (c) => ({
+          cm_course_name: c.cm_course_name,
+          semester: String(c.semester),
+          paper_code: c.paper_code,
+          sm_subject_name: c.sm_subject_name,
+          grading_category: c.grading_category || 'Non-Architecture',
+        }),
+      });
+
+      setPreviewCourses(validation.data);
+      setPreviewResult(validation);
+      setPreviewErrors(validation.errors);
       setIsPreviewOpen(true);
     } catch (err) {
       setUploadErrors([err instanceof Error ? err.message : 'Failed to parse file.']);
@@ -76,6 +160,10 @@ export const CourseMasterUI: React.FC = () => {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const handleDownloadReport = () => {
+    if (previewResult) generateImportErrorReport(previewResult);
   };
 
   const handleConfirmImport = async () => {
@@ -89,6 +177,7 @@ export const CourseMasterUI: React.FC = () => {
       setUploadErrors([`Database Error: ${upsertResult.error}`]);
     } else {
       setIsPreviewOpen(false);
+      setPreviewResult(null);
       setUploadSuccess(`Successfully imported and configured ${previewCourses.length} course(s) and assessment schemes!`);
       await fetchCourses();
     }
@@ -126,6 +215,68 @@ export const CourseMasterUI: React.FC = () => {
       c.sm_subject_name.toLowerCase().includes(q)
     );
   });
+
+  const toggleSort = (key: CourseSortKey) =>
+    setSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }
+    );
+
+  const SortHeader = ({ k, className = '', align = 'text-center' }: { k: CourseSortKey; className?: string; align?: string }) => {
+    const active = sort.key === k;
+    const Icon = !active ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
+    return (
+      <th className={`px-4 py-3 ${align} ${className}`}>
+        <button
+          onClick={() => toggleSort(k)}
+          className={`inline-flex items-center gap-1 font-bold hover:text-indigo-700 transition-colors ${
+            active ? 'text-indigo-700' : 'text-slate-700'
+          }`}
+          title={`Sort by ${COURSE_SORT_LABELS[k]}`}
+        >
+          <span>{COURSE_SORT_LABELS[k]}</span>
+          <Icon className="w-3 h-3" />
+        </button>
+      </th>
+    );
+  };
+
+  const sortedCourses = useMemo(() => {
+    const valueOf = (c: CourseMaster): string | number => {
+      switch (sort.key) {
+        case 'sr_no':
+          return c.sr_no ?? 0;
+        case 'program':
+          return (c.cm_course_name || '').toLowerCase();
+        case 'paper_code':
+          return (c.paper_code || '').toLowerCase();
+        case 'semester':
+          return c.semester ?? 0;
+        case 'total_credits':
+          return c.total_credits ?? 0;
+        case 'grading_category':
+          return (c.grading_category || 'Non-Architecture').toLowerCase();
+        case 'total_marks':
+          return c.total_marks ?? 0;
+        case 'total_marks_min':
+          return c.total_marks_min ?? 0;
+        default:
+          return '';
+      }
+    };
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...filteredCourses].sort((a, b) => {
+      const av = valueOf(a);
+      const bv = valueOf(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      const sa = (a.sm_subject_name || '').toLowerCase();
+      const sb = (b.sm_subject_name || '').toLowerCase();
+      if (sa < sb) return -1;
+      if (sa > sb) return 1;
+      return (a.sr_no ?? 0) - (b.sr_no ?? 0);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredCourses, sort]);
 
   return (
     <div className="space-y-6">
@@ -273,8 +424,11 @@ export const CourseMasterUI: React.FC = () => {
               <option value="Architecture">Architecture (45% Passing)</option>
             </select>
           </div>
-          <div className="text-xs text-slate-500 font-medium">
-            Showing {filteredCourses.length} of {courses.length} courses
+          <div className="text-xs text-slate-500 font-medium flex items-center gap-3 flex-wrap">
+            <span>
+              Sorted by <span className="font-semibold text-slate-700">{COURSE_SORT_LABELS[sort.key]}</span> · {sort.dir === 'asc' ? 'ascending' : 'descending'}
+            </span>
+            <span>Showing {filteredCourses.length} of {courses.length} courses</span>
           </div>
         </div>
 
@@ -298,21 +452,21 @@ export const CourseMasterUI: React.FC = () => {
                     />
                   </th>
                 )}
-                <th className="text-left px-4 py-3 font-bold text-slate-700 w-12">#</th>
-                <th className="text-left px-4 py-3 font-bold text-slate-700 min-w-[200px]">Program & Subject</th>
-                <th className="text-center px-4 py-3 font-bold text-slate-700">Paper Code</th>
-                <th className="text-center px-4 py-3 font-bold text-slate-700 whitespace-nowrap">Sem</th>
+                <SortHeader k="sr_no" align="text-left" className="w-12" />
+                <SortHeader k="program" align="text-left" className="min-w-[200px]" />
+                <SortHeader k="paper_code" />
+                <SortHeader k="semester" className="whitespace-nowrap" />
                 <th className="text-center px-2 py-3 font-bold text-slate-700" title="Lecture-Tutorial-Practical-Skills">L-T-P-S</th>
-                <th className="text-center px-2 py-3 font-bold text-slate-700">Cr.</th>
-                <th className="text-center px-3 py-3 font-bold text-slate-700 border-l border-slate-200">Category</th>
+                <SortHeader k="total_credits" />
+                <SortHeader k="grading_category" className="border-l border-slate-200" />
                 <th className="text-center px-3 py-3 font-bold text-slate-700">Scheme Heads</th>
-                <th className="text-center px-2 py-3 font-bold text-slate-700 border-l border-slate-200">Total Max</th>
-                <th className="text-center px-2 py-3 font-bold text-slate-700">Total Min</th>
+                <SortHeader k="total_marks" className="border-l border-slate-200" />
+                <SortHeader k="total_marks_min" />
                 <th className="text-center px-2 py-3 font-bold text-slate-700 border-l border-slate-200">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredCourses.map((c, idx) => {
+              {sortedCourses.map((c, idx) => {
                 const isArch = c.grading_category === 'Architecture';
                 const thActive = ((c.cat1_max || 0) + (c.cat2_max || 0) + (c.cat3_max || 0) + (c.est_max_marks || 0) + (c.cat_max_marks || 0)) > 0;
                 const prActive = ((c.cap1_max || 0) + (c.cap2_max || 0) + (c.cap3_max || 0) + (c.esp_max_marks || 0) + (c.cap_max_marks || 0)) > 0;
@@ -356,13 +510,14 @@ export const CourseMasterUI: React.FC = () => {
                     </td>
                     <td className="px-3 py-3 text-center border-l border-slate-100">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           isArch
                             ? 'bg-purple-100 text-purple-700 border border-purple-200'
                             : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
                         }`}
                       >
                         {c.grading_category || 'Non-Architecture'}
+                        <span className="text-[9px] font-semibold opacity-80">({isArch ? '45%' : '40%'})</span>
                       </span>
                     </td>
                     <td className="px-3 py-3 text-center">
@@ -387,22 +542,58 @@ export const CourseMasterUI: React.FC = () => {
                       {c.total_marks_min}
                     </td>
                     <td className="px-2 py-3 text-center border-l border-slate-100">
-                      {isSuperAdmin ? (
-                        <button
-                          onClick={() => handleDelete(c.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors opacity-0 group-hover:opacity-100"
-                          title="Delete Course"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      ) : (
-                        <Shield className="w-3.5 h-3.5 text-slate-300 mx-auto" />
-                      )}
+                      <div className="flex items-center justify-center gap-1">
+                        {onNavigateToFaculty && (
+                          <button
+                            onClick={() => onNavigateToFaculty(c.paper_code)}
+                            title="View Faculty & Exam Duty Allocation"
+                            className="p-1 text-slate-400 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors"
+                          >
+                            <GraduationCap className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onNavigateToMarks && (
+                          <button
+                            onClick={() => onNavigateToMarks(c.paper_code)}
+                            title="Open Marks Entry for this course"
+                            className="p-1 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded transition-colors"
+                          >
+                            <FileSpreadsheet className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onNavigateToTimetable && (
+                          <button
+                            onClick={() => onNavigateToTimetable(c.paper_code)}
+                            title="View Exam Timetable"
+                            className="p-1 text-slate-400 hover:text-blue-700 hover:bg-blue-50 rounded transition-colors"
+                          >
+                            <CalendarDays className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onNavigateToReports && (
+                          <button
+                            onClick={() => onNavigateToReports(c.paper_code)}
+                            title="View Subject Risk & Performance Analytics"
+                            className="p-1 text-slate-400 hover:text-purple-700 hover:bg-purple-50 rounded transition-colors"
+                          >
+                            <BarChart3 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => handleDelete(c.id)}
+                            className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-colors"
+                            title="Delete Course"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
               })}
-              {filteredCourses.length === 0 && (
+              {sortedCourses.length === 0 && (
                 <tr>
                   <td colSpan={isSuperAdmin ? 12 : 11} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-500">
@@ -421,11 +612,13 @@ export const CourseMasterUI: React.FC = () => {
       {/* Import Preview Modal */}
       <CourseMasterPreviewModal
         isOpen={isPreviewOpen}
-        onClose={() => setIsPreviewOpen(false)}
+        onClose={() => { setIsPreviewOpen(false); setPreviewResult(null); }}
         onConfirm={handleConfirmImport}
         courses={previewCourses}
         existingCourses={courses}
         errors={previewErrors}
+        validation={previewResult}
+        onDownloadReport={handleDownloadReport}
         isSaving={isUploading}
       />
 
@@ -477,17 +670,17 @@ export const CourseMasterUI: React.FC = () => {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 shadow-2xs">
                     <tr>
-                      <th className="px-3 py-2">Head</th>
+                      <th className="px-3 py-2">Assessment Head</th>
                       <th className="px-3 py-2 text-center">CA1</th>
                       <th className="px-3 py-2 text-center">CA2</th>
                       <th className="px-3 py-2 text-center">CA3</th>
-                      <th className="px-3 py-2 text-center">ESE Max</th>
-                      <th className="px-3 py-2 text-center">ESE Min</th>
+                      <th className="px-3 py-2 text-center">ESE Max (EST/ESP/ESS)</th>
+                      <th className="px-3 py-2 text-center">ESE Min (40%/45%)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     <tr>
-                      <td className="px-3 py-2 font-semibold text-slate-900">Theory</td>
+                      <td className="px-3 py-2 font-semibold text-slate-900">Theory (CAT & EST)</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cat1_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cat2_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cat3_max || '—'}</td>
@@ -495,7 +688,7 @@ export const CourseMasterUI: React.FC = () => {
                       <td className="px-3 py-2 text-center font-mono text-rose-600 font-bold">{inspectedCourse.est_min_marks || '—'}</td>
                     </tr>
                     <tr>
-                      <td className="px-3 py-2 font-semibold text-slate-900">Practical</td>
+                      <td className="px-3 py-2 font-semibold text-slate-900">Practical (CAP & ESP)</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cap1_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cap2_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cap3_max || '—'}</td>
@@ -503,7 +696,7 @@ export const CourseMasterUI: React.FC = () => {
                       <td className="px-3 py-2 text-center font-mono text-rose-600 font-bold">{inspectedCourse.esp_min_marks || '—'}</td>
                     </tr>
                     <tr>
-                      <td className="px-3 py-2 font-semibold text-slate-900">Skills</td>
+                      <td className="px-3 py-2 font-semibold text-slate-900">Skills (CAS & ESS)</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cas1_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cas2_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cas3_max || '—'}</td>
@@ -519,7 +712,61 @@ export const CourseMasterUI: React.FC = () => {
                 <span className="font-semibold text-indigo-700">Passing: {inspectedCourse.grading_category === 'Architecture' ? '45%' : '40%'}</span>
               </div>
             </div>
-            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex justify-end">
+            <div className="px-5 py-3 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                {onNavigateToFaculty && (
+                  <button
+                    onClick={() => {
+                      const code = inspectedCourse.paper_code;
+                      setInspectedCourse(null);
+                      onNavigateToFaculty(code);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-violet-50 text-violet-700 border border-violet-200 hover:bg-violet-100 transition-colors"
+                  >
+                    <GraduationCap className="w-3.5 h-3.5" />
+                    Faculty Allocation
+                  </button>
+                )}
+                {onNavigateToMarks && (
+                  <button
+                    onClick={() => {
+                      const code = inspectedCourse.paper_code;
+                      setInspectedCourse(null);
+                      onNavigateToMarks(code);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                  >
+                    <FileSpreadsheet className="w-3.5 h-3.5" />
+                    Student Marks
+                  </button>
+                )}
+                {onNavigateToTimetable && (
+                  <button
+                    onClick={() => {
+                      const code = inspectedCourse.paper_code;
+                      setInspectedCourse(null);
+                      onNavigateToTimetable(code);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                  >
+                    <CalendarDays className="w-3.5 h-3.5" />
+                    Exam Timetable
+                  </button>
+                )}
+                {onNavigateToReports && (
+                  <button
+                    onClick={() => {
+                      const code = inspectedCourse.paper_code;
+                      setInspectedCourse(null);
+                      onNavigateToReports(code);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 transition-colors"
+                  >
+                    <BarChart3 className="w-3.5 h-3.5" />
+                    Analytics
+                  </button>
+                )}
+              </div>
               <button
                 onClick={() => setInspectedCourse(null)}
                 className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors"

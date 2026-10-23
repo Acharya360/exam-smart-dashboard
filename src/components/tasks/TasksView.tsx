@@ -15,7 +15,10 @@ import {
   LayoutGrid,
   List,
   ShieldAlert,
-  Filter
+  Filter,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown
 } from 'lucide-react';
 
 interface TasksViewProps {
@@ -42,6 +45,24 @@ function parseDueDate(dateStr: string): number {
   return new Date(dateStr).getTime();
 }
 
+type TaskSortKey = 'task_title' | 'program_code' | 'status' | 'assigned_to' | 'alternate_user_id' | 'due_date';
+
+const STATUS_RANK: Record<TaskStatus, number> = {
+  PENDING: 0,
+  IN_PROGRESS: 1,
+  ESCALATED_TO_ALTERNATE: 2,
+  COMPLETED: 3,
+};
+
+const TASK_SORT_LABELS: Record<TaskSortKey, string> = {
+  task_title: 'Task Milestone',
+  program_code: 'Program',
+  status: 'Status',
+  assigned_to: 'Primary Assigned',
+  alternate_user_id: 'Alternate Member',
+  due_date: 'Due Date',
+};
+
 export const TasksView: React.FC<TasksViewProps> = ({
   tasks,
   schedules,
@@ -56,6 +77,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   const { currentUser, isSuperAdmin, getUserPrograms } = useAuth();
   const [detailTask,setDetailTask]=useState<ExamTask|null>(null);
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+  const [sort, setSort] = useState<{ key: TaskSortKey; dir: 'asc' | 'desc' }>({ key: 'due_date', dir: 'asc' });
 
   // Advanced filter state
   const [filters, setFilters] = useState<TaskFilterState>({
@@ -159,9 +181,11 @@ export const TasksView: React.FC<TasksViewProps> = ({
         const within48 = taskTime >= nowTime && taskTime <= nowTime + 48 * 3600 * 1000;
         if (!within48) return false;
       } else if (filters.dueDatePreset === 'THIS_WEEK') {
-        const weekStart = new Date('2026-05-10T00:00:00').getTime();
-        const weekEnd = new Date('2026-05-17T23:59:59').getTime();
-        if (taskTime < weekStart || taskTime > weekEnd) return false;
+        const weekStart = new Date(nowTime);
+        weekStart.setHours(0, 0, 0, 0);
+        weekStart.setDate(weekStart.getDate() - ((weekStart.getDay() + 6) % 7));
+        const weekEnd = new Date(weekStart.getTime() + 7 * 86400000 - 1);
+        if (taskTime < weekStart.getTime() || taskTime > weekEnd.getTime()) return false;
       } else if (filters.dueDatePreset === 'CUSTOM') {
         if (filters.startDate) {
           const start = new Date(filters.startDate).getTime();
@@ -176,6 +200,60 @@ export const TasksView: React.FC<TasksViewProps> = ({
       return true;
     });
   }, [tasks, filters, isSuperAdmin, currentUser.id, userProgCodes, focusedScheduleId, users, schedules]);
+
+  const toggleSort = (key: TaskSortKey) =>
+    setSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }
+    );
+
+  const SortHeader = ({ k, className = '' }: { k: TaskSortKey; className?: string }) => {
+    const active = sort.key === k;
+    const Icon = !active ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
+    return (
+      <th className={`py-3 px-3 ${className}`}>
+        <button
+          onClick={() => toggleSort(k)}
+          className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-slate-800 transition-colors ${
+            active ? 'text-indigo-700' : ''
+          }`}
+          title={`Sort by ${TASK_SORT_LABELS[k]}`}
+        >
+          <span>{TASK_SORT_LABELS[k]}</span>
+          <Icon className="w-3 h-3" />
+        </button>
+      </th>
+    );
+  };
+
+  const sortedTasks = useMemo(() => {
+    const valueOf = (t: ExamTask): string | number => {
+      switch (sort.key) {
+        case 'due_date':
+          return parseDueDate(t.due_date);
+        case 'status':
+          return STATUS_RANK[t.status] ?? 99;
+        case 'task_title':
+          return (t.task_title || '').toLowerCase();
+        case 'program_code':
+          return (t.program_code || '').toLowerCase();
+        case 'assigned_to':
+          return (users.find((u) => u.id === t.assigned_to)?.full_name || '').toLowerCase();
+        case 'alternate_user_id':
+          return (users.find((u) => u.id === t.alternate_user_id)?.full_name || '').toLowerCase();
+        default:
+          return '';
+      }
+    };
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    return [...filteredTasks].sort((a, b) => {
+      const av = valueOf(a);
+      const bv = valueOf(b);
+      if (av < bv) return -1 * dir;
+      if (av > bv) return 1 * dir;
+      return parseDueDate(a.due_date) - parseDueDate(b.due_date);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredTasks, sort, users]);
 
   const columns: { id: TaskStatus; label: string; color: string; border: string; bg: string }[] = [
     {
@@ -518,29 +596,33 @@ export const TasksView: React.FC<TasksViewProps> = ({
         </div>
       ) : (
         /* List View */
-        <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
+        <div className="space-y-2">
+          <p className="text-[11px] text-slate-500 px-1">
+            Sorted by <span className="font-semibold text-slate-700">{TASK_SORT_LABELS[sort.key]}</span> · {sort.dir === 'asc' ? 'ascending' : 'descending'} — click any column header to reorder.
+          </p>
+          <div className="bg-white border border-slate-200 rounded-xl shadow-xs overflow-hidden">
           <div className="overflow-auto max-h-[620px]">
             <table className="w-full text-left text-xs border-collapse">
               <thead className="sticky top-0 z-10 bg-slate-50 border-b border-slate-200 text-[11px] font-bold uppercase text-slate-500 tracking-wider shadow-2xs">
                 <tr>
-                  <th className="py-3 px-4">Task Milestone</th>
-                  <th className="py-3 px-3">Program</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3">Primary Assigned</th>
-                  <th className="py-3 px-3">Alternate Member</th>
-                  <th className="py-3 px-3">Due Date</th>
+                  <SortHeader k="task_title" className="px-4" />
+                  <SortHeader k="program_code" />
+                  <SortHeader k="status" />
+                  <SortHeader k="assigned_to" />
+                  <SortHeader k="alternate_user_id" />
+                  <SortHeader k="due_date" />
                   <th className="py-3 px-3 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200">
-                {filteredTasks.length === 0 ? (
+                {sortedTasks.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-slate-400">
                       No tasks found matching criteria.
                     </td>
                   </tr>
                 ) : (
-                  filteredTasks.map((task) => {
+                  sortedTasks.map((task) => {
                     const assignedUser = users.find((u) => u.id === task.assigned_to);
                     const altUser = users.find((u) => u.id === task.alternate_user_id);
 
@@ -612,6 +694,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
               </tbody>
             </table>
           </div>
+        </div>
         </div>
       )}
 

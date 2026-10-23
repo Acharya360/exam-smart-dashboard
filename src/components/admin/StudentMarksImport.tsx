@@ -2,9 +2,18 @@ import { RegistrationReview } from './RegistrationReview';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/db';
-import { StudentMark, ExaminationData, RegistrationResult } from '../../types';
-import { parseStudentMarksExcel, downloadStudentMarksTemplate } from '../../services/excelParser';
+import { StudentMark, ExaminationData, RegistrationResult, FacultyCourseAllocation } from '../../types';
+import { downloadStudentMarksTemplate } from '../../services/excelParser';
 import { EditStudentMarkModal } from './EditStudentMarkModal';
+import { ImportPreviewDashboard } from '../common/ImportPreviewDashboard';
+import {
+  runValidationPipeline,
+  readSheetRows,
+  buildStudentMarksConfig,
+  type ValidationResult,
+  type ValidatedRow,
+  type MasterRecord,
+} from '../../utils/validation';
 import * as XLSX from 'xlsx';
 import {
   FileSpreadsheet,
@@ -20,22 +29,53 @@ import {
   ChevronLeft,
   ChevronRight,
   Edit3,
+  GraduationCap,
+  BookOpen,
+  FileText,
+  BarChart3,
+  CalendarDays,
 } from 'lucide-react';
 
-export const StudentMarksImport: React.FC = () => {
+interface StudentMarksImportProps {
+  initialPaperCode?: string;
+  initialFacultyCode?: string;
+  initialProgram?: string;
+  onNavigateToFaculty?: (paperCode?: string) => void;
+  onNavigateToCourseMaster?: (paperCode?: string) => void;
+  onNavigateToTRSheet?: (program?: string, sem?: string) => void;
+  onNavigateToReports?: (program?: string, paperCode?: string) => void;
+}
+
+export const StudentMarksImport: React.FC<StudentMarksImportProps> = ({
+  initialPaperCode,
+  initialFacultyCode,
+  initialProgram,
+  onNavigateToFaculty,
+  onNavigateToCourseMaster,
+  onNavigateToTRSheet,
+  onNavigateToReports,
+}) => {
   const { isSuperAdmin, currentUser } = useAuth();
   const [marks, setMarks] = useState<StudentMark[]>([]);
   const [marksPageInfo, setMarksPageInfo] = useState<{total:number;page:number;pageSize:number}|null>(null);
+  const [facultyAllocations, setFacultyAllocations] = useState<FacultyCourseAllocation[]>([]);
+  const [facultyFilter, setFacultyFilter] = useState(initialFacultyCode || 'ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 50;
+  const [pageSize, setPageSize] = useState(50);
 
   // Client-side filters applied to the server-fetched page
   const [searchQuery, setSearchQuery] = useState('');
   const [assessmentFilter, setAssessmentFilter] = useState('ALL');
-  const [paperFilter, setPaperFilter] = useState('ALL');
-  const [programFilter, setProgramFilter] = useState('ALL');
+  const [paperFilter, setPaperFilter] = useState(initialPaperCode || 'ALL');
+  const [programFilter, setProgramFilter] = useState(initialProgram || 'ALL');
   const [semesterFilter, setSemesterFilter] = useState('ALL');
   const [examYearFilter, setExamYearFilter] = useState('ALL');
+
+  useEffect(() => {
+    if (initialPaperCode) setPaperFilter(initialPaperCode);
+    if (initialFacultyCode) setFacultyFilter(initialFacultyCode);
+    if (initialProgram) setProgramFilter(initialProgram);
+  }, [initialPaperCode, initialFacultyCode, initialProgram]);
   const [reviewMode, setReviewMode] = useState<'matrix'|'records'>('records');
   const [loadError, setLoadError] = useState<string|null>(null);
   const [page, setPage] = useState(0);
@@ -51,21 +91,35 @@ export const StudentMarksImport: React.FC = () => {
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchMarks = async (page?:number) => {
+  // Centralized validation preview state
+  const [previewResult, setPreviewResult] = useState<ValidationResult<StudentMark> | null>(null);
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const fetchMarks = async (page?: number, size?: number) => {
     const pageNum = page ?? currentPage;
-    const [response, examination] = await Promise.all([
-      db.getStudentMarks({ page: pageNum, pageSize }),
-      db.getExaminationData().catch(() => null)
+    const sizeNum = size ?? pageSize;
+    const [response, examination, allocs] = await Promise.all([
+      db.getStudentMarks({ page: pageNum, pageSize: sizeNum }),
+      db.getExaminationData().catch(() => null),
+      db.getFacultyAllocations().catch(() => []),
     ]);
     setMarks(response.data);
     setMarksPageInfo({ total: response.total, page: response.page, pageSize: response.pageSize });
     setCurrentPage(response.page);
+    setPage(0);
     if (examination) setExamData(examination);
+    if (allocs) setFacultyAllocations(allocs);
   };
 
   useEffect(() => {
     fetchMarks(1).catch(()=>setLoadError('Unable to load marks. Refresh this screen to retry.'));
   }, []);
+
+  useEffect(() => {
+    if (initialPaperCode) {
+      setPaperFilter(initialPaperCode);
+    }
+  }, [initialPaperCode]);
 
   // Quick lookup for student registration status
   const regMap = useMemo(() => {
@@ -87,33 +141,59 @@ export const StudentMarksImport: React.FC = () => {
     setUploadErrors([]);
     setIsUploading(true);
 
-    const buffer = await file.arrayBuffer();
-    const result = await parseStudentMarksExcel(buffer);
+    try {
+      const buffer = await file.arrayBuffer();
+      const rawRows = readSheetRows(buffer, 'Student_Marks');
+      if (!rawRows.length) {
+        setUploadErrors(['The uploaded sheet contains no data rows.']);
+        return;
+      }
 
-    if (!result.success || result.data.length === 0) {
-      setUploadErrors(result.errors.length ? result.errors : ['No valid data found in file.']);
+      // Fetch master data for cross-validation (never auto-created by import).
+      const [programs, courseMaster] = await Promise.all([
+        db.getPrograms().catch(() => []),
+        db.getCourseMaster().catch(() => []),
+      ]);
+
+      const programmeMap = new Map<string, MasterRecord>();
+      for (const p of programs) programmeMap.set(p.program_name, { id: p.id, code: p.program_code, name: p.program_name });
+      for (const c of courseMaster) if (!programmeMap.has(c.cm_course_name)) programmeMap.set(c.cm_course_name, { id: c.cm_course_name, code: c.cm_course_name, name: c.cm_course_name });
+      const programmes: MasterRecord[] = Array.from(programmeMap.values());
+      const subjects: MasterRecord[] = courseMaster.map(c => ({
+        id: c.id, code: c.paper_code, name: c.sm_subject_name,
+        extra: { cm_course_name: c.cm_course_name, semester: String(c.semester) },
+      }));
+      const students: MasterRecord[] = (examData?.registrations || []).map(r => ({
+        id: r.prn, code: r.prn, name: r.student_name,
+      }));
+
+      const config = buildStudentMarksConfig({ programmes, subjects, students });
+      const result = runValidationPipeline<StudentMark>(rawRows, { fileName: file.name, config });
+
+      setPreviewResult(result);
+      setIsPreviewOpen(true);
+    } catch (err) {
+      setUploadErrors([err instanceof Error ? err.message : 'Failed to read the Excel file.']);
+    } finally {
       setIsUploading(false);
-      return;
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
 
-    if (result.errors.length > 0) {
-      setUploadErrors(result.errors);
-    }
-
-    if (result.errors.length > 0) { setIsUploading(false); return; }
-    if (!window.confirm(`Import ${result.data.length} validated mark records? Matching records will be updated. Review the selected workbook before confirming.`)) { setIsUploading(false); if(fileInputRef.current)fileInputRef.current.value=''; return; }
-    // Call upsert
-    const upsertResult = await db.upsertStudentMarks(result.data, currentUser.id);
+  const handleConfirmImport = async (rows: ValidatedRow<StudentMark>[]) => {
+    if (!rows.length) return;
+    setIsUploading(true);
+    const payload = rows.map(r => r.data).filter(Boolean) as StudentMark[];
+    const upsertResult = await db.upsertStudentMarks(payload, currentUser.id);
     setIsUploading(false);
-
+    setIsPreviewOpen(false);
+    setPreviewResult(null);
     if (upsertResult.error) {
-      setUploadErrors(prev => [...prev, `DB Error: ${upsertResult.error}`]);
+      setUploadErrors([`Import failed: ${upsertResult.error}`]);
     } else {
-      setUploadSuccess(`Successfully processed (inserted or updated) ${upsertResult.total} student mark records.`);
+      setUploadSuccess(`Successfully processed ${upsertResult.total} student mark record(s).`);
       fetchMarks(1);
     }
-
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleDelete = async (id: string) => {
@@ -172,6 +252,27 @@ export const StudentMarksImport: React.FC = () => {
   });
   const uniqueExamYears = Array.from(new Set(marks.map(m => m.exam_year).filter(Boolean))).sort();
 
+  // Faculty mapping against Paper Codes
+  const facultyByPaper = useMemo(() => {
+    const map = new Map<string, FacultyCourseAllocation>();
+    for (const fa of facultyAllocations) {
+      if (fa.subject_code && !map.has(fa.subject_code)) {
+        map.set(fa.subject_code, fa);
+      }
+    }
+    return map;
+  }, [facultyAllocations]);
+
+  const uniqueInstructors = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const fa of facultyAllocations) {
+      if (fa.staff_code && fa.staff_name) {
+        map.set(fa.staff_code, `${fa.staff_name} (${fa.staff_code})`);
+      }
+    }
+    return Array.from(map.entries()).map(([code, label]) => ({ code, label }));
+  }, [facultyAllocations]);
+
   const filteredMarks = marks.filter((m) => {
     const q = searchQuery.toLowerCase();
     const matchesSearch = !searchQuery ||
@@ -184,21 +285,19 @@ export const StudentMarksImport: React.FC = () => {
     const matchesProgram = programFilter === 'ALL' || m.cm_course_name === programFilter;
     const matchesSemester = semesterFilter === 'ALL' || m.semester === semesterFilter;
     const matchesExamYear = examYearFilter === 'ALL' || m.exam_year === examYearFilter;
+    const assignedFac = facultyByPaper.get(m.paper_code);
+    const matchesFaculty = facultyFilter === 'ALL' || assignedFac?.staff_code === facultyFilter;
 
-    return matchesSearch && matchesAssessment && matchesPaper && matchesProgram && matchesSemester && matchesExamYear;
+    return matchesSearch && matchesAssessment && matchesPaper && matchesProgram && matchesSemester && matchesExamYear && matchesFaculty;
   });
 
   // Reset page when filter criteria change
   useEffect(() => {
     setPage(0);
-  }, [searchQuery, assessmentFilter, paperFilter, programFilter, semesterFilter, examYearFilter, pageSize]);
+  }, [searchQuery, assessmentFilter, paperFilter, programFilter, semesterFilter, examYearFilter, facultyFilter, pageSize]);
 
-  const totalPages = Math.max(1, Math.ceil(filteredMarks.length / pageSize));
-  const paginatedMarks = filteredMarks.slice(page * pageSize, (page + 1) * pageSize);
-
-  // Server-side pagination controls (only visible when server returned page info)
-  const showServerPaging = marksPageInfo !== null && marksPageInfo.total > pageSize;
-  const totalServerPages = marksPageInfo ? Math.ceil(marksPageInfo.total / marksPageInfo.pageSize) : 0;
+  const totalServerPages = marksPageInfo ? Math.max(1, Math.ceil(marksPageInfo.total / marksPageInfo.pageSize)) : 1;
+  const paginatedMarks = filteredMarks;
 
   return (
     <div className="space-y-6">
@@ -227,6 +326,38 @@ export const StudentMarksImport: React.FC = () => {
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Delete ({selectedMarks.size})
+              </button>
+            )}
+            <button
+              onClick={() => {
+                if (onNavigateToFaculty) {
+                  onNavigateToFaculty(paperFilter !== 'ALL' ? paperFilter : undefined);
+                } else {
+                  window.history.pushState({}, '', '/faculty-allocation');
+                  window.dispatchEvent(new PopStateEvent('popstate'));
+                }
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 text-violet-700 text-xs font-semibold rounded-lg hover:bg-violet-100 transition-colors shadow-xs border border-violet-200"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-violet-600" />
+              Faculty Allocation
+            </button>
+            {onNavigateToTRSheet && (
+              <button
+                onClick={() => onNavigateToTRSheet(programFilter !== 'ALL' ? programFilter : undefined, semesterFilter !== 'ALL' ? semesterFilter : undefined)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 transition-colors shadow-xs border border-indigo-200"
+              >
+                <FileText className="w-3.5 h-3.5 text-indigo-600" />
+                TR Sheet
+              </button>
+            )}
+            {onNavigateToReports && (
+              <button
+                onClick={() => onNavigateToReports(programFilter !== 'ALL' ? programFilter : undefined, paperFilter !== 'ALL' ? paperFilter : undefined)}
+                className="flex items-center gap-1.5 px-3 py-2 bg-purple-50 text-purple-700 text-xs font-semibold rounded-lg hover:bg-purple-100 transition-colors shadow-xs border border-purple-200"
+              >
+                <BarChart3 className="w-3.5 h-3.5 text-purple-600" />
+                Performance
               </button>
             )}
             <button
@@ -356,8 +487,18 @@ export const StudentMarksImport: React.FC = () => {
             <option value="ALL">All Papers</option>
             {uniquePapers.map(p => <option key={p} value={p}>{p}</option>)}
           </select>
+          <select
+            value={facultyFilter}
+            onChange={(e) => setFacultyFilter(e.target.value)}
+            className="px-3 py-2 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 w-44"
+          >
+            <option value="ALL">All Teaching Faculty</option>
+            {uniqueInstructors.map(f => (
+              <option key={f.code} value={f.code}>{f.label}</option>
+            ))}
+          </select>
 
-          {(programFilter !== 'ALL' || semesterFilter !== 'ALL' || examYearFilter !== 'ALL' || assessmentFilter !== 'ALL' || paperFilter !== 'ALL' || searchQuery !== '') && (
+          {(programFilter !== 'ALL' || semesterFilter !== 'ALL' || examYearFilter !== 'ALL' || assessmentFilter !== 'ALL' || paperFilter !== 'ALL' || facultyFilter !== 'ALL' || searchQuery !== '') && (
             <button
               onClick={() => {
                 setProgramFilter('ALL');
@@ -365,6 +506,7 @@ export const StudentMarksImport: React.FC = () => {
                 setExamYearFilter('ALL');
                 setAssessmentFilter('ALL');
                 setPaperFilter('ALL');
+                setFacultyFilter('ALL');
                 setSearchQuery('');
               }}
               className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors ml-auto flex items-center gap-1.5"
@@ -373,6 +515,56 @@ export const StudentMarksImport: React.FC = () => {
             </button>
           )}
         </div>
+
+        {paperFilter !== 'ALL' && facultyByPaper.has(paperFilter) && (
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5 rounded-xl border border-violet-200 bg-violet-50/80 px-4 py-2.5 text-xs text-violet-900">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-violet-700 shrink-0" />
+              <span className="font-medium">
+                <strong>Assigned Course Faculty:</strong> {facultyByPaper.get(paperFilter)?.staff_name} ({facultyByPaper.get(paperFilter)?.staff_code})
+                {facultyByPaper.get(paperFilter)?.additional_staff ? ` · Co-Teaching: ${facultyByPaper.get(paperFilter)?.additional_staff}` : ''}
+                {' · Section ' + facultyByPaper.get(paperFilter)?.section}
+                {' · ' + (facultyByPaper.get(paperFilter)?.department || facultyByPaper.get(paperFilter)?.program_name)}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {facultyByPaper.get(paperFilter)?.exam_role && (
+                <span className="inline-flex items-center gap-1 font-semibold text-violet-800 bg-violet-100/90 px-2.5 py-0.5 rounded-lg border border-violet-300/60 whitespace-nowrap">
+                  {facultyByPaper.get(paperFilter)?.exam_role}
+                </span>
+              )}
+              {facultyByPaper.get(paperFilter)?.exam_center && (
+                <span className="text-[11px] text-zinc-500 whitespace-nowrap">
+                  📍 {facultyByPaper.get(paperFilter)?.exam_center}
+                </span>
+              )}
+              {onNavigateToFaculty && (
+                <button
+                  onClick={() => onNavigateToFaculty(paperFilter)}
+                  className="rounded-lg bg-white border border-violet-200 px-2 py-0.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+                >
+                  View Duties
+                </button>
+              )}
+              {onNavigateToCourseMaster && (
+                <button
+                  onClick={() => onNavigateToCourseMaster(paperFilter)}
+                  className="rounded-lg bg-white border border-violet-200 px-2 py-0.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+                >
+                  Scheme
+                </button>
+              )}
+              {onNavigateToReports && (
+                <button
+                  onClick={() => onNavigateToReports(undefined, paperFilter)}
+                  className="rounded-lg bg-white border border-violet-200 px-2 py-0.5 text-[11px] font-semibold text-violet-700 hover:bg-violet-100"
+                >
+                  Analytics
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Table Section */}
@@ -464,6 +656,14 @@ export const StudentMarksImport: React.FC = () => {
                       <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[250px]" title={m.cm_course_name}>
                         {m.cm_course_name} (Sem {m.semester}) · {m.exam_year}
                       </div>
+                      {facultyByPaper.has(m.paper_code) && (
+                        <div className="flex items-center gap-1 mt-1 text-[10px] text-violet-700">
+                          <GraduationCap className="w-3 h-3 text-violet-600 shrink-0" />
+                          <span className="font-medium truncate max-w-[220px]" title={facultyByPaper.get(m.paper_code)?.staff_name}>
+                            {facultyByPaper.get(m.paper_code)?.staff_name} ({facultyByPaper.get(m.paper_code)?.staff_code})
+                          </span>
+                        </div>
+                      )}
                     </td>
                     <td className="px-3 py-3 text-center">
                       <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
@@ -537,42 +737,57 @@ export const StudentMarksImport: React.FC = () => {
           <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-600">
             <div className="flex items-center gap-2">
               <span>
-                Showing <span className="font-semibold text-slate-900">{page * pageSize + 1}</span> to{' '}
-                <span className="font-semibold text-slate-900">{Math.min((page + 1) * pageSize, filteredMarks.length)}</span> of{' '}
-                <span className="font-semibold text-slate-900">{filteredMarks.length}</span>{' '}
-                records{marksPageInfo ? ` (of ${marksPageInfo.total.toLocaleString()} total)` : ''}
+                Showing <span className="font-semibold text-slate-900">{((currentPage - 1) * pageSize) + 1}</span> to{' '}
+                <span className="font-semibold text-slate-900">{Math.min(currentPage * pageSize, marksPageInfo?.total || filteredMarks.length)}</span> of{' '}
+                <span className="font-semibold text-slate-900">{marksPageInfo?.total || filteredMarks.length}</span>{' '}
+                records
               </span>
               <span className="text-slate-300">|</span>
               <div className="flex items-center gap-1.5">
                 <span>Per page:</span>
                 <select
                   value={pageSize}
-                  onChange={(e) => { setCurrentPage(1); fetchMarks(1); }}
-                  className="px-2 py-1 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                  disabled
+                  onChange={(e) => {
+                    const newSize = Number(e.target.value);
+                    setPageSize(newSize);
+                    setCurrentPage(1);
+                    fetchMarks(1, newSize);
+                  }}
+                  className="px-2 py-1 text-xs border border-slate-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-indigo-500 cursor-pointer"
                 >
-                  <option value={50}>50 (server)</option>
+                  <option value={25}>25</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={200}>200</option>
                 </select>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <span>
-                Page <span className="font-semibold text-slate-900">{page + 1}</span> of{' '}
-                <span className="font-semibold text-slate-900">{totalPages}</span>
+                Page <span className="font-semibold text-slate-900">{currentPage}</span> of{' '}
+                <span className="font-semibold text-slate-900">{totalServerPages}</span>
               </span>
               <div className="flex items-center gap-1">
                 <button
-                  onClick={() => setPage((prev) => Math.max(0, prev - 1))}
-                  disabled={page === 0}
+                  onClick={() => {
+                    const prev = Math.max(1, currentPage - 1);
+                    setCurrentPage(prev);
+                    fetchMarks(prev);
+                  }}
+                  disabled={currentPage <= 1}
                   className="p-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   title="Previous page"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => setPage((prev) => Math.min(totalPages - 1, prev + 1))}
-                  disabled={page >= totalPages - 1}
+                  onClick={() => {
+                    const next = Math.min(totalServerPages, currentPage + 1);
+                    setCurrentPage(next);
+                    fetchMarks(next);
+                  }}
+                  disabled={currentPage >= totalServerPages}
                   className="p-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   title="Next page"
                 >
@@ -583,6 +798,28 @@ export const StudentMarksImport: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Centralized Validation Preview Dashboard */}
+      {previewResult && (
+        <ImportPreviewDashboard
+          isOpen={isPreviewOpen}
+          onClose={() => { setIsPreviewOpen(false); setPreviewResult(null); }}
+          onConfirm={handleConfirmImport}
+          result={previewResult}
+          isSaving={isUploading}
+          columns={[
+            { key: 'prn', label: 'PRN' },
+            { key: 'student_name', label: 'Student' },
+            { key: 'cm_course_name', label: 'Programme', width: '180px' },
+            { key: 'semester', label: 'Sem' },
+            { key: 'paper_code', label: 'Paper' },
+            { key: 'assessment_type', label: 'Type' },
+            { key: 'theory', label: 'Theory' },
+            { key: 'practical', label: 'Practical' },
+            { key: 'skills', label: 'Skills' },
+          ]}
+        />
+      )}
 
       {/* Edit Student Mark Modal */}
       {editingMark && (

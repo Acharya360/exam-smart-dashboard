@@ -10,7 +10,7 @@ const data=await(await api.get('/api/examination')).json();assert.equal(data.reg
 const marks=await(await api.get('/api/student-marks?limit=5000')).json();assert.equal(marks.length,600);
 const invalid={...marks[0],theory:999};assert.equal((await api.post('/api/student-marks/bulk',{data:{marks:[invalid]}})).status(),400);
 const tng=marks.find(m=>m.student_name.includes('(TNG)')&&m.assessment_type==='ESE');assert.equal((await api.post('/api/student-marks/bulk',{data:{marks:[{...tng,theory:20,practical:20,skills:20}]}})).status(),400);
-const coord=await request.newContext({baseURL:base});assert.equal((await coord.post('/api/auth/login',{data:{email:process.env.TEST_COORD_EMAIL||'sarah.jenkins@sspu.ac.in',password:process.env.TEST_COORD_PASSWORD||'Admin@123'}})).status(),200);
+const coord=await request.newContext({baseURL:base});assert.equal((await coord.post('/api/auth/login',{data:{email:process.env.TEST_COORD_EMAIL||'sarah.jenkins@university.edu',password:process.env.TEST_COORD_PASSWORD||'Admin@123'}})).status(),200);
 const scoped=await(await coord.get('/api/examination')).json();assert.ok(scoped.registrations.length>0&&scoped.registrations.length<150);assert.equal((await coord.post('/api/examination/sync')).status(),403);
 const allowed=new Set(scoped.programs.map(p=>p.id));assert.ok(scoped.registrations.every(r=>allowed.has(r.program_id)));
 const browser=await chromium.launch({headless:true});const context=await browser.newContext({viewport:{width:1440,height:1000},storageState:await api.storageState()});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));

@@ -339,6 +339,192 @@ export function downloadExamScheduleTemplate() {
   XLSX.writeFile(wb, 'Exam_Schedule_Master_Template.xlsx');
 }
 
+// Generate & trigger download of Faculty Allocation & Exam Duties template
+export function downloadFacultyAllocationTemplate() {
+  try {
+    const link = document.createElement('a');
+    link.href = '/api/faculty-allocations/template';
+    link.download = 'Faculty_Allocation_Template.xlsx';
+    link.click();
+    return;
+  } catch {
+    // Fallback to client-side SheetJS generation
+  }
+
+  const sampleRows = [
+    {
+      'Subject_Code': 'APSC102',
+      'Subject_Name': 'Applied Physics',
+      'Staff_Code': 'T7386',
+      'Staff_name': 'Dr. Rajesh Sharma',
+      'Additional_Staff': 'Prof. Sarah Jenkins',
+      'Section': 'A',
+      'Sem': 'I',
+      'Program': 'B.Tech. Construction Engineering & Management',
+      'Department': 'School of Construction Engineering',
+      'Workload': 4,
+      'Exam_Role': 'Paper Setter & Evaluator',
+      'Invigilation_Sessions': 2,
+      'Exam_Center': 'Main Campus Examination Block'
+    },
+    {
+      'Subject_Code': 'ARCH101',
+      'Subject_Name': 'Architectural Design Studio I',
+      'Staff_Code': 'T4102',
+      'Staff_name': 'Prof. Amit Roy',
+      'Additional_Staff': '',
+      'Section': 'A',
+      'Sem': 'I',
+      'Program': 'B.Arch. Architecture & Planning',
+      'Department': 'School of Architecture & Planning',
+      'Workload': 6,
+      'Exam_Role': 'Jury Lead & Practical Examiner',
+      'Invigilation_Sessions': 1,
+      'Exam_Center': 'Design Studio Block A'
+    },
+    {
+      'Subject_Code': 'MATH101',
+      'Subject_Name': 'Calculus & Linear Algebra',
+      'Staff_Code': 'T5021',
+      'Staff_name': 'Dr. Neha Gupta',
+      'Additional_Staff': 'Prof. Vikram Malhotra',
+      'Section': 'B',
+      'Sem': 'I',
+      'Program': 'B.Tech. Computer Science & AI',
+      'Department': 'School of Computer Science & AI',
+      'Workload': 4,
+      'Exam_Role': 'Course Instructor & Invigilator',
+      'Invigilation_Sessions': 3,
+      'Exam_Center': 'Main Campus Examination Block'
+    },
+    {
+      'Subject_Code': 'MECH201',
+      'Subject_Name': 'Thermodynamics & Heat Transfer',
+      'Staff_Code': 'T6118',
+      'Staff_name': 'Dr. Anand Kumar',
+      'Additional_Staff': '',
+      'Section': 'A',
+      'Sem': 'III',
+      'Program': 'B.Tech. Mechatronics Engineering',
+      'Department': 'School of Mechatronics Engineering',
+      'Workload': 4,
+      'Exam_Role': 'Chief Invigilator & Evaluator',
+      'Invigilation_Sessions': 2,
+      'Exam_Center': 'Engineering Block B - Hall 102'
+    }
+  ];
+
+  const ws = XLSX.utils.json_to_sheet(sampleRows);
+  ws['!cols'] = [
+    { wch: 16 }, // Subject_Code
+    { wch: 34 }, // Subject_Name
+    { wch: 14 }, // Staff_Code
+    { wch: 26 }, // Staff_name
+    { wch: 26 }, // Additional_Staff
+    { wch: 10 }, // Section
+    { wch: 8 },  // Sem
+    { wch: 45 }, // Program
+    { wch: 35 }, // Department
+    { wch: 12 }, // Workload
+    { wch: 32 }, // Exam_Role
+    { wch: 22 }, // Invigilation_Sessions
+    { wch: 35 }  // Exam_Center
+  ];
+
+  const instructionsWs = XLSX.utils.json_to_sheet([
+    {
+      'Column Name': 'Subject_Code',
+      'Mandatory?': 'Yes',
+      'Description & Guidelines': 'Subject / Paper Code matching Course Master (e.g., APSC102, ARCH101).',
+      'Sample Value': 'APSC102'
+    },
+    {
+      'Column Name': 'Subject_Name',
+      'Mandatory?': 'Yes',
+      'Description & Guidelines': 'Descriptive course / subject title matching the academic syllabus.',
+      'Sample Value': 'Applied Physics'
+    },
+    {
+      'Column Name': 'Staff_Code',
+      'Mandatory?': 'Yes',
+      'Description & Guidelines': 'Unique Faculty Employee / Staff ID (e.g., T7386, T4102).',
+      'Sample Value': 'T7386'
+    },
+    {
+      'Column Name': 'Staff_name',
+      'Mandatory?': 'Yes',
+      'Description & Guidelines': 'Full faculty name with prefix/title (e.g., Dr. Rajesh Sharma).',
+      'Sample Value': 'Dr. Rajesh Sharma'
+    },
+    {
+      'Column Name': 'Additional_Staff',
+      'Mandatory?': 'No',
+      'Description & Guidelines': 'Secondary instructor, co-evaluator, or lab assistant if team-taught.',
+      'Sample Value': 'Prof. Sarah Jenkins'
+    },
+    {
+      'Column Name': 'Section',
+      'Mandatory?': 'Yes',
+      'Description & Guidelines': 'Class division / batch section (e.g., A, B, C, Batch 1). Defaults to A.',
+      'Sample Value': 'A'
+    },
+    {
+      'Column Name': 'Sem',
+      'Mandatory?': 'Yes',
+      'Description & Guidelines': 'Semester number or Roman numeral (e.g., 1, 2, I, II, III).',
+      'Sample Value': 'I'
+    },
+    {
+      'Column Name': 'Program',
+      'Mandatory?': 'Yes',
+      'Description & Guidelines': 'Full program name or degree code matching university registry.',
+      'Sample Value': 'B.Tech. Construction Engineering & Management'
+    },
+    {
+      'Column Name': 'Department',
+      'Mandatory?': 'No',
+      'Description & Guidelines': 'Academic department or school responsible for teaching.',
+      'Sample Value': 'School of Construction Engineering'
+    },
+    {
+      'Column Name': 'Workload',
+      'Mandatory?': 'No',
+      'Description & Guidelines': 'Teaching & practical hours assigned per week (default: 4).',
+      'Sample Value': '4'
+    },
+    {
+      'Column Name': 'Exam_Role',
+      'Mandatory?': 'Yes',
+      'Description & Guidelines': 'Primary examination duty: Course Instructor, Paper Setter, Chief Invigilator, Invigilator, Practical Examiner, Jury Lead.',
+      'Sample Value': 'Paper Setter & Evaluator'
+    },
+    {
+      'Column Name': 'Invigilation_Sessions',
+      'Mandatory?': 'No',
+      'Description & Guidelines': 'Number of assigned exam hall invigilation duty slots (default: 2).',
+      'Sample Value': '2'
+    },
+    {
+      'Column Name': 'Exam_Center',
+      'Mandatory?': 'No',
+      'Description & Guidelines': 'Exam venue / block location (default: Main Campus Examination Block).',
+      'Sample Value': 'Main Campus Examination Block'
+    }
+  ]);
+
+  instructionsWs['!cols'] = [
+    { wch: 24 },
+    { wch: 12 },
+    { wch: 75 },
+    { wch: 35 }
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Faculty_Allocations');
+  XLSX.utils.book_append_sheet(wb, instructionsWs, 'Instructions');
+  XLSX.writeFile(wb, 'Faculty_Allocation_Template.xlsx');
+}
+
 // ============================================================================
 // COURSE MASTER EXCEL (LTPS & Marks Configuration)
 // ============================================================================
@@ -361,167 +547,164 @@ export function downloadCourseMasterTemplate() {
   const sampleRows = [
     {
       'Sr. No.': 1,
-      'CM_Course_Name': 'B.Tech. Construction Engineering & Management',
+      'Program Name': 'B.Tech. Construction Engineering & Management',
       'Semester': 'I',
-      'PaperCode': 'APSC102',
-      'SM_Subject_Name': 'Applied Physics',
-      'L': 2,
-      'T': 0,
-      'P': 1,
-      'S': 1,
+      'Course Code': 'APSC102',
+      'Course Name': 'Applied Physics',
+      'L_Cr': 2,
+      'T_Cr': 0,
+      'P_Cr': 1,
+      'S_Cr': 1,
       'Total Credits': 4,
       'Grading Category': 'Non-Architecture',
       'CAT1 Max Marks': 10,
-      'CAT1 Min Marks': 4,
       'CAT2 Max Marks': 10,
-      'CAT2 Min Marks': 4,
       'CAT3 Max Marks': 30,
-      'CAT3 Min Marks': 12,
       'CAP1 Max Marks': 10,
-      'CAP1 Min Marks': 4,
       'CAP2 Max Marks': 10,
-      'CAP2 Min Marks': 4,
       'CAP3 Max Marks': 20,
-      'CAP3 Min Marks': 8,
       'CAS1 Max Marks': 0,
-      'CAS1 Min Marks': 0,
       'CAS2 Max Marks': 0,
-      'CAS2 Min Marks': 0,
       'CAS3 Max Marks': 0,
-      'CAS3 Min Marks': 0,
       'EST Max Marks': 50,
-      'EST Min Marks': 20,
       'ESP Max Marks': 40,
-      'ESP Min Marks': 16,
       'ESS Max Marks': 0,
-      'ESS Min Marks': 0,
-      'IA Max Marks': 90,
-      'IA Min Marks': 36,
       'Total Marks': 180,
-      'Total Marks Min': 72,
     },
     {
       'Sr. No.': 2,
-      'CM_Course_Name': 'B.Arch. Architecture & Planning',
+      'Program Name': 'B.Arch. Architecture & Planning',
       'Semester': 'I',
-      'PaperCode': 'ARCH101',
-      'SM_Subject_Name': 'Architectural Design Studio I',
-      'L': 1,
-      'T': 0,
-      'P': 2,
-      'S': 3,
+      'Course Code': 'ARCH101',
+      'Course Name': 'Architectural Design Studio I',
+      'L_Cr': 1,
+      'T_Cr': 0,
+      'P_Cr': 2,
+      'S_Cr': 3,
       'Total Credits': 6,
       'Grading Category': 'Architecture',
       'CAT1 Max Marks': 15,
-      'CAT1 Min Marks': 7,
       'CAT2 Max Marks': 15,
-      'CAT2 Min Marks': 7,
       'CAT3 Max Marks': 20,
-      'CAT3 Min Marks': 9,
       'CAP1 Max Marks': 15,
-      'CAP1 Min Marks': 7,
       'CAP2 Max Marks': 15,
-      'CAP2 Min Marks': 7,
       'CAP3 Max Marks': 20,
-      'CAP3 Min Marks': 9,
       'CAS1 Max Marks': 10,
-      'CAS1 Min Marks': 5,
       'CAS2 Max Marks': 10,
-      'CAS2 Min Marks': 5,
       'CAS3 Max Marks': 30,
-      'CAS3 Min Marks': 14,
       'EST Max Marks': 50,
-      'EST Min Marks': 23,
       'ESP Max Marks': 50,
-      'ESP Min Marks': 23,
       'ESS Max Marks': 50,
-      'ESS Min Marks': 23,
-      'IA Max Marks': 150,
-      'IA Min Marks': 68,
       'Total Marks': 300,
-      'Total Marks Min': 137,
     },
     {
       'Sr. No.': 3,
-      'CM_Course_Name': 'B.Tech. Computer Science & AI',
+      'Program Name': 'B.Tech. Computer Science & AI',
       'Semester': 'I',
-      'PaperCode': 'MATH101',
-      'SM_Subject_Name': 'Calculus & Linear Algebra',
-      'L': 3,
-      'T': 1,
-      'P': 0,
-      'S': 0,
+      'Course Code': 'MATH101',
+      'Course Name': 'Calculus & Linear Algebra',
+      'L_Cr': 3,
+      'T_Cr': 1,
+      'P_Cr': 0,
+      'S_Cr': 0,
       'Total Credits': 4,
       'Grading Category': 'Non-Architecture',
       'CAT1 Max Marks': 15,
-      'CAT1 Min Marks': 6,
       'CAT2 Max Marks': 15,
-      'CAT2 Min Marks': 6,
       'CAT3 Max Marks': 20,
-      'CAT3 Min Marks': 8,
       'CAP1 Max Marks': 0,
-      'CAP1 Min Marks': 0,
       'CAP2 Max Marks': 0,
-      'CAP2 Min Marks': 0,
       'CAP3 Max Marks': 0,
-      'CAP3 Min Marks': 0,
       'CAS1 Max Marks': 0,
-      'CAS1 Min Marks': 0,
       'CAS2 Max Marks': 0,
-      'CAS2 Min Marks': 0,
       'CAS3 Max Marks': 0,
-      'CAS3 Min Marks': 0,
       'EST Max Marks': 50,
-      'EST Min Marks': 20,
       'ESP Max Marks': 0,
-      'ESP Min Marks': 0,
       'ESS Max Marks': 0,
-      'ESS Min Marks': 0,
-      'IA Max Marks': 50,
-      'IA Min Marks': 20,
       'Total Marks': 100,
-      'Total Marks Min': 40,
     },
   ];
 
   const ws = XLSX.utils.json_to_sheet(sampleRows);
+  ws['!cols'] = [
+    { wch: 8 },  // Sr. No.
+    { wch: 45 }, // Program Name
+    { wch: 10 }, // Semester
+    { wch: 14 }, // Course Code
+    { wch: 32 }, // Course Name
+    { wch: 8 },  // L_Cr
+    { wch: 8 },  // T_Cr
+    { wch: 8 },  // P_Cr
+    { wch: 8 },  // S_Cr
+    { wch: 12 }, // Total Credits
+    { wch: 18 }, // Grading Category
+    { wch: 14 }, // CAT1 Max Marks
+    { wch: 14 }, // CAT2 Max Marks
+    { wch: 14 }, // CAT3 Max Marks
+    { wch: 14 }, // CAP1 Max Marks
+    { wch: 14 }, // CAP2 Max Marks
+    { wch: 14 }, // CAP3 Max Marks
+    { wch: 14 }, // CAS1 Max Marks
+    { wch: 14 }, // CAS2 Max Marks
+    { wch: 14 }, // CAS3 Max Marks
+    { wch: 14 }, // EST Max Marks
+    { wch: 14 }, // ESP Max Marks
+    { wch: 14 }, // ESS Max Marks
+    { wch: 12 }, // Total Marks
+  ];
+
   const instructionsWs = XLSX.utils.json_to_sheet([
     {
+      'Field / Column': 'Program Name',
+      'Requirement': 'Mandatory. Degree / Programme Name.',
+      'Rule / Behavior': 'Full degree name (e.g. B.Tech. Construction Engineering & Management).'
+    },
+    {
+      'Field / Column': 'Course Code & Course Name',
+      'Requirement': 'Mandatory. Subject Paper Code and Title.',
+      'Rule / Behavior': 'Unique subject code (e.g. APSC102) and descriptive course title.'
+    },
+    {
+      'Field / Column': 'L_Cr, T_Cr, P_Cr, S_Cr, Total Credits',
+      'Requirement': 'Mandatory. Credit structure.',
+      'Rule / Behavior': 'Lecture, Tutorial, Practical, and Skill credits. Total Credits = L_Cr + T_Cr + P_Cr + S_Cr.'
+    },
+    {
       'Field / Column': 'Grading Category',
-      'Requirement': 'Mandatory. Select either "Architecture" or "Non-Architecture".',
-      'Rule / Behavior': 'Architecture requires at least 45% passing and Architecture letter grade bands. Non-Architecture passes at 40% (or 45%).'
+      'Requirement': 'Mandatory. Select either "Architecture" or "Non-Architecture" from dropdown.',
+      'Rule / Behavior': 'Determines 10-point letter grading bands (Architecture passes at 45%, Non-Architecture passes at 40%).'
     },
     {
       'Field / Column': 'CAT1, CAT2, CAT3',
-      'Requirement': 'Continuous Assessment Theory. Enter Max & Min marks (or 0 if not applicable).',
-      'Rule / Behavior': 'Min Marks cannot exceed Max Marks. Head is marked active if any component > 0.'
+      'Requirement': 'Theory Continuous Assessments. Enter Max marks (or 0 if not applicable).',
+      'Rule / Behavior': 'Min passing marks are auto-calculated at 40% (Non-Architecture) or 45% (Architecture).'
     },
     {
       'Field / Column': 'CAP1, CAP2, CAP3',
-      'Requirement': 'Continuous Assessment Practical. Enter Max & Min marks (or 0 if not applicable).',
-      'Rule / Behavior': 'Min Marks cannot exceed Max Marks. Head is marked active if any component > 0.'
+      'Requirement': 'Practical Continuous Assessments. Enter Max marks (or 0 if not applicable).',
+      'Rule / Behavior': 'Min passing marks are auto-calculated at 40% (Non-Architecture) or 45% (Architecture).'
     },
     {
       'Field / Column': 'CAS1, CAS2, CAS3',
-      'Requirement': 'Continuous Assessment Skills. Enter Max & Min marks (or 0 if not applicable).',
-      'Rule / Behavior': 'Min Marks cannot exceed Max Marks. Head is marked active if any component > 0.'
+      'Requirement': 'Skills Continuous Assessments. Enter Max marks (or 0 if not applicable).',
+      'Rule / Behavior': 'Min passing marks are auto-calculated at 40% (Non-Architecture) or 45% (Architecture).'
     },
     {
       'Field / Column': 'EST, ESP, ESS',
-      'Requirement': 'End-Semester Exam Max & Min marks for Theory, Practical, and Skills.',
-      'Rule / Behavior': 'Min marks define ESE passing cutoff. ESE entry is blocked if internal eligibility (TG) is not met.'
+      'Requirement': 'End-Semester Exam Max marks for Theory (EST), Practical (ESP), and Skills (ESS).',
+      'Rule / Behavior': 'Min passing marks are auto-calculated at 40% (Non-Architecture) or 45% (Architecture). ESE entry is blocked if internal eligibility (TG) is not met.'
     },
     {
-      'Field / Column': 'IA Max & Min Marks',
-      'Requirement': 'Combined Internal Assessment totals (sum of all active CAT, CAP, CAS).',
-      'Rule / Behavior': 'Auto-calculated if blank or verified during import.'
-    },
-    {
-      'Field / Column': 'Total Marks & Min',
-      'Requirement': 'Overall course maximum and passing threshold (IA + EST + ESP + ESS).',
-      'Rule / Behavior': 'Auto-calculated if blank or verified during import.'
+      'Field / Column': 'Total Marks',
+      'Requirement': 'Overall course maximum marks sum (CAT1..3 + CAP1..3 + CAS1..3 + EST + ESP + ESS).',
+      'Rule / Behavior': 'Auto-calculated if blank or validated against sum of individual heads.'
     }
   ]);
+  instructionsWs['!cols'] = [
+    { wch: 32 },
+    { wch: 50 },
+    { wch: 65 },
+  ];
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Course_Master');
@@ -554,13 +737,32 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         rowObj[normalizeKey(k)] = v as string | number;
       });
 
-      const courseName = String(rowObj['cmcoursename'] || rowObj['coursename'] || '').trim();
-      const semester = String(rowObj['semester'] || '').trim();
-      const paperCode = String(rowObj['papercode'] || rowObj['subjectcode'] || '').trim();
-      const subjectName = String(rowObj['smsubjectname'] || rowObj['subjectname'] || '').trim();
+      // Disambiguate Program Name vs Course Name (Subject Title)
+      let courseName = '';
+      let subjectName = '';
+
+      if (rowObj['programname']) {
+        courseName = String(rowObj['programname']).trim();
+        subjectName = String(rowObj['coursename'] || rowObj['smsubjectname'] || rowObj['subjectname'] || '').trim();
+      } else if (rowObj['cmcoursename']) {
+        courseName = String(rowObj['cmcoursename']).trim();
+        subjectName = String(rowObj['smsubjectname'] || rowObj['coursename'] || rowObj['subjectname'] || '').trim();
+      } else {
+        courseName = String(rowObj['program'] || rowObj['coursename'] || '').trim();
+        subjectName = String(rowObj['smsubjectname'] || rowObj['subjectname'] || '').trim();
+      }
+
+      const semester = String(rowObj['semester'] || rowObj['sem'] || '').trim();
+      const paperCode = String(
+        rowObj['coursecode'] ||
+        rowObj['papercode'] ||
+        rowObj['subjectcode'] ||
+        rowObj['code'] ||
+        ''
+      ).trim();
 
       if (!courseName || !semester || !paperCode || !subjectName) {
-        errors.push(`Row ${rowNum}: Missing mandatory fields (Course Name, Semester, PaperCode, Subject Name).`);
+        errors.push(`Row ${rowNum}: Missing mandatory fields (Program Name, Semester, Course Code, Course Name).`);
         return;
       }
 
@@ -576,6 +778,10 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         return;
       }
 
+      // Automated minimum passing threshold based on Grading Category:
+      // Architecture = 45%, Non-Architecture = 40%
+      const passRate = category === 'Architecture' ? 0.45 : 0.40;
+
       const readNum = (keys: string[], def = 0): number => {
         for (const k of keys) {
           const v = rowObj[k];
@@ -587,10 +793,17 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         return def;
       };
 
-      const l = readNum(['l'], 0);
-      const t = readNum(['t'], 0);
-      const p = readNum(['p'], 0);
-      const s = readNum(['s'], 0);
+      // Helper to compute min marks automatically when omitted in the new template
+      const calcMin = (maxVal: number, minKeys: string[]) => {
+        const explicit = readNum(minKeys, -1);
+        if (explicit >= 0) return explicit;
+        return maxVal > 0 ? Math.round(maxVal * passRate) : 0;
+      };
+
+      const l = readNum(['lcr', 'l_cr', 'l', 'lecture'], 0);
+      const t = readNum(['tcr', 't_cr', 't', 'tutorial'], 0);
+      const p = readNum(['pcr', 'p_cr', 'p', 'practical'], 0);
+      const s = readNum(['scr', 's_cr', 's', 'skill'], 0);
       const totalCredits = readNum(['totalcredits', 'credits'], l + t + p + s);
 
       if (l < 0 || t < 0 || p < 0 || s < 0 || totalCredits < 0) {
@@ -598,61 +811,61 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         return;
       }
 
-      // Theory components
-      let cat1_max = readNum(['cat1maxmarks', 'cat1max'], 0);
-      let cat1_min = readNum(['cat1minmarks', 'cat1min'], 0);
-      let cat2_max = readNum(['cat2maxmarks', 'cat2max'], 0);
-      let cat2_min = readNum(['cat2minmarks', 'cat2min'], 0);
-      let cat3_max = readNum(['cat3maxmarks', 'cat3max'], 0);
-      let cat3_min = readNum(['cat3minmarks', 'cat3min'], 0);
+      // Theory continuous assessments
+      let cat1_max = readNum(['cat1maxmarks', 'cat1max', 'cat1'], 0);
+      let cat1_min = calcMin(cat1_max, ['cat1minmarks', 'cat1min']);
+      let cat2_max = readNum(['cat2maxmarks', 'cat2max', 'cat2'], 0);
+      let cat2_min = calcMin(cat2_max, ['cat2minmarks', 'cat2min']);
+      let cat3_max = readNum(['cat3maxmarks', 'cat3max', 'cat3'], 0);
+      let cat3_min = calcMin(cat3_max, ['cat3minmarks', 'cat3min']);
 
-      // Legacy fallback for CAT
+      // Legacy fallback for CAT if single CAT was provided
       const legacyCatMax = readNum(['catmaxmarks', 'catmax'], 0);
-      const legacyCatMin = readNum(['catminmarks', 'catmin'], 0);
+      const legacyCatMin = readNum(['catminmarks', 'catmin'], -1);
       if (cat1_max === 0 && cat2_max === 0 && cat3_max === 0 && legacyCatMax > 0) {
         cat1_max = Math.round(legacyCatMax * 0.25);
         cat2_max = Math.round(legacyCatMax * 0.25);
         cat3_max = legacyCatMax - cat1_max - cat2_max;
-        cat1_min = Math.round(legacyCatMin * 0.25);
-        cat2_min = Math.round(legacyCatMin * 0.25);
-        cat3_min = legacyCatMin - cat1_min - cat2_min;
+        cat1_min = legacyCatMin >= 0 ? Math.round(legacyCatMin * 0.25) : Math.round(cat1_max * passRate);
+        cat2_min = legacyCatMin >= 0 ? Math.round(legacyCatMin * 0.25) : Math.round(cat2_max * passRate);
+        cat3_min = legacyCatMin >= 0 ? legacyCatMin - cat1_min - cat2_min : Math.round(cat3_max * passRate);
       }
 
-      // Practical components
-      let cap1_max = readNum(['cap1maxmarks', 'cap1max'], 0);
-      let cap1_min = readNum(['cap1minmarks', 'cap1min'], 0);
-      let cap2_max = readNum(['cap2maxmarks', 'cap2max'], 0);
-      let cap2_min = readNum(['cap2minmarks', 'cap2min'], 0);
-      let cap3_max = readNum(['cap3maxmarks', 'cap3max'], 0);
-      let cap3_min = readNum(['cap3minmarks', 'cap3min'], 0);
+      // Practical continuous assessments
+      let cap1_max = readNum(['cap1maxmarks', 'cap1max', 'cap1'], 0);
+      let cap1_min = calcMin(cap1_max, ['cap1minmarks', 'cap1min']);
+      let cap2_max = readNum(['cap2maxmarks', 'cap2max', 'cap2'], 0);
+      let cap2_min = calcMin(cap2_max, ['cap2minmarks', 'cap2min']);
+      let cap3_max = readNum(['cap3maxmarks', 'cap3max', 'cap3'], 0);
+      let cap3_min = calcMin(cap3_max, ['cap3minmarks', 'cap3min']);
 
       // Legacy fallback for CAP
       const legacyCapMax = readNum(['capmaxmarks', 'capmax'], 0);
-      const legacyCapMin = readNum(['capminmarks', 'capmin'], 0);
+      const legacyCapMin = readNum(['capminmarks', 'capmin'], -1);
       if (cap1_max === 0 && cap2_max === 0 && cap3_max === 0 && legacyCapMax > 0) {
         cap1_max = Math.round(legacyCapMax * 0.25);
         cap2_max = Math.round(legacyCapMax * 0.25);
         cap3_max = legacyCapMax - cap1_max - cap2_max;
-        cap1_min = Math.round(legacyCapMin * 0.25);
-        cap2_min = Math.round(legacyCapMin * 0.25);
-        cap3_min = legacyCapMin - cap1_min - cap2_min;
+        cap1_min = legacyCapMin >= 0 ? Math.round(legacyCapMin * 0.25) : Math.round(cap1_max * passRate);
+        cap2_min = legacyCapMin >= 0 ? Math.round(legacyCapMin * 0.25) : Math.round(cap2_max * passRate);
+        cap3_min = legacyCapMin >= 0 ? legacyCapMin - cap1_min - cap2_min : Math.round(cap3_max * passRate);
       }
 
-      // Skills components
-      const cas1_max = readNum(['cas1maxmarks', 'cas1max'], 0);
-      const cas1_min = readNum(['cas1minmarks', 'cas1min'], 0);
-      const cas2_max = readNum(['cas2maxmarks', 'cas2max'], 0);
-      const cas2_min = readNum(['cas2minmarks', 'cas2min'], 0);
-      const cas3_max = readNum(['cas3maxmarks', 'cas3max'], 0);
-      const cas3_min = readNum(['cas3minmarks', 'cas3min'], 0);
+      // Skills continuous assessments
+      const cas1_max = readNum(['cas1maxmarks', 'cas1max', 'cas1'], 0);
+      const cas1_min = calcMin(cas1_max, ['cas1minmarks', 'cas1min']);
+      const cas2_max = readNum(['cas2maxmarks', 'cas2max', 'cas2'], 0);
+      const cas2_min = calcMin(cas2_max, ['cas2minmarks', 'cas2min']);
+      const cas3_max = readNum(['cas3maxmarks', 'cas3max', 'cas3'], 0);
+      const cas3_min = calcMin(cas3_max, ['cas3minmarks', 'cas3min']);
 
-      // ESE components
-      const est_max = readNum(['estmaxmarks', 'estmax'], 0);
-      const est_min = readNum(['estminmarks', 'estmin'], 0);
-      const esp_max = readNum(['espmaxmarks', 'espmax'], 0);
-      const esp_min = readNum(['espminmarks', 'espmin'], 0);
-      const ess_max = readNum(['essmaxmarks', 'essmax'], 0);
-      const ess_min = readNum(['essminmarks', 'essmin'], 0);
+      // End-Semester Exam components (EST, ESP, ESS)
+      const est_max = readNum(['estmaxmarks', 'estmax', 'est'], 0);
+      const est_min = calcMin(est_max, ['estminmarks', 'estmin']);
+      const esp_max = readNum(['espmaxmarks', 'espmax', 'esp'], 0);
+      const esp_min = calcMin(esp_max, ['espminmarks', 'espmin']);
+      const ess_max = readNum(['essmaxmarks', 'essmax', 'ess'], 0);
+      const ess_min = calcMin(ess_max, ['essminmarks', 'essmin']);
 
       // Validate no negative marks
       const allMarks = [
@@ -708,11 +921,14 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
       const cas_max_marks = cas1_max + cas2_max + cas3_max;
       const cas_min_marks = cas1_min + cas2_min + cas3_min;
 
-      const ia_max_marks = readNum(['iamaxmarks', 'iamax'], cat_max_marks + cap_max_marks + cas_max_marks);
-      const ia_min_marks = readNum(['iaminmarks', 'iamin'], cat_min_marks + cap_min_marks + cas_min_marks);
+      const ia_max_marks = cat_max_marks + cap_max_marks + cas_max_marks;
+      const ia_min_marks = cat_min_marks + cap_min_marks + cas_min_marks;
 
-      const total_marks = readNum(['totalmarks', 'totalmax'], ia_max_marks + est_max + esp_max + ess_max);
-      const total_marks_min = readNum(['totalmarksmin', 'totalmin'], ia_min_marks + est_min + esp_min + ess_min);
+      const calculatedTotal = ia_max_marks + est_max + esp_max + ess_max;
+      const calculatedTotalMin = ia_min_marks + est_min + esp_min + ess_min;
+
+      const total_marks = readNum(['totalmarks', 'totalmax', 'total'], calculatedTotal);
+      const total_marks_min = readNum(['totalmarksmin', 'totalmin'], calculatedTotalMin);
 
       if (ia_min_marks > ia_max_marks) {
         errors.push(`Row ${rowNum}: IA Min Marks (${ia_min_marks}) cannot exceed IA Max Marks (${ia_max_marks}).`);
@@ -723,19 +939,13 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         return;
       }
 
-      const internalPassPct = ia_max_marks > 0 && ia_min_marks > 0
-        ? Math.round((ia_min_marks / ia_max_marks) * 100)
-        : (category === 'Architecture' ? 45 : 40);
-
-      const overallPassPct = total_marks > 0 && total_marks_min > 0
-        ? Math.round((total_marks_min / total_marks) * 100)
-        : (category === 'Architecture' ? 45 : 40);
+      const passPercentage = Math.round(passRate * 100);
 
       const scheme: import('../types').AssessmentScheme = {
         category,
         credits: totalCredits,
-        internalPass: internalPassPct,
-        overallPass: Math.max(overallPassPct, category === 'Architecture' ? 45 : 40),
+        internalPass: passPercentage,
+        overallPass: passPercentage,
         integerMarks: true,
         approved: true,
         approvalReference: 'University Board of Studies LTPS Scheme',
@@ -744,19 +954,19 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
             active: theoryActive,
             ca: [cat1_max, cat2_max, cat3_max],
             ese: est_max,
-            pass: est_max > 0 && est_min > 0 ? Math.round((est_min / est_max) * 100) : (category === 'Architecture' ? 45 : 40),
+            pass: passPercentage,
           },
           practical: {
             active: practicalActive,
             ca: [cap1_max, cap2_max, cap3_max],
             ese: esp_max,
-            pass: esp_max > 0 && esp_min > 0 ? Math.round((esp_min / esp_max) * 100) : (category === 'Architecture' ? 45 : 40),
+            pass: passPercentage,
           },
           skills: {
             active: skillsActive,
             ca: [cas1_max, cas2_max, cas3_max],
             ese: ess_max,
-            pass: ess_max > 0 && ess_min > 0 ? Math.round((ess_min / ess_max) * 100) : (category === 'Architecture' ? 45 : 40),
+            pass: passPercentage,
           },
         },
       };

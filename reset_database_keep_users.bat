@@ -8,7 +8,7 @@ echo                ACHARYA360 EXAMTRACK - OPERATIONAL DATABASE RESET
 echo ===============================================================================
 echo.
 echo  Target Database : SSPU_Exam
-echo  Target Server   : acharya360\SQLEXPRESS
+echo  Target Server   : localhost\SQLEXPRESS
 echo.
 echo  [!] WARNING:
 echo      This operation will DELETE ALL:
@@ -36,7 +36,7 @@ echo.
 echo [1/2] Connecting to SQL Server and executing reset...
 echo.
 
-sqlcmd -S "acharya360\SQLEXPRESS" -d "SSPU_Exam" -E -i "%~dp0reset_database_keep_users.sql"
+sqlcmd -S "localhost\SQLEXPRESS" -d "SSPU_Exam" -E -C -i "%~dp0reset_database_keep_users.sql"
 
 if %ERRORLEVEL% NEQ 0 (
     echo.

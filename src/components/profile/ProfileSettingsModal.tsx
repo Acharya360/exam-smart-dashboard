@@ -122,8 +122,8 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
       return;
     }
 
-    if (newPassword.length < 6) {
-      setPasswordErrorMsg('New password must be at least 6 characters long.');
+    if (newPassword.length < 8) {
+      setPasswordErrorMsg('New password must be at least 8 characters long.');
       return;
     }
 
@@ -395,7 +395,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
               <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900">
                 <p className="font-semibold">Manage your private credentials</p>
                 <p className="text-[11px] text-indigo-700 mt-0.5">
-                  Update your personal login password. The new password must contain at least 6 characters.
+                  Update your personal login password. The new password must contain at least 8 characters.
                 </p>
               </div>
 
@@ -450,7 +450,7 @@ export const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
                     required
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="Min 6 characters (e.g. Admin@123 or secure pass)"
+                    placeholder="Min 8 characters (e.g. Admin@123 or secure pass)"
                     className="w-full pl-9 pr-10 py-2 bg-white border border-slate-300 rounded-lg text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-mono"
                   />
                   <button

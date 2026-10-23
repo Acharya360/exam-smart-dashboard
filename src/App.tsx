@@ -1,7 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { db } from './services/db';
-import { localRequest } from './services/localDb';
 import { ExamSchedule, ExamTask, Program, TaskStatus, UserProfile } from './types';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
@@ -15,46 +14,50 @@ import { SqlSchemaViewer } from './components/schema/SqlSchemaViewer';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { PasswordManagementModal } from './components/admin/PasswordManagementModal';
 import { ProfileSettingsModal } from './components/profile/ProfileSettingsModal';
-import { MotionVideoShowcase } from './components/motion-video/MotionVideoShowcase';
-import { 
-  Building2, 
-  CalendarDays, 
-  CheckCircle2, 
-  Sparkles, 
-  AlertTriangle,
-  Layers,
-  ArrowRight,
-  Shield,
-  KeyRound,
-  User,
-  Settings
-} from 'lucide-react';
+import { getViewFromLocation, syncUrlWithView, getUrlSearchParams } from './utils/routes';
+import { useScreenScale } from './hooks/useScreenScale';
 
-// Lazy-loaded heavy admin views for code splitting
-const ExcelUploader = lazy(() => import('./components/upload/ExcelUploader').then(m => ({ default: m.ExcelUploader })));
+// Lazy-loaded heavy views for code splitting
 const StudentMarksImport = lazy(() => import('./components/admin/StudentMarksImport').then(m => ({ default: m.StudentMarksImport })));
 const ExaminationWorkspace = lazy(() => import('./components/admin/ExaminationWorkspace').then(m => ({ default: m.ExaminationWorkspace })));
 const TNGStudentsView = lazy(() => import('./components/admin/TNGStudentsView').then(m => ({ default: m.TNGStudentsView })));
 const TRSheetView = lazy(() => import('./components/admin/TRSheetView').then(m => ({ default: m.TRSheetView })));
+const TimetableGenerator = lazy(() => import('./components/timetable/TimetableGenerator').then(m => ({ default: m.TimetableGenerator })));
+const FacultyCourseAllocation = lazy(() => import('./components/faculty/FacultyCourseAllocation').then(m => ({ default: m.FacultyCourseAllocation })));
+const ExamPerformanceDashboard = lazy(() => import('./components/reports/ExamPerformanceDashboard').then(m => ({ default: m.ExamPerformanceDashboard })));
 
 function MainApp() {
-  const { currentUser, isSuperAdmin, isCoordinator, isLoggedIn } = useAuth();
+  const { currentUser, isSuperAdmin, isLoggedIn } = useAuth();
+  const screenScale = useScreenScale();
 
-  const [currentView, setCurrentView] = useState<string>('dashboard');
+  const [currentView, setCurrentView] = useState<string>(() => getViewFromLocation());
+  const [activeContext, setActiveContext] = useState<{
+    paperCode?: string;
+    staffCode?: string;
+    programName?: string;
+    semester?: string;
+  }>(() => {
+    const params = getUrlSearchParams();
+    return {
+      paperCode: params.paper || params.subject || undefined,
+      staffCode: params.staff || undefined,
+      programName: params.program || undefined,
+      semester: params.sem || undefined,
+    };
+  });
+
   const [schedules, setSchedules] = useState<ExamSchedule[]>([]);
   const [tasks, setTasks] = useState<ExamTask[]>([]);
   const [programs, setPrograms] = useState<Program[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
-  const [dataError,setDataError]=useState('');
-  const [isDemo,setIsDemo]=useState(false);
-  const [isLoading,setIsLoading]=useState(false);
-  const [focusedScheduleIds,setFocusedScheduleIds]=useState<string[]|null>(null);
-  const [focusedTaskIds,setFocusedTaskIds]=useState<string[]|null>(null);
+  const [dataError, setDataError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [focusedScheduleIds, setFocusedScheduleIds] = useState<string[] | null>(null);
+  const [focusedTaskIds, setFocusedTaskIds] = useState<string[] | null>(null);
   
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [profileModalTab, setProfileModalTab] = useState<'profile' | 'password' | 'duties'>('profile');
-  const [isMotionVideoModalOpen, setIsMotionVideoModalOpen] = useState(false);
   
   // Mobile sidebar state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -64,29 +67,68 @@ function MainApp() {
 
   // Sync state from database
   const refreshData = async () => {
-    console.log('App: refreshData called, isLoggedIn:', isLoggedIn);
     if (!isLoggedIn) return;
     try {
-      setDataError(''); setIsLoading(true);
-      const [healthRes, fetchedSchedules, fetchedTasks, fetchedPrograms, fetchedUsers] = await Promise.all([
-        localRequest<{data_mode:string}>('/health').catch(() => ({ data_mode: 'DEMO' })),
+      setDataError('');
+      setIsLoading(true);
+      const [fetchedSchedules, fetchedTasks, fetchedPrograms, fetchedUsers] = await Promise.all([
         db.getSchedules(),
         db.getTasks(),
         db.getPrograms(),
         db.getUsers()
       ]);
-      console.log('App refreshData completed:', { schedules: fetchedSchedules.length, tasks: fetchedTasks.length, programs: fetchedPrograms.length, users: fetchedUsers.length });
-      setIsDemo(healthRes.data_mode === 'DEMO');
       setSchedules(fetchedSchedules);
       setTasks(fetchedTasks);
       setPrograms(fetchedPrograms);
       setUsers(fetchedUsers);
-    } catch(e) { console.error('App refreshData error:', e); setDataError(e instanceof Error?e.message:'Unable to load university records.'); } finally { setIsLoading(false); }
+    } catch (e) {
+      console.error('App refreshData error:', e);
+      setDataError(e instanceof Error ? e.message : 'Unable to load university records.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
     refreshData();
   }, [isLoggedIn]);
+
+  // Synchronize browser URL bar and handle browser Back / Forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const view = getViewFromLocation();
+      const params = getUrlSearchParams();
+      setActiveContext({
+        paperCode: params.paper || params.subject || undefined,
+        staffCode: params.staff || undefined,
+        programName: params.program || undefined,
+        semester: params.sem || undefined,
+      });
+      setCurrentView(view);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Centralized navigation handler that updates both React state, context, and browser URL bar
+  const handleNavigate = (view: string, params?: Record<string, string>, replace = false) => {
+    if (view !== 'tasks') setFocusedScheduleId(null);
+    setFocusedTaskIds(null);
+    setFocusedScheduleIds(null);
+
+    if (params && Object.keys(params).length > 0) {
+      setActiveContext((prev) => ({
+        paperCode: params.paper || params.subject || prev.paperCode,
+        staffCode: params.staff || prev.staffCode,
+        programName: params.program || prev.programName,
+        semester: params.sem || prev.semester,
+      }));
+    }
+
+    setCurrentView(view);
+    syncUrlWithView(view, replace, params);
+  };
 
   // If not logged in, gate access with the dedicated Login Screen
   if (!isLoggedIn) {
@@ -171,16 +213,6 @@ function MainApp() {
     await refreshData();
   };
 
-  const handleCommitPrograms = async (newPrograms: Program[], newUsers: UserProfile[]) => {
-    // Handling mass uploads is currently unsupported in SupabaseDBService as we didn't write batch users sync
-    // In production, this should trigger an edge function to create Supabase Auth users.
-    // We'll sync programs at least.
-    for (const p of newPrograms) {
-      await db.addOrUpdateProgram(p);
-    }
-    await refreshData();
-  };
-
   const handleUpdateProgram = async (prog: Program) => {
     await db.addOrUpdateProgram(prog);
     await refreshData();
@@ -201,11 +233,14 @@ function MainApp() {
     await refreshData();
   };
 
-  const handleAddPrograms = async (progs: Program[], newUsers?: UserProfile[]) => {
+  const handleAddPrograms = async (progs: Program[], newUsers?: UserProfile[], clearExisting: boolean = false) => {
+    const idMap = new Map<string, string>();
+
     if (newUsers && newUsers.length > 0) {
       for (const u of newUsers) {
         try {
-          await db.createUser({
+          const res = await db.createUser({
+            id: u.id,
             email: u.email,
             password: u.password || 'Admin@123',
             full_name: u.full_name,
@@ -214,10 +249,32 @@ function MainApp() {
             department: u.department || '',
             phone: u.phone || ''
           });
+          if (res.user?.id) {
+            idMap.set(u.id, res.user.id);
+            idMap.set(u.email.toLowerCase(), res.user.id);
+          }
         } catch {}
       }
     }
-    await db.addOrUpdatePrograms(progs);
+
+    const latestUsers = await db.getUsers().catch(() => []);
+    latestUsers.forEach(u => {
+      idMap.set(u.email.toLowerCase(), u.id);
+    });
+
+    const mappedProgs = progs.map(p => {
+      let prim = p.primary_coordinator_id;
+      let alt = p.alternate_coordinator_id;
+      if (prim && idMap.has(prim)) prim = idMap.get(prim)!;
+      if (alt && idMap.has(alt)) alt = idMap.get(alt)!;
+      return {
+        ...p,
+        primary_coordinator_id: prim,
+        alternate_coordinator_id: alt,
+      };
+    });
+
+    await db.addOrUpdatePrograms(mappedProgs, clearExisting);
     await refreshData();
   };
 
@@ -227,7 +284,7 @@ function MainApp() {
 
   const handleSelectScheduleForTasks = (schedule: ExamSchedule) => {
     setFocusedScheduleId(schedule.id);
-    setCurrentView('tasks');
+    handleNavigate('tasks');
   };
 
   return (
@@ -237,9 +294,7 @@ function MainApp() {
       <Sidebar
         currentView={currentView}
         onNavigate={(view) => {
-          if (view !== 'tasks') setFocusedScheduleId(null);
-          setFocusedTaskIds(null); setFocusedScheduleIds(null);
-          setCurrentView(view);
+          handleNavigate(view);
           setIsSidebarOpen(false); // Close sidebar on mobile after navigation
         }}
         onResetDB={handleResetDB}
@@ -251,27 +306,62 @@ function MainApp() {
       />
 
       {/* Main Viewport */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 overflow-hidden w-full max-w-full">
         {/* Top Header */}
         <Header
           currentView={currentView}
-          onNavigate={(view) => setCurrentView(view)}
+          onNavigate={(view, params) => handleNavigate(view, params)}
           escalatedTasksCount={escalatedTasksCount}
           onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
           onOpenProfileModal={handleOpenProfileModal}
           onMenuToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-          onOpenMotionVideo={() => setIsMotionVideoModalOpen(true)}
+          activeContext={activeContext}
+          onClearContext={() => setActiveContext({})}
         />
 
-        {/* Dynamic Content Body */}
-        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 md:p-8 space-y-6">
-          {dataError&&<div role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-700">{dataError}<button className="ml-3 underline" onClick={()=>void refreshData()}>Retry</button></div>}
-
+        {/* Dynamic Content Body with Adaptive Screen Scaling */}
+        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 md:p-6 lg:p-8 space-y-4 sm:space-y-6 w-full max-w-full">
+          <div className="w-full max-w-[2400px] mx-auto space-y-4 sm:space-y-6 min-w-0">
+            {dataError&&<div role="alert" className="rounded-xl bg-rose-50 p-4 text-rose-700">{dataError}<button className="ml-3 underline" onClick={()=>void refreshData()}>Retry</button></div>}
 
           {isLoading && <p role="status" className="text-sm text-violet-700">Refreshing examination records…</p>}
-          {currentView === 'dashboard' && <CommandCenter schedules={accessibleSchedules} tasks={accessibleTasks} programs={userProgs.all} onNavigate={setCurrentView} onTimetable={ids=>{setFocusedScheduleIds(ids);setCurrentView('timetable');}} onSchedule={handleSelectScheduleForTasks} onTasks={ids=>{setFocusedTaskIds(ids);setFocusedScheduleId(null);setCurrentView('tasks');}}/>}
-          {currentView==='tasks'&&focusedTaskIds!==null&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm"><span>Command center selection · {focusedTaskIds.length} tasks</span><button className="ui-button" onClick={()=>setFocusedTaskIds(null)}>Show all tasks</button></div>}
-          {currentView==='timetable'&&focusedScheduleIds!==null&&<div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm"><span>Command center selection · {focusedScheduleIds.length} papers</span><button className="ui-button" onClick={()=>setFocusedScheduleIds(null)}>Show all papers</button></div>}
+          
+          {currentView === 'dashboard' && (
+            <CommandCenter
+              schedules={accessibleSchedules}
+              tasks={accessibleTasks}
+              programs={userProgs.all}
+              onNavigate={handleNavigate}
+              onTimetable={(ids) => {
+                setFocusedScheduleIds(ids);
+                handleNavigate('timetable');
+              }}
+              onSchedule={handleSelectScheduleForTasks}
+              onTasks={(ids) => {
+                setFocusedTaskIds(ids);
+                setFocusedScheduleId(null);
+                handleNavigate('tasks');
+              }}
+            />
+          )}
+
+          {currentView === 'tasks' && focusedTaskIds !== null && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm">
+              <span>Command center selection · {focusedTaskIds.length} tasks</span>
+              <button className="ui-button" onClick={() => setFocusedTaskIds(null)}>
+                Show all tasks
+              </button>
+            </div>
+          )}
+
+          {currentView === 'timetable' && focusedScheduleIds !== null && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm">
+              <span>Command center selection · {focusedScheduleIds.length} papers</span>
+              <button className="ui-button" onClick={() => setFocusedScheduleIds(null)}>
+                Show all papers
+              </button>
+            </div>
+          )}
           {/* VIEW: TIMETABLE */}
           {currentView === 'timetable' && (
             <div className="space-y-6">
@@ -285,8 +375,18 @@ function MainApp() {
                 onCommitSchedules={handleCommitSchedules}
                 onDeleteSchedule={handleDeleteSchedule}
                 onDeleteSchedules={handleDeleteSchedules}
+                onNavigateToFaculty={(code) => handleNavigate('facultyAllocation', { subject: code })}
+                onNavigateToMarks={(code) => handleNavigate('studentMarks', { paper: code })}
+                onNavigateToReports={(code) => handleNavigate('performanceReports', { subject: code })}
               />
             </div>
+          )}
+
+          {/* VIEW: TIMETABLE GENERATOR (EMS ENGINE) */}
+          {currentView === 'timetableGenerator' && (
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-violet-600 font-medium">Loading timetable engine…</div>}>
+              <TimetableGenerator />
+            </Suspense>
           )}
 
           {/* VIEW: TASKS / WORKFLOW */}
@@ -303,8 +403,6 @@ function MainApp() {
               onClearScheduleFocus={() => setFocusedScheduleId(null)}
             />
           )}
-
-
 
           {/* VIEW: PROGRAMS MASTER & MAPPING */}
           {currentView === 'programs' && (
@@ -323,12 +421,43 @@ function MainApp() {
           {currentView === 'users' && <UserManagement />}
 
           {/* VIEW: COURSE MASTER */}
-          {currentView === 'courseMaster' && <CourseMasterUI />}
+          {currentView === 'courseMaster' && (
+            <CourseMasterUI
+              initialSearch={activeContext.paperCode}
+              onNavigateToFaculty={(code) => handleNavigate('facultyAllocation', { subject: code })}
+              onNavigateToMarks={(code) => handleNavigate('studentMarks', { paper: code })}
+              onNavigateToTimetable={(code) => handleNavigate('timetable', { subject: code })}
+              onNavigateToReports={(code) => handleNavigate('performanceReports', { subject: code })}
+            />
+          )}
+
+          {/* VIEW: FACULTY COURSE ALLOCATION */}
+          {currentView === 'facultyAllocation' && (
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-violet-600 font-medium">Loading faculty course allocation…</div>}>
+              <FacultyCourseAllocation
+                initialSubjectCode={activeContext.paperCode}
+                initialStaffCode={activeContext.staffCode}
+                initialProgram={activeContext.programName}
+                onNavigateToMarks={(paper, staff) => handleNavigate('studentMarks', { paper, staff: staff || '' })}
+                onNavigateToCourseMaster={(subject) => handleNavigate('courseMaster', { search: subject })}
+                onNavigateToTimetable={(subject) => handleNavigate('timetable', { subject })}
+                onNavigateToReports={(staff, subject) => handleNavigate('performanceReports', { staff: staff || '', subject: subject || '' })}
+              />
+            </Suspense>
+          )}
 
           {/* VIEW: STUDENT MARKS IMPORT */}
           {currentView === 'studentMarks' && (
             <Suspense fallback={<div className="flex items-center justify-center h-64 text-violet-600">Loading marks import…</div>}>
-              <StudentMarksImport />
+              <StudentMarksImport
+                initialPaperCode={activeContext.paperCode}
+                initialFacultyCode={activeContext.staffCode}
+                initialProgram={activeContext.programName}
+                onNavigateToFaculty={(code) => handleNavigate('facultyAllocation', { subject: code || activeContext.paperCode || '' })}
+                onNavigateToCourseMaster={(code) => handleNavigate('courseMaster', { search: code || activeContext.paperCode || '' })}
+                onNavigateToTRSheet={(prog, sem) => handleNavigate('trsheet', { program: prog || activeContext.programName || '', sem: sem || activeContext.semester || '' })}
+                onNavigateToReports={(prog, code) => handleNavigate('performanceReports', { program: prog || activeContext.programName || '', subject: code || activeContext.paperCode || '' })}
+              />
             </Suspense>
           )}
           {(currentView === 'students' || currentView === 'assessment' || currentView === 'results' || currentView === 'sgpa') && (
@@ -347,23 +476,38 @@ function MainApp() {
           {/* VIEW: TABULATION REGISTER (TR SHEET) */}
           {currentView === 'trsheet' && (
             <Suspense fallback={<div className="flex items-center justify-center h-64 text-violet-600">Loading TR sheet…</div>}>
-              <TRSheetView />
+              <TRSheetView
+                initialProgram={activeContext.programName}
+                initialSemester={activeContext.semester}
+                onNavigateToMarks={() => handleNavigate('studentMarks', { program: activeContext.programName || '' })}
+                onNavigateToReports={(prog) => handleNavigate('performanceReports', { program: prog || activeContext.programName || '' })}
+                onNavigateToTNG={() => handleNavigate('tng')}
+              />
+            </Suspense>
+          )}
+
+          {/* VIEW: EXAM PERFORMANCE REPORTS & ANALYTICS */}
+          {currentView === 'performanceReports' && (
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-violet-600 font-medium">Loading performance reports…</div>}>
+              <ExamPerformanceDashboard
+                initialProgram={activeContext.programName}
+                initialSemester={activeContext.semester}
+                initialSubject={activeContext.paperCode}
+                initialStaff={activeContext.staffCode}
+                onNavigateToMarks={(paper) => handleNavigate('studentMarks', { paper })}
+                onNavigateToFaculty={(subj) => handleNavigate('facultyAllocation', { subject: subj })}
+                onNavigateToTRSheet={(prog, sem) => handleNavigate('trsheet', { program: prog, sem: sem || '' })}
+                onNavigateToSchedule={(prog) => handleNavigate('timetable', { program: prog })}
+                onNavigateToCourseMaster={(code) => handleNavigate('courseMaster', { search: code })}
+              />
             </Suspense>
           )}
 
           {/* VIEW: SQL & SUPABASE RLS SCHEMA */}
           {currentView === 'schema' && <SqlSchemaViewer />}
-
-          {/* VIEW: PROJECT MOTION VIDEO (DEDICATED FULL VIEW) */}
-          {currentView === 'motionVideo' && (
-            <div className="h-[calc(100vh-8.5rem)] w-full rounded-2xl overflow-hidden shadow-2xl">
-              <MotionVideoShowcase
-                onNavigateToDashboard={() => setCurrentView('dashboard')}
-              />
-            </div>
-          )}
-        </main>
-      </div>
+        </div>
+      </main>
+    </div>
 
       {/* Personal Profile & Account Settings Modal (Strictly for the Logged-In User) */}
       <ProfileSettingsModal
@@ -377,18 +521,6 @@ function MainApp() {
         isOpen={isPasswordModalOpen}
         onClose={() => setIsPasswordModalOpen(false)}
       />
-
-      {/* Cinematic Motion Video Showcase Overlay Modal */}
-      {isMotionVideoModalOpen && (
-        <MotionVideoShowcase
-          isModal={true}
-          onClose={() => setIsMotionVideoModalOpen(false)}
-          onNavigateToDashboard={() => {
-            setIsMotionVideoModalOpen(false);
-            setCurrentView('dashboard');
-          }}
-        />
-      )}
     </div>
   );
 }

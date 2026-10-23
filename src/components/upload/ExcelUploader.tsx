@@ -8,19 +8,26 @@ import {
 } from '../../services/excelParser';
 import { useAuth } from '../../context/AuthContext';
 import { ExamSchedule, Program, UserProfile } from '../../types';
-import { 
-  UploadCloud, 
-  FileSpreadsheet, 
-  Download, 
-  CheckCircle2, 
-  AlertCircle, 
-  Layers, 
-  Users, 
+import {
+  validateParsedEntities,
+  generateImportErrorReport,
+  type ValidationResult,
+} from '../../utils/validation';
+import {
+  UploadCloud,
+  FileSpreadsheet,
+  Download,
+  CheckCircle2,
+  AlertCircle,
+  Layers,
+  Users,
   ArrowRight,
   Eye,
   Trash2,
-  Sparkles
+  Sparkles,
 } from 'lucide-react';
+
+type ProgramItem = { program: Program; primaryUser?: UserProfile; alternateUser?: UserProfile };
 
 interface ExcelUploaderProps {
   onCommitSchedules: (schedules: ExamSchedule[], autoGenerateTasks: boolean) => void;
@@ -42,11 +49,13 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
   const [parsedSchedules, setParsedSchedules] = useState<ExamSchedule[]>([]);
   const [scheduleErrors, setScheduleErrors] = useState<string[]>([]);
   const [scheduleFileName, setScheduleFileName] = useState<string>('');
+  const [scheduleValidation, setScheduleValidation] = useState<ValidationResult<ExamSchedule> | null>(null);
 
   // Programs state
-  const [parsedPrograms, setParsedPrograms] = useState<{ program: Program; primaryUser?: UserProfile; alternateUser?: UserProfile }[]>([]);
+  const [parsedPrograms, setParsedPrograms] = useState<ProgramItem[]>([]);
   const [programErrors, setProgramErrors] = useState<string[]>([]);
   const [programFileName, setProgramFileName] = useState<string>('');
+  const [programValidation, setProgramValidation] = useState<ValidationResult<ProgramItem> | null>(null);
 
   const [committedSuccess, setCommittedSuccess] = useState<string | null>(null);
 
@@ -59,13 +68,40 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
     if (activeTab === 'schedules') {
       setScheduleFileName(file.name);
       const result = parseExamScheduleExcel(arrayBuffer);
-      setParsedSchedules(result.data);
-      setScheduleErrors(result.errors);
+      // Framework value-add: within-upload duplicate detection (import protection)
+      // and a downloadable structured report. Existing parser owns the transform.
+      const validation = validateParsedEntities<ExamSchedule>({
+        moduleName: 'Exam Schedules',
+        fileName: file.name,
+        items: result.data,
+        parserErrors: result.errors,
+        labels: { paper_code: 'Paper Code', exam_date: 'Exam Date', am_pm: 'Session', exam_type: 'Exam Type' },
+        duplicateKeyFields: ['paper_code', 'exam_date', 'am_pm', 'exam_type'],
+        fieldsOf: (s) => ({
+          paper_code: s.paper_code,
+          exam_date: String(s.exam_date),
+          am_pm: s.am_pm,
+          exam_type: s.exam_type,
+        }),
+      });
+      setParsedSchedules(validation.data);
+      setScheduleValidation(validation);
+      setScheduleErrors(validation.errors);
     } else {
       setProgramFileName(file.name);
       const result = parseProgramMasterExcel(arrayBuffer, users);
-      setParsedPrograms(result.data);
-      setProgramErrors(result.errors);
+      const validation = validateParsedEntities<ProgramItem>({
+        moduleName: 'Program & Coordinator Mapping',
+        fileName: file.name,
+        items: result.data,
+        parserErrors: result.errors,
+        labels: { program_code: 'Program Code' },
+        duplicateKeyFields: ['program_code'],
+        fieldsOf: (p) => ({ program_code: p.program.program_code }),
+      });
+      setParsedPrograms(validation.data);
+      setProgramValidation(validation);
+      setProgramErrors(validation.errors);
     }
   };
 
@@ -85,6 +121,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
     } catch {}
     setCommittedSuccess(`Successfully imported ${parsedSchedules.length} examination papers!`);
     setParsedSchedules([]);
+    setScheduleValidation(null);
     setScheduleFileName('');
   };
 
@@ -103,6 +140,7 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
     } catch {}
     setCommittedSuccess(`Successfully imported ${progs.length} academic programs & coordinator mappings!`);
     setParsedPrograms([]);
+    setProgramValidation(null);
     setProgramFileName('');
   };
 
@@ -317,9 +355,20 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {scheduleValidation && scheduleValidation.summary.duplicateRows > 0 && (
+                <button
+                  onClick={() => scheduleValidation && generateImportErrorReport(scheduleValidation)}
+                  className="px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1"
+                  title="Download full validation report"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>{scheduleValidation.summary.duplicateRows} duplicate(s) excluded · Report</span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   setParsedSchedules([]);
+                  setScheduleValidation(null);
                   setScheduleFileName('');
                 }}
                 className="px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1"
@@ -406,9 +455,20 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {programValidation && programValidation.summary.duplicateRows > 0 && (
+                <button
+                  onClick={() => programValidation && generateImportErrorReport(programValidation)}
+                  className="px-3 py-1.5 text-xs text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors flex items-center gap-1"
+                  title="Download full validation report"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>{programValidation.summary.duplicateRows} duplicate(s) excluded · Report</span>
+                </button>
+              )}
               <button
                 onClick={() => {
                   setParsedPrograms([]);
+                  setProgramValidation(null);
                   setProgramFileName('');
                 }}
                 className="px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-1"

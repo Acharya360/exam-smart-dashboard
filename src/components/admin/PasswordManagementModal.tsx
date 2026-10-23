@@ -256,7 +256,7 @@ export const PasswordManagementModal: React.FC<PasswordManagementModalProps> = (
                       required
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="Minimum 6 characters"
+                      placeholder="Minimum 8 characters"
                       className="w-full pl-3 pr-10 py-2 bg-white border border-slate-300 rounded-lg text-xs font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     />
                     <button

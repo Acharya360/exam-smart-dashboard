@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 export async function openSqlBridge() {
- const worker=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(root,'sql_worker.ps1'),'-Server',process.env.SQL_SERVER||'acharya360\\SQLEXPRESS','-Database',process.env.SQL_DATABASE||'SSPU_Exam'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
+ const worker=spawn('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(root,'sql_worker.ps1'),'-Server',process.env.SQL_SERVER||'localhost\\SQLEXPRESS','-Database',process.env.SQL_DATABASE||'SSPU_Exam'],{windowsHide:true,stdio:['pipe','pipe','pipe']});
  const callbacks=new Map();let sequence=0,readyResolve,readyReject;
  const ready=new Promise((resolve,reject)=>{readyResolve=resolve;readyReject=reject;});
  const timer=setTimeout(()=>{readyReject(new Error('SQL Server connection timed out.'));worker.kill();},20000);

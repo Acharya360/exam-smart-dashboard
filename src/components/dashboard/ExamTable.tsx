@@ -3,17 +3,25 @@ import * as XLSX from 'xlsx';
 import { parseExamScheduleExcel } from '../../services/excelParser';
 import { ExamSchedule, ExamTask, Program } from '../../types';
 import { AdvancedExamFilter, ExamFilterState } from '../common/AdvancedExamFilter';
-import { 
-  Download, 
-  ListPlus, 
-  Calendar, 
-  Clock, 
-  CheckCircle2, 
+import { validateParsedEntities, generateImportErrorReport, type ValidationResult } from '../../utils/validation';
+import {
+  Download,
+  ListPlus,
+  Calendar,
+  Clock,
+  CheckCircle2,
   AlertCircle,
   Eye,
   FileSpreadsheet,
   UploadCloud,
-  Trash2
+  Trash2,
+  ArrowUp,
+  ArrowDown,
+  ArrowUpDown,
+  Info,
+  X,
+  GraduationCap,
+  BarChart3,
 } from 'lucide-react';
 
 interface ExamTableProps {
@@ -26,6 +34,9 @@ interface ExamTableProps {
   onCommitSchedules?: (schedules: ExamSchedule[], autoGen: boolean) => void;
   onDeleteSchedule?: (id: string) => void;
   onDeleteSchedules?: (ids: string[]) => void;
+  onNavigateToFaculty?: (paperCode: string) => void;
+  onNavigateToMarks?: (paperCode: string) => void;
+  onNavigateToReports?: (paperCode: string) => void;
 }
 
 function parseDateStrToTime(dateStr: string): number {
@@ -41,6 +52,12 @@ function parseDateStrToTime(dateStr: string): number {
   return new Date(dateStr).getTime();
 }
 
+const SORT_LABELS: Record<string, string> = {
+  pkg_no: 'Package No', cm_course_name: 'Course & School', semester: 'Semester',
+  paper_code: 'Paper Code', student_count: 'Candidates', exam_date: 'Exam Date',
+  am_pm: 'Session', exam_year: 'Exam Year', exam_type: 'Exam Type', workflow: 'Workflow Status',
+};
+
 export const ExamTable: React.FC<ExamTableProps> = ({
   schedules,
   tasks,
@@ -51,8 +68,14 @@ export const ExamTable: React.FC<ExamTableProps> = ({
   onCommitSchedules,
   onDeleteSchedule,
   onDeleteSchedules,
+  onNavigateToFaculty,
+  onNavigateToMarks,
+  onNavigateToReports,
 }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [importBanner, setImportBanner] = useState<
+    { tone: 'success' | 'error' | 'info'; title: string; detail?: string; report?: ValidationResult<ExamSchedule> } | null
+  >(null);
   const [filters, setFilters] = useState<ExamFilterState>({
     search: '',
     school: 'ALL',
@@ -66,6 +89,16 @@ export const ExamTable: React.FC<ExamTableProps> = ({
     maxStudents: '',
     examYear: 'ALL',
   });
+
+  type SortKey =
+    | 'pkg_no' | 'cm_course_name' | 'semester' | 'paper_code' | 'student_count'
+    | 'exam_date' | 'am_pm' | 'exam_year' | 'exam_type' | 'workflow';
+  const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'exam_date', dir: 'asc' });
+
+  const toggleSort = (key: SortKey) =>
+    setSort((prev) =>
+      prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }
+    );
 
   // Distinct schools
   const schools = useMemo(() => {
@@ -196,11 +229,70 @@ export const ExamTable: React.FC<ExamTableProps> = ({
     return { total: schedTasks.length, completed, escalated };
   };
 
+  // Apply the active column sort on top of the filtered rows. Timetable default
+  // is chronological (earliest exam first), tie-broken by session then PKG.
+  const sortedSchedules = useMemo(() => {
+    const rows = [...filteredSchedules];
+    const dir = sort.dir === 'asc' ? 1 : -1;
+    const valueOf = (s: ExamSchedule): number | string => {
+      switch (sort.key) {
+        case 'exam_date': return parseDateStrToTime(s.exam_date) || 0;
+        case 'am_pm': return s.am_pm === 'AM' ? 0 : 1;
+        case 'pkg_no': return s.pkg_no;
+        case 'student_count': return s.student_count;
+        case 'semester': return Number(s.semester) || 0;
+        case 'paper_code': return (s.paper_code || '').toLowerCase();
+        case 'cm_course_name': return (s.cm_course_name || '').toLowerCase();
+        case 'exam_year': return s.exam_year || '';
+        case 'exam_type': return s.exam_type || '';
+        case 'workflow': {
+          const t = getTaskStatusSummary(s.id);
+          return t.total === 0 ? -1 : t.completed / t.total;
+        }
+        default: return 0;
+      }
+    };
+    rows.sort((a, b) => {
+      const va = valueOf(a);
+      const vb = valueOf(b);
+      if (va < vb) return -1 * dir;
+      if (va > vb) return 1 * dir;
+      // Stable, meaningful tie-breaker for equal sort values.
+      if (a.pkg_no !== b.pkg_no) return (a.pkg_no - b.pkg_no);
+      return (parseDateStrToTime(a.exam_date) || 0) - (parseDateStrToTime(b.exam_date) || 0);
+    });
+    return rows;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredSchedules, sort, tasks]);
+
+  const SortHeader: React.FC<{ label: string; sortKey: SortKey; className?: string }> = ({
+    label, sortKey, className = '',
+  }) => {
+    const active = sort.key === sortKey;
+    const Icon = active ? (sort.dir === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown;
+    return (
+      <th className={`py-2.5 px-3 ${className}`}>
+        <button
+          type="button"
+          onClick={() => toggleSort(sortKey)}
+          aria-label={`Sort by ${label}`}
+          className={`inline-flex items-center gap-1 font-bold text-[11px] uppercase tracking-wider transition-colors ${
+            active ? 'text-indigo-700' : 'text-slate-600 hover:text-slate-900'
+          }`}
+          title={`Sort by ${label}`}
+        >
+          <span>{label}</span>
+          <Icon className="w-3 h-3 shrink-0" />
+        </button>
+      </th>
+    );
+  };
+
   const handleToggleSelectAll = () => {
-    if (selectedIds.size === filteredSchedules.length && filteredSchedules.length > 0) {
+    if (selectedIds.size === sortedSchedules.length && sortedSchedules.length > 0) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filteredSchedules.map(s => s.id)));
+      setSelectedIds(new Set(sortedSchedules.map(s => s.id)));
     }
   };
 
@@ -232,6 +324,48 @@ export const ExamTable: React.FC<ExamTableProps> = ({
         examYears={examYears}
       />
 
+      {/* Import result feedback (replaces blocking native alerts) */}
+      {importBanner && (
+        <div
+          className={`flex items-start gap-3 rounded-xl border p-3 text-xs ${
+            importBanner.tone === 'success'
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : importBanner.tone === 'error'
+              ? 'bg-rose-50 border-rose-200 text-rose-800'
+              : 'bg-sky-50 border-sky-200 text-sky-800'
+          }`}
+          role="status"
+        >
+          {importBanner.tone === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+          ) : importBanner.tone === 'error' ? (
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          ) : (
+            <Info className="w-4 h-4 shrink-0 mt-0.5" />
+          )}
+          <div className="flex-1">
+            <div className="font-bold">{importBanner.title}</div>
+            {importBanner.detail && <div className="opacity-80 mt-0.5">{importBanner.detail}</div>}
+            {importBanner.report && (
+              <button
+                onClick={() => generateImportErrorReport(importBanner.report!)}
+                className="mt-1.5 inline-flex items-center gap-1 font-semibold underline underline-offset-2 hover:opacity-80"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                Download validation report
+              </button>
+            )}
+          </div>
+          <button
+            onClick={() => setImportBanner(null)}
+            aria-label="Dismiss"
+            className="p-1 rounded-md opacity-60 hover:opacity-100 hover:bg-black/5 transition"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Main Table Card */}
       <div className="glass rounded-2xl shadow-xs overflow-hidden">
         {/* Header & Action Bar */}
@@ -247,6 +381,10 @@ export const ExamTable: React.FC<ExamTableProps> = ({
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Matching official packaging layout (PKGNo, Course, PaperCode, Candidates, AM/PM, Time & Type).
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
+              <ArrowUpDown className="w-3 h-3" />
+              Sorted by <span className="font-semibold text-slate-500">{SORT_LABELS[sort.key]}</span> · {sort.dir === 'asc' ? 'ascending' : 'descending'} — click any column header to reorder
             </p>
           </div>
 
@@ -281,19 +419,52 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                     try {
                       const file = e.target.files?.[0];
                       if (!file) return;
+                      setImportBanner({ tone: 'info', title: `Validating ${file.name}…` });
                       const arrayBuffer = await file.arrayBuffer();
                       const result = parseExamScheduleExcel(arrayBuffer);
-                      
-                      if (result.data.length > 0) {
-                        alert(`Parsed ${result.data.length} schedules. Uploading to database...`);
-                        await onCommitSchedules(result.data, true);
-                        alert(`Successfully uploaded ${result.data.length} schedules.`);
-                      } else {
-                        alert(`Failed to import. Errors: ${result.errors.join(', ')}`);
+
+                      // Shared-framework pass: within-upload duplicate detection
+                      // (same paper/date/session/type) is excluded before commit.
+                      const validation = validateParsedEntities<ExamSchedule>({
+                        moduleName: 'Exam Schedules',
+                        fileName: file.name,
+                        items: result.data,
+                        parserErrors: result.errors,
+                        labels: { paper_code: 'Paper Code', exam_date: 'Exam Date', am_pm: 'Session', exam_type: 'Exam Type' },
+                        duplicateKeyFields: ['paper_code', 'exam_date', 'am_pm', 'exam_type'],
+                        fieldsOf: (s) => ({
+                          paper_code: s.paper_code,
+                          exam_date: String(s.exam_date),
+                          am_pm: s.am_pm,
+                          exam_type: s.exam_type,
+                        }),
+                      });
+
+                      const { duplicateRows, totalRows } = validation.summary;
+                      const importable = validation.data.length;
+
+                      if (importable === 0) {
+                        setImportBanner({
+                          tone: 'error',
+                          title: 'Nothing to import',
+                          detail: validation.errors[0] || 'No valid exam schedules were found in the file.',
+                          report: validation.issues.length ? validation : undefined,
+                        });
+                        return;
                       }
+
+                      await onCommitSchedules(validation.data, true);
+                      setImportBanner({
+                        tone: 'success',
+                        title: `Imported ${importable} of ${totalRows} schedule(s)`,
+                        detail: duplicateRows > 0
+                          ? `${duplicateRows} duplicate(s) skipped. ${validation.errors.length} parser notice(s).`
+                          : validation.errors.length ? `${validation.errors.length} parser notice(s).` : undefined,
+                        report: (duplicateRows > 0 || validation.issues.length > 0) ? validation : undefined,
+                      });
                     } catch (err: unknown) {
                       const msg = err instanceof Error ? err.message : 'Unknown error occurred during upload.';
-                      alert(`Upload failed: ${msg}`);
+                      setImportBanner({ tone: 'error', title: 'Upload failed', detail: msg });
                       console.error('Upload Error:', err);
                     } finally {
                       e.target.value = ''; // reset
@@ -318,32 +489,32 @@ export const ExamTable: React.FC<ExamTableProps> = ({
         <div className="overflow-auto max-h-[620px] rounded-b-xl border-t border-slate-200">
           <table className="w-full text-left border-collapse text-xs">
             <thead className="sticky top-0 z-10 bg-slate-50 shadow-2xs">
-              <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 font-bold text-[11px] uppercase tracking-wider">
+              <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
                 {!isCoordinatorView && (
                   <th className="py-2.5 px-3 w-10 text-center">
                     <input
                       type="checkbox"
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 w-3.5 h-3.5"
-                      checked={selectedIds.size === filteredSchedules.length && filteredSchedules.length > 0}
+                      checked={selectedIds.size === sortedSchedules.length && sortedSchedules.length > 0}
                       onChange={handleToggleSelectAll}
                     />
                   </th>
                 )}
-                <th className="py-2.5 px-3 w-14 font-mono">PKG</th>
-                <th className="py-2.5 px-3 min-w-[200px]">Course & School</th>
-                <th className="py-2.5 px-3 w-16 text-center">Sem</th>
-                <th className="py-2.5 px-3 min-w-[220px]">Paper Code & Subject Name</th>
-                <th className="py-2.5 px-3 text-right font-mono">Candidates</th>
-                <th className="py-2.5 px-3 min-w-[130px]">Exam Date & Day</th>
-                <th className="py-2.5 px-3 min-w-[150px]">Session & Time</th>
-                <th className="py-2.5 px-3 w-20">Year</th>
-                <th className="py-2.5 px-3 w-24">Type</th>
-                <th className="py-2.5 px-3 min-w-[120px]">Workflow Status</th>
-                <th className="py-2.5 px-3 w-28 text-right">Actions</th>
+                <SortHeader label="PKG" sortKey="pkg_no" className="w-16" />
+                <SortHeader label="Course & School" sortKey="cm_course_name" className="min-w-[200px] text-left" />
+                <SortHeader label="Sem" sortKey="semester" className="w-16 text-center" />
+                <SortHeader label="Paper & Subject" sortKey="paper_code" className="min-w-[220px] text-left" />
+                <SortHeader label="Candidates" sortKey="student_count" className="w-24 text-right" />
+                <SortHeader label="Exam Date" sortKey="exam_date" className="min-w-[130px] text-left" />
+                <SortHeader label="Session" sortKey="am_pm" className="min-w-[150px] text-left" />
+                <SortHeader label="Year" sortKey="exam_year" className="w-20" />
+                <SortHeader label="Type" sortKey="exam_type" className="w-24" />
+                <SortHeader label="Workflow" sortKey="workflow" className="min-w-[120px] text-left" />
+                <th className="py-2.5 px-3 w-28 text-right font-bold text-[11px] uppercase tracking-wider text-slate-600">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/40">
-              {filteredSchedules.length === 0 ? (
+              {sortedSchedules.length === 0 ? (
                 <tr>
                   <td colSpan={isCoordinatorView ? 10 : 11} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
@@ -356,7 +527,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                   </td>
                 </tr>
               ) : (
-                filteredSchedules.map((schedule) => {
+                sortedSchedules.map((schedule) => {
                   const taskSummary = getTaskStatusSummary(schedule.id);
                   const isOdd = schedule.date_odd_even.toLowerCase().includes('odd');
 
@@ -507,6 +678,26 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                       {/* Actions */}
                       <td className="py-3 px-3 text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {onNavigateToFaculty && (
+                            <button
+                              onClick={() => onNavigateToFaculty(schedule.paper_code)}
+                              className="px-2 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded text-xs font-medium transition-colors flex items-center gap-1 border border-violet-200"
+                              title="View assigned faculty and exam invigilator duties"
+                            >
+                              <GraduationCap className="w-3 h-3" />
+                              <span>Faculty</span>
+                            </button>
+                          )}
+                          {onNavigateToMarks && (
+                            <button
+                              onClick={() => onNavigateToMarks(schedule.paper_code)}
+                              className="px-2 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded text-xs font-medium transition-colors flex items-center gap-1 border border-emerald-200"
+                              title="Inspect and input student component marks"
+                            >
+                              <FileSpreadsheet className="w-3 h-3" />
+                              <span>Marks</span>
+                            </button>
+                          )}
                           <button
                             onClick={() => onSelectScheduleForTasks(schedule)}
                             className="px-2 py-1 bg-slate-100 hover:bg-indigo-50 text-slate-700 hover:text-indigo-700 rounded text-xs font-medium transition-colors flex items-center gap-1"

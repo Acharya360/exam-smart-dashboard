@@ -1,4 +1,4 @@
 import { LocalDBService } from './localDb';
 
-// Local SQL Server is authoritative; never fall back to fabricated users or browser data.
+// Authoritative Local Database Service
 export const db = new LocalDBService();
