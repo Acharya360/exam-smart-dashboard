@@ -1,0 +1,62 @@
+services:
+  pentagi:
+    image: ${PENTAGI_IMAGE:-vxcontrol/pentagi:latest}
+    container_name: pentagi
+    restart: unless-stopped
+    ports:
+      - "${PENTAGI_LISTEN_IP:-127.0.0.1}:${PENTAGI_LISTEN_PORT:-8443}:8443"
+    environment:
+      - DEBUG=${DEBUG:-false}
+      - DATA_DIR=/opt/pentagi/data
+      - POSTGRES_HOST=pgvector
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${PENTAGI_POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${PENTAGI_POSTGRES_PASSWORD:-pentagi_secure_pass}
+      - POSTGRES_DB=${PENTAGI_POSTGRES_DB:-pentagi}
+      - COOKIE_SIGNING_SALT=${COOKIE_SIGNING_SALT:-replace_with_32_character_random_salt}
+      # LLM Provider Configuration (Google Gemini via OpenAI-compatible endpoint)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-${GEMINI_API_KEY:-}}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta/openai/}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gemini-2.5-flash}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    volumes:
+      - ./data:/opt/pentagi/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      pgvector:
+        condition: service_healthy
+      scraper:
+        condition: service_started
+    networks:
+      - pentagi-net
+
+  pgvector:
+    image: ${PGVECTOR_IMAGE:-vxcontrol/pgvector:latest}
+    container_name: pentagi-pgvector
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${PENTAGI_POSTGRES_USER:-postgres}
+      - POSTGRES_PASSWORD=${PENTAGI_POSTGRES_PASSWORD:-pentagi_secure_pass}
+      - POSTGRES_DB=${PENTAGI_POSTGRES_DB:-pentagi}
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PENTAGI_POSTGRES_USER:-postgres} -d ${PENTAGI_POSTGRES_DB:-pentagi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pentagi-net
+
+  scraper:
+    image: ${SCRAPER_IMAGE:-vxcontrol/scraper:latest}
+    container_name: pentagi-scraper
+    restart: unless-stopped
+    networks:
+      - pentagi-net
+
+networks:
+  pentagi-net:
+    driver: bridge
