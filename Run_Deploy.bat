@@ -465,7 +465,7 @@ goto :deploy_menu
 :deploy_preview
 echo.
 echo Starting Vercel Preview Deployment...
-call npx vercel
+call npx vercel --yes
 if %ERRORLEVEL% equ 0 (
     echo.
     echo [SUCCESS] Preview deployment completed!
@@ -478,7 +478,7 @@ goto :finish_action
 :deploy_prod
 echo.
 echo Starting Vercel Production Deployment (--prod)...
-call npx vercel --prod
+call npx vercel --prod --yes
 if %ERRORLEVEL% equ 0 (
     echo.
     echo [SUCCESS] Live Production deployment completed!
@@ -494,8 +494,8 @@ goto :finish_action
 :action_release
 echo ============================================================================
 echo  ACHARYA360 SAFE RELEASE PIPELINE
-echo  Step 1: TypeScript Lint   -> Step 2: Production Build
-echo  Step 3: GitHub Push       -> Step 4: Vercel Production Deploy
+echo  Step 1: TypeScript Lint   --^> Step 2: Production Build
+echo  Step 3: GitHub Push       --^> Step 4: Vercel Production Deploy
 echo ============================================================================
 echo [%TIMESTAMP%] Release pipeline started >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 echo.
@@ -545,7 +545,17 @@ if %ERRORLEVEL% neq 0 (
 echo.
 
 echo [Step 4/4] Deploying to Vercel Production (--prod)...
-call npx vercel --prod
+echo Checking Vercel login credentials...
+set "VERCEL_USER="
+for /f "tokens=*" %%u in ('npx --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
+if "%VERCEL_USER%"=="" (
+    echo [WARN] Not currently logged in to Vercel.
+    echo Opening Vercel login in your browser...
+    call npx vercel login
+) else (
+    echo [OK] Authenticated as Vercel user: %VERCEL_USER%
+)
+call npx vercel --prod --yes
 if %ERRORLEVEL% equ 0 (
     echo.
     echo ============================================================================
