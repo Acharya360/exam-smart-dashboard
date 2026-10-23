@@ -49,6 +49,8 @@ if /i "%CMD_ARG%"=="deploy" goto :action_deploy
 if /i "%CMD_ARG%"=="release" goto :action_release
 if /i "%CMD_ARG%"=="vercel-login" goto :action_vercel_login
 if /i "%CMD_ARG%"=="playwright" goto :action_playwright
+if /i "%CMD_ARG%"=="chrome" goto :action_open_chrome
+if /i "%CMD_ARG%"=="open" goto :action_open_chrome
 
 :: If no arguments, show banner and interactive preflight
 call :print_banner
@@ -197,6 +199,7 @@ echo.
 echo ----------------------------------------------------------------------------
 echo  DEVELOPMENT and SERVERS:
 echo    [1] Start Development Full-Stack (SQL Server API + Vite UI)
+echo    [C] Open Google Chrome at App URL (http://localhost:%PORT%)
 echo    [2] Start Local SQL Server API Only (Port 5000)
 echo    [3] Build Production Bundle
 echo    [4] Preview Production Build
@@ -226,6 +229,7 @@ set /p "CHOICE=Enter choice [0-9, S, M, X, V, P, R] (Default is 1): "
 set "CHOICE=%CHOICE: =%"
 
 if "%CHOICE%"=="1" goto :action_dev
+if /i "%CHOICE%"=="C" goto :action_open_chrome
 if "%CHOICE%"=="2" goto :action_server
 if "%CHOICE%"=="3" goto :action_build
 if "%CHOICE%"=="4" goto :action_preview
@@ -279,6 +283,7 @@ if %ERRORLEVEL% neq 0 (
 )
 
 echo [INFO] Launching Vite development server on port %PORT%...
+call :open_chrome_url "http://localhost:%PORT%"
 call npm run dev -- --port %PORT%
 goto :finish_action
 
@@ -385,6 +390,7 @@ goto :finish_action
 echo ----------------------------------------------------------------------------
 echo  Previewing Production Build from /dist...
 echo ----------------------------------------------------------------------------
+call :open_chrome_url "http://localhost:4173"
 call npm run preview
 goto :finish_action
 
@@ -723,6 +729,29 @@ echo.
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
+:: Action & Helpers: Google Chrome Integration
+:: ----------------------------------------------------------------------------
+:action_open_chrome
+call :resolve_port
+echo [INFO] Opening Google Chrome to http://localhost:%PORT%...
+call :open_chrome_now "http://localhost:%PORT%"
+goto :finish_action
+
+:open_chrome_url
+set "TARGET_URL=%~1"
+start "" cmd /c "timeout /t 2 /nobreak >nul & if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" %TARGET_URL%) else (start chrome %TARGET_URL% 2>nul || start %TARGET_URL%)"
+goto :eof
+
+:open_chrome_now
+set "TARGET_URL=%~1"
+if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
+    start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" %TARGET_URL%
+) else (
+    start chrome %TARGET_URL% 2>nul || start %TARGET_URL%
+)
+goto :eof
+
+:: ----------------------------------------------------------------------------
 :: Help Dialog
 :: ----------------------------------------------------------------------------
 :show_help
@@ -730,7 +759,8 @@ echo.
 echo Acharya360 ExamTrack Master Controller Usage:
 echo.
 echo   run.bat                    Launch interactive master dashboard menu
-echo   run.bat dev [PORT]         Start Vite dev server (optional custom port)
+echo   run.bat dev [PORT]         Start Vite dev server and auto-open Chrome
+echo   run.bat chrome [PORT]      Open Google Chrome directly to the app URL
 echo   run.bat server             Start local Express API server on port 5000
 echo   run.bat build              Build production bundle
 echo   run.bat preview            Preview production build
