@@ -302,31 +302,162 @@ export const FacultyCourseAllocation: React.FC<FacultyCourseAllocationProps> = (
   };
 
   // Excel Export
-  const handleExportExcel = () => {
-    const exportData = filteredAllocations.map((a, idx) => ({
+  const courseIndex = useMemo(() => {
+    const byCode = new Map<string, CourseMaster[]>();
+    courseMasterList.forEach((c) => {
+      const code = (c.paper_code || '').trim().toUpperCase();
+      if (!code) return;
+      const list = byCode.get(code);
+      if (list) list.push(c);
+      else byCode.set(code, [c]);
+    });
+    return byCode;
+  }, [courseMasterList]);
+
+  const programCodeByName = useMemo(() => {
+    const map = new Map<string, string>();
+    programsList.forEach((p) => map.set(p.program_name.trim().toLowerCase(), p.program_code));
+    return map;
+  }, [programsList]);
+
+  const resolveCourse = (subjectCode: string, semester: string) => {
+    const candidates = courseIndex.get((subjectCode || '').trim().toUpperCase()) || [];
+    return candidates.find((c) => (c.semester || '').trim() === (semester || '').trim()) || candidates[0];
+  };
+
+  const subjectFacultyRows = useMemo(() => {
+    const groups = new Map<string, {
+      programCode: string;
+      programName: string;
+      branchCode: string;
+      branchName: string;
+      semesterTerm: string;
+      courseCode: string;
+      courseName: string;
+      faculty: string[];
+      additionalStaff: string[];
+      sections: string[];
+      roles: string[];
+      centers: string[];
+      departments: string[];
+      sessions: number;
+      workload: number;
+    }>();
+
+    const pushUnique = (list: string[], value: string) => {
+      const v = value.trim();
+      if (v && !list.includes(v)) list.push(v);
+    };
+
+    filteredAllocations.forEach((a) => {
+      const key = `${(a.program_name || '').trim().toLowerCase()}::${(a.semester || '').trim()}::${(a.subject_code || '').trim().toUpperCase()}`;
+      let group = groups.get(key);
+      if (!group) {
+        const course = resolveCourse(a.subject_code, a.semester);
+        const programCode = course?.program_code
+          || programCodeByName.get((a.program_name || '').trim().toLowerCase())
+          || '';
+        group = {
+          programCode,
+          programName: a.program_name || '',
+          branchCode: course?.course_code || course?.program_code || programCode,
+          branchName: course?.course_name || course?.cm_course_name || a.program_name || '',
+          semesterTerm: [a.semester, course?.term].filter(Boolean).join(' / '),
+          courseCode: a.subject_code || '',
+          courseName: a.subject_name || '',
+          faculty: [],
+          additionalStaff: [],
+          sections: [],
+          roles: [],
+          centers: [],
+          departments: [],
+          sessions: 0,
+          workload: 0,
+        };
+        groups.set(key, group);
+      }
+      pushUnique(group.faculty, a.staff_name || '');
+      (a.additional_staff || '').split(/[,;]/).forEach((name) => pushUnique(group.additionalStaff, name));
+      pushUnique(group.sections, a.section || '');
+      pushUnique(group.roles, a.exam_role || 'Course Instructor & Evaluator');
+      pushUnique(group.centers, a.exam_center || 'Main Campus Examination Block');
+      pushUnique(group.departments, a.department || '');
+      group.sessions += Number(a.invigilation_sessions || 0);
+      group.workload += Number(a.workload_hours || 0);
+    });
+
+    return Array.from(groups.values());
+  }, [filteredAllocations, courseIndex, programCodeByName]);
+
+  const buildMappingSheetData = (facultySeparator: string) =>
+    subjectFacultyRows.map((g, idx) => ({
       'Sr. No': idx + 1,
-      'Subject Code': a.subject_code,
-      'Subject Name': a.subject_name,
-      'Staff Code': a.staff_code,
-      'Faculty / Staff Name': a.staff_name,
-      'Exam Duty & Role': a.exam_role || 'Course Instructor & Evaluator',
-      'Invigilation Sessions': a.invigilation_sessions || 2,
-      'Assigned Exam Center / Hall': a.exam_center || 'Main Campus Examination Block',
-      'Additional Staff / Co-Instructors': a.additional_staff || '',
-      'Section': a.section,
-      'Semester': a.semester,
-      'Program': a.program_name,
-      'Department': a.department || '',
-      'Workload (Hrs/Wk)': a.workload_hours || 4,
-      'Total Credits': a.total_credits ?? '',
-      'Total Marks Max': a.total_marks ?? '',
-      'Grading Category': a.grading_category || 'Non-Architecture',
+      'Program Code': g.programCode,
+      'Program Name': g.programName,
+      'Branch / Course Code': g.branchCode,
+      'Branch / Course Name': g.branchName,
+      'Semester / Term': g.semesterTerm,
+      'Course Code': g.courseCode,
+      'Course Name': g.courseName,
+      'Faculty': g.faculty.join(facultySeparator),
+      'Faculty Count': g.faculty.length,
+      'Sections': g.sections.join(facultySeparator),
+      'Exam Duty & Roles': g.roles.join('; '),
+      'Additional Staff / Co-Instructors': g.additionalStaff.join(facultySeparator),
+      'Invigilation Sessions': g.sessions,
+      'Exam Center / Hall': g.centers.join('; '),
+      'Department': g.departments.join('; '),
+      'Workload (Hrs/Wk)': g.workload,
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
+  const handleExportExcel = () => {
+    const mappingWs = XLSX.utils.json_to_sheet(buildMappingSheetData(', '));
+
+    const detailData = filteredAllocations.map((a, idx) => {
+      const course = resolveCourse(a.subject_code, a.semester);
+      return {
+        'Sr. No': idx + 1,
+        'Program Code': course?.program_code
+          || programCodeByName.get((a.program_name || '').trim().toLowerCase())
+          || '',
+        'Program': a.program_name,
+        'Branch / Course Code': course?.course_code || course?.program_code || '',
+        'Branch / Course Name': course?.course_name || course?.cm_course_name || '',
+        'Semester / Term': [a.semester, course?.term].filter(Boolean).join(' / '),
+        'Subject Code': a.subject_code,
+        'Subject Name': a.subject_name,
+        'Staff Code': a.staff_code,
+        'Faculty / Staff Name': a.staff_name,
+        'Exam Duty & Role': a.exam_role || 'Course Instructor & Evaluator',
+        'Invigilation Sessions': a.invigilation_sessions || 2,
+        'Assigned Exam Center / Hall': a.exam_center || 'Main Campus Examination Block',
+        'Additional Staff / Co-Instructors': a.additional_staff || '',
+        'Section': a.section,
+        'Semester': a.semester,
+        'Department': a.department || '',
+        'Workload (Hrs/Wk)': a.workload_hours || 4,
+        'Total Credits': a.total_credits ?? '',
+        'Total Marks Max': a.total_marks ?? '',
+        'Grading Category': a.grading_category || 'Non-Architecture',
+      };
+    });
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Faculty_Exam_Allocations');
+    XLSX.utils.book_append_sheet(wb, mappingWs, 'Subject_Faculty_Mapping');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(detailData), 'Detailed_Allocations');
     XLSX.writeFile(wb, `Faculty_Exam_Allocations_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  const handleExportCsv = () => {
+    const ws = XLSX.utils.json_to_sheet(buildMappingSheetData('; '));
+    const csv = XLSX.utils.sheet_to_csv(ws, { FS: ';' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Subject_Faculty_Mapping_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   // Excel Import Handler
@@ -506,9 +637,19 @@ export const FacultyCourseAllocation: React.FC<FacultyCourseAllocationProps> = (
           <button
             onClick={handleExportExcel}
             className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 hover:text-zinc-900 focus:outline-hidden"
+            title="Export subject-faculty mapping (one row per subject, faculties comma-joined) plus a detailed per-allocation sheet"
           >
             <Download className="h-3.5 w-3.5 text-zinc-600" />
             Export
+          </button>
+
+          <button
+            onClick={handleExportCsv}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 shadow-xs hover:bg-zinc-50 hover:text-zinc-900 focus:outline-hidden"
+            title="Export the aggregated subject-faculty mapping as semicolon-delimited CSV"
+          >
+            <FileText className="h-3.5 w-3.5 text-zinc-600" />
+            CSV
           </button>
 
           {isSuperAdmin && (

@@ -347,15 +347,21 @@ export function downloadExamScheduleTemplate() {
 }
 
 // Generate & trigger download of Faculty Allocation & Exam Duties template
-export function downloadFacultyAllocationTemplate() {
+export async function downloadFacultyAllocationTemplate(): Promise<void> {
   try {
-    const link = document.createElement('a');
-    link.href = '/api/faculty-allocations/template';
-    link.download = 'Faculty_Allocation_Template.xlsx';
-    link.click();
-    return;
+    const response = await fetch('/api/faculty-allocations/template');
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Faculty_Allocation_Template.xlsx';
+      link.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
   } catch {
-    // Fallback to client-side SheetJS generation
+    // Server unreachable: fall through to client-side SheetJS generation
   }
 
   const sampleRows = [
