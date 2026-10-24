@@ -823,8 +823,8 @@ app.post('/api/course-master/bulk', async (req, res) => {
       const cap_max_marks = Number(c.cap_max_marks ?? (cap1_max + cap2_max + cap3_max));
       const cap_min_marks = Number(c.cap_min_marks ?? (cap1_min + cap2_min + cap3_min));
 
-      const cas_max_marks = cas1_max + cas2_max + cas3_max;
-      const cas_min_marks = cas1_min + cas2_min + cas3_min;
+      const cas_max_marks = Number(c.cas_max_marks ?? (cas1_max + cas2_max + cas3_max));
+      const cas_min_marks = Number(c.cas_min_marks ?? (cas1_min + cas2_min + cas3_min));
 
       const ia_max_marks = Number(c.ia_max_marks ?? (cat_max_marks + cap_max_marks + cas_max_marks));
       const ia_min_marks = Number(c.ia_min_marks ?? (cat_min_marks + cap_min_marks + cas_min_marks));
@@ -860,6 +860,7 @@ app.post('/api/course-master/bulk', async (req, res) => {
         cas1_max, cas1_min,
         cas2_max, cas2_min,
         cas3_max, cas3_min,
+        cas_max_marks, cas_min_marks,
         cat_max_marks, cat_min_marks,
         est_max_marks, est_min_marks,
         cap_max_marks, cap_min_marks,
@@ -893,6 +894,7 @@ app.post('/api/course-master/bulk', async (req, res) => {
               cas1_max = @cas1_max, cas1_min = @cas1_min,
               cas2_max = @cas2_max, cas2_min = @cas2_min,
               cas3_max = @cas3_max, cas3_min = @cas3_min,
+              cas_max_marks = @cas_max_marks, cas_min_marks = @cas_min_marks,
               cat_max_marks = @cat_max_marks, cat_min_marks = @cat_min_marks,
               est_max_marks = @est_max_marks, est_min_marks = @est_min_marks,
               cap_max_marks = @cap_max_marks, cap_min_marks = @cap_min_marks,
@@ -911,6 +913,7 @@ app.post('/api/course-master/bulk', async (req, res) => {
             cat1_max, cat1_min, cat2_max, cat2_min, cat3_max, cat3_min,
             cap1_max, cap1_min, cap2_max, cap2_min, cap3_max, cap3_min,
             cas1_max, cas1_min, cas2_max, cas2_min, cas3_max, cas3_min,
+            cas_max_marks, cas_min_marks,
             cat_max_marks, cat_min_marks, est_max_marks, est_min_marks,
             cap_max_marks, cap_min_marks, esp_max_marks, esp_min_marks,
             ess_max_marks, ess_min_marks, ia_max_marks, ia_min_marks,
@@ -922,6 +925,7 @@ app.post('/api/course-master/bulk', async (req, res) => {
             @cat1_max, @cat1_min, @cat2_max, @cat2_min, @cat3_max, @cat3_min,
             @cap1_max, @cap1_min, @cap2_max, @cap2_min, @cap3_max, @cap3_min,
             @cas1_max, @cas1_min, @cas2_max, @cas2_min, @cas3_max, @cas3_min,
+            @cas_max_marks, @cas_min_marks,
             @cat_max_marks, @cat_min_marks, @est_max_marks, @est_min_marks,
             @cap_max_marks, @cap_min_marks, @esp_max_marks, @esp_min_marks,
             @ess_max_marks, @ess_min_marks, @ia_max_marks, @ia_min_marks,

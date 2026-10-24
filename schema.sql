@@ -381,6 +381,8 @@
       est_min_marks DECIMAL(5,2) DEFAULT 0,
       cap_max_marks DECIMAL(5,2) DEFAULT 0,
       cap_min_marks DECIMAL(5,2) DEFAULT 0,
+      cas_max_marks DECIMAL(5,2) DEFAULT 0,
+      cas_min_marks DECIMAL(5,2) DEFAULT 0,
       esp_max_marks DECIMAL(5,2) DEFAULT 0,
       esp_min_marks DECIMAL(5,2) DEFAULT 0,
       ess_max_marks DECIMAL(5,2) DEFAULT 0,

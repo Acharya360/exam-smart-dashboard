@@ -566,12 +566,15 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAT1 Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAT2 Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAT3 Max</th>
+                    <th className="text-center px-2.5 py-3 font-bold text-blue-900 bg-blue-50/80 whitespace-nowrap border-r border-blue-100">CAT Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAP1 Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAP2 Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAP3 Max</th>
+                    <th className="text-center px-2.5 py-3 font-bold text-emerald-900 bg-emerald-50/80 whitespace-nowrap border-r border-emerald-100">CAP Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAS1 Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAS2 Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAS3 Max</th>
+                    <th className="text-center px-2.5 py-3 font-bold text-amber-900 bg-amber-50/80 whitespace-nowrap border-r border-amber-100">CAS Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">EST Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">ESP Max</th>
                     <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">ESS Max</th>
@@ -722,12 +725,21 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cat1_max || 0}</td>
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cat2_max || 0}</td>
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cat3_max || 0}</td>
+                        <td className="px-2.5 py-3 font-mono text-center font-bold text-blue-900 bg-blue-50/60 border-r border-blue-100">
+                          {c.cat_max_marks ?? ((c.cat1_max || 0) + (c.cat2_max || 0) + (c.cat3_max || 0))}
+                        </td>
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cap1_max || 0}</td>
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cap2_max || 0}</td>
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cap3_max || 0}</td>
+                        <td className="px-2.5 py-3 font-mono text-center font-bold text-emerald-900 bg-emerald-50/60 border-r border-emerald-100">
+                          {c.cap_max_marks ?? ((c.cap1_max || 0) + (c.cap2_max || 0) + (c.cap3_max || 0))}
+                        </td>
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cas1_max || 0}</td>
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cas2_max || 0}</td>
                         <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cas3_max || 0}</td>
+                        <td className="px-2.5 py-3 font-mono text-center font-bold text-amber-900 bg-amber-50/60 border-r border-amber-100">
+                          {c.cas_max_marks ?? ((c.cas1_max || 0) + (c.cas2_max || 0) + (c.cas3_max || 0))}
+                        </td>
                         <td className="px-2 py-3 font-mono text-center font-semibold text-blue-700">{c.est_max_marks || 0}</td>
                         <td className="px-2 py-3 font-mono text-center font-semibold text-emerald-700">{c.esp_max_marks || 0}</td>
                         <td className="px-2 py-3 font-mono text-center font-semibold text-amber-700">{c.ess_max_marks || 0}</td>
@@ -788,7 +800,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
               })}
               {sortedCourses.length === 0 && (
                 <tr>
-                  <td colSpan={isSuperAdmin ? (viewMode === 'excel_grid' ? 32 : 16) : (viewMode === 'excel_grid' ? 31 : 15)} className="px-4 py-12 text-center">
+                  <td colSpan={isSuperAdmin ? (viewMode === 'excel_grid' ? 35 : 16) : (viewMode === 'excel_grid' ? 34 : 15)} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-500">
                       <BookOpen className="w-8 h-8 text-slate-300 mb-2" />
                       <p>No courses found.</p>
@@ -885,6 +897,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                       <th className="px-3 py-2 text-center">CA1</th>
                       <th className="px-3 py-2 text-center">CA2</th>
                       <th className="px-3 py-2 text-center">CA3</th>
+                      <th className="px-3 py-2 text-center bg-slate-200/50 font-bold text-slate-800">CA Total (Max)</th>
                       <th className="px-3 py-2 text-center">ESE Max (EST/ESP/ESS)</th>
                       <th className="px-3 py-2 text-center">ESE Min (40%/45%)</th>
                     </tr>
@@ -895,6 +908,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cat1_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cat2_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cat3_max || '—'}</td>
+                      <td className="px-3 py-2 text-center font-mono font-bold text-blue-900 bg-blue-50/50">{inspectedCourse.cat_max_marks ?? ((inspectedCourse.cat1_max || 0) + (inspectedCourse.cat2_max || 0) + (inspectedCourse.cat3_max || 0))}</td>
                       <td className="px-3 py-2 text-center font-mono font-bold text-indigo-700">{inspectedCourse.est_max_marks || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono text-rose-600 font-bold">{inspectedCourse.est_min_marks || '—'}</td>
                     </tr>
@@ -903,6 +917,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cap1_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cap2_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cap3_max || '—'}</td>
+                      <td className="px-3 py-2 text-center font-mono font-bold text-emerald-900 bg-emerald-50/50">{inspectedCourse.cap_max_marks ?? ((inspectedCourse.cap1_max || 0) + (inspectedCourse.cap2_max || 0) + (inspectedCourse.cap3_max || 0))}</td>
                       <td className="px-3 py-2 text-center font-mono font-bold text-indigo-700">{inspectedCourse.esp_max_marks || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono text-rose-600 font-bold">{inspectedCourse.esp_min_marks || '—'}</td>
                     </tr>
@@ -911,6 +926,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cas1_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cas2_max || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono">{inspectedCourse.cas3_max || '—'}</td>
+                      <td className="px-3 py-2 text-center font-mono font-bold text-amber-900 bg-amber-50/50">{inspectedCourse.cas_max_marks ?? ((inspectedCourse.cas1_max || 0) + (inspectedCourse.cas2_max || 0) + (inspectedCourse.cas3_max || 0))}</td>
                       <td className="px-3 py-2 text-center font-mono font-bold text-indigo-700">{inspectedCourse.ess_max_marks || '—'}</td>
                       <td className="px-3 py-2 text-center font-mono text-rose-600 font-bold">{inspectedCourse.ess_min_marks || '—'}</td>
                     </tr>

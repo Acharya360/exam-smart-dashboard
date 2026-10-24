@@ -566,12 +566,15 @@ export function downloadCourseMasterTemplate() {
       'CAT1 Max Marks': 10,
       'CAT2 Max Marks': 10,
       'CAT3 Max Marks': 30,
+      'CAT Max Marks': 50,
       'CAP1 Max Marks': 10,
       'CAP2 Max Marks': 10,
       'CAP3 Max Marks': 20,
+      'CAP Max Marks': 40,
       'CAS1 Max Marks': 0,
       'CAS2 Max Marks': 0,
       'CAS3 Max Marks': 0,
+      'CAS Max Marks': 0,
       'EST Max Marks': 50,
       'ESP Max Marks': 40,
       'ESS Max Marks': 0,
@@ -598,12 +601,15 @@ export function downloadCourseMasterTemplate() {
       'CAT1 Max Marks': 15,
       'CAT2 Max Marks': 15,
       'CAT3 Max Marks': 20,
+      'CAT Max Marks': 50,
       'CAP1 Max Marks': 15,
       'CAP2 Max Marks': 15,
       'CAP3 Max Marks': 20,
+      'CAP Max Marks': 50,
       'CAS1 Max Marks': 10,
       'CAS2 Max Marks': 10,
       'CAS3 Max Marks': 30,
+      'CAS Max Marks': 50,
       'EST Max Marks': 50,
       'ESP Max Marks': 50,
       'ESS Max Marks': 50,
@@ -630,12 +636,15 @@ export function downloadCourseMasterTemplate() {
       'CAT1 Max Marks': 15,
       'CAT2 Max Marks': 15,
       'CAT3 Max Marks': 20,
+      'CAT Max Marks': 50,
       'CAP1 Max Marks': 0,
       'CAP2 Max Marks': 0,
       'CAP3 Max Marks': 0,
+      'CAP Max Marks': 0,
       'CAS1 Max Marks': 0,
       'CAS2 Max Marks': 0,
       'CAS3 Max Marks': 0,
+      'CAS Max Marks': 0,
       'EST Max Marks': 50,
       'ESP Max Marks': 0,
       'ESS Max Marks': 0,
@@ -665,12 +674,15 @@ export function downloadCourseMasterTemplate() {
     { wch: 14 }, // CAT1 Max Marks
     { wch: 14 }, // CAT2 Max Marks
     { wch: 14 }, // CAT3 Max Marks
+    { wch: 14 }, // CAT Max Marks (Sum of CAT1,2,3)
     { wch: 14 }, // CAP1 Max Marks
     { wch: 14 }, // CAP2 Max Marks
     { wch: 14 }, // CAP3 Max Marks
+    { wch: 14 }, // CAP Max Marks (Sum of CAP1,2,3)
     { wch: 14 }, // CAS1 Max Marks
     { wch: 14 }, // CAS2 Max Marks
     { wch: 14 }, // CAS3 Max Marks
+    { wch: 14 }, // CAS Max Marks (Sum of CAS1,2,3)
     { wch: 14 }, // EST Max Marks
     { wch: 14 }, // ESP Max Marks
     { wch: 14 }, // ESS Max Marks
@@ -955,23 +967,34 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
 
       if (minMaxFailed) return;
 
+      // Continuous assessment calculated totals (or explicit totals if provided in Excel)
+      const calc_cat_max = cat1_max + cat2_max + cat3_max;
+      const calc_cat_min = cat1_min + cat2_min + cat3_min;
+      const explicit_cat_max = readNum(['catmaxmarks', 'catmax', 'cat'], 0);
+      const cat_max_marks = explicit_cat_max > 0 ? explicit_cat_max : calc_cat_max;
+      const cat_min_marks = calc_cat_min > 0 ? calc_cat_min : calcMin(cat_max_marks, ['catminmarks', 'catmin']);
+
+      const calc_cap_max = cap1_max + cap2_max + cap3_max;
+      const calc_cap_min = cap1_min + cap2_min + cap3_min;
+      const explicit_cap_max = readNum(['capmaxmarks', 'capmax', 'cap'], 0);
+      const cap_max_marks = explicit_cap_max > 0 ? explicit_cap_max : calc_cap_max;
+      const cap_min_marks = calc_cap_min > 0 ? calc_cap_min : calcMin(cap_max_marks, ['capminmarks', 'capmin']);
+
+      const calc_cas_max = cas1_max + cas2_max + cas3_max;
+      const calc_cas_min = cas1_min + cas2_min + cas3_min;
+      const explicit_cas_max = readNum(['casmaxmarks', 'casmax', 'cas'], 0);
+      const cas_max_marks = explicit_cas_max > 0 ? explicit_cas_max : calc_cas_max;
+      const cas_min_marks = calc_cas_min > 0 ? calc_cas_min : calcMin(cas_max_marks, ['casminmarks', 'casmin']);
+
       // Determine active assessment heads
-      const theoryActive = (cat1_max + cat2_max + cat3_max + est_max) > 0;
-      const practicalActive = (cap1_max + cap2_max + cap3_max + esp_max) > 0;
-      const skillsActive = (cas1_max + cas2_max + cas3_max + ess_max) > 0;
+      const theoryActive = (cat_max_marks + est_max) > 0;
+      const practicalActive = (cap_max_marks + esp_max) > 0;
+      const skillsActive = (cas_max_marks + ess_max) > 0;
 
       if (!theoryActive && !practicalActive && !skillsActive) {
         errors.push(`Row ${rowNum}: Course must have at least one applicable assessment head (Theory, Practical, or Skills with max > 0).`);
         return;
       }
-
-      // Calculated totals
-      const cat_max_marks = cat1_max + cat2_max + cat3_max;
-      const cat_min_marks = cat1_min + cat2_min + cat3_min;
-      const cap_max_marks = cap1_max + cap2_max + cap3_max;
-      const cap_min_marks = cap1_min + cap2_min + cap3_min;
-      const cas_max_marks = cas1_max + cas2_max + cas3_max;
-      const cas_min_marks = cas1_min + cas2_min + cas3_min;
 
       const ia_max_marks = cat_max_marks + cap_max_marks + cas_max_marks;
       const ia_min_marks = cat_min_marks + cap_min_marks + cas_min_marks;
@@ -1082,10 +1105,12 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         cas3_min,
         cat_max_marks,
         cat_min_marks,
-        est_max_marks: est_max,
-        est_min_marks: est_min,
         cap_max_marks,
         cap_min_marks,
+        cas_max_marks,
+        cas_min_marks,
+        est_max_marks: est_max,
+        est_min_marks: est_min,
         esp_max_marks: esp_max,
         esp_min_marks: esp_min,
         ess_max_marks: ess_max,

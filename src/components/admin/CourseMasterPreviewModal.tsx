@@ -304,10 +304,15 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap">
-                      <span className="font-bold text-slate-800">{c.ia_max_marks}</span>
-                      <span className="text-[10px] text-slate-400 mx-1">/</span>
-                      <span className="text-emerald-700 font-semibold">{c.ia_min_marks}</span>
+                    <td className="px-3 py-2 text-center whitespace-nowrap" title={`CAT Max: ${c.cat_max_marks || 0}, CAP Max: ${c.cap_max_marks || 0}, CAS Max: ${c.cas_max_marks || 0}`}>
+                      <div>
+                        <span className="font-bold text-slate-800">{c.ia_max_marks}</span>
+                        <span className="text-[10px] text-slate-400 mx-1">/</span>
+                        <span className="text-emerald-700 font-semibold">{c.ia_min_marks}</span>
+                      </div>
+                      <div className="text-[9px] text-slate-500 font-mono tracking-tight mt-0.5">
+                        CAT:{c.cat_max_marks || 0} · CAP:{c.cap_max_marks || 0} · CAS:{c.cas_max_marks || 0}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600 whitespace-nowrap" title={`EST: ${c.est_max_marks || 0} (Min: ${c.est_min_marks || 0}), ESP: ${c.esp_max_marks || 0} (Min: ${c.esp_min_marks || 0}), ESS: ${c.ess_max_marks || 0} (Min: ${c.ess_min_marks || 0})`}>
                       {c.est_max_marks || 0} / {c.esp_max_marks || 0} / {c.ess_max_marks || 0}
