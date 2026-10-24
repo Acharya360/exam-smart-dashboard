@@ -18,6 +18,7 @@ set "ENV_EXAMPLE=.env.example"
 set "LOG_DIR=logs"
 set "TIMESTAMP=%DATE:/=-%_%TIME::=-%"
 set "TIMESTAMP=%TIMESTAMP: =0%"
+set "DEFAULT_VERCEL_URL=https://exam-smart-dashboard.vercel.app"
 
 :: Ensure logs directory exists
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
@@ -32,6 +33,12 @@ if /i "%CMD_ARG%"=="--help" goto :show_help
 if /i "%CMD_ARG%"=="-h" goto :show_help
 
 if /i "%CMD_ARG%"=="dev" goto :preflight_cli
+if /i "%CMD_ARG%"=="local" goto :preflight_cli
+if /i "%CMD_ARG%"=="dev-local" goto :preflight_cli
+if /i "%CMD_ARG%"=="supabase" goto :preflight_cli
+if /i "%CMD_ARG%"=="dev-supabase" goto :preflight_cli
+if /i "%CMD_ARG%"=="vercel" goto :action_open_vercel
+if /i "%CMD_ARG%"=="cloud" goto :action_open_vercel
 if /i "%CMD_ARG%"=="start" goto :preflight_cli
 if /i "%CMD_ARG%"=="server" goto :preflight_cli
 if /i "%CMD_ARG%"=="db" goto :preflight_cli
@@ -51,6 +58,8 @@ if /i "%CMD_ARG%"=="vercel-login" goto :action_vercel_login
 if /i "%CMD_ARG%"=="playwright" goto :action_playwright
 if /i "%CMD_ARG%"=="chrome" goto :action_open_chrome
 if /i "%CMD_ARG%"=="open" goto :action_open_chrome
+if /i "%CMD_ARG%"=="config-supabase" goto :preflight_cli
+if /i "%CMD_ARG%"=="test-supabase" goto :preflight_cli
 
 :: If no arguments, show banner and interactive preflight
 call :print_banner
@@ -62,10 +71,15 @@ goto :menu
 :: ----------------------------------------------------------------------------
 :preflight_cli
 call :run_preflight
-if /i "%CMD_ARG%"=="dev" goto :action_dev
-if /i "%CMD_ARG%"=="start" goto :action_dev
+if /i "%CMD_ARG%"=="local" goto :action_dev_local
+if /i "%CMD_ARG%"=="dev-local" goto :action_dev_local
+if /i "%CMD_ARG%"=="dev" goto :action_dev_local
+if /i "%CMD_ARG%"=="supabase" goto :action_dev_supabase
+if /i "%CMD_ARG%"=="dev-supabase" goto :action_dev_supabase
+if /i "%CMD_ARG%"=="start" goto :action_dev_local
 if /i "%CMD_ARG%"=="server" goto :action_server
 if /i "%CMD_ARG%"=="db" goto :action_sql_status
+if /i "%CMD_ARG%"=="status" goto :action_sql_status
 if /i "%CMD_ARG%"=="migrate" goto :action_sql_migrate
 if /i "%CMD_ARG%"=="build" goto :action_build
 if /i "%CMD_ARG%"=="preview" goto :action_preview
@@ -73,6 +87,8 @@ if /i "%CMD_ARG%"=="lint" goto :action_lint
 if /i "%CMD_ARG%"=="clean" goto :action_clean
 if /i "%CMD_ARG%"=="reinstall" goto :action_reinstall
 if /i "%CMD_ARG%"=="install" goto :action_reinstall
+if /i "%CMD_ARG%"=="config-supabase" goto :action_config_supabase
+if /i "%CMD_ARG%"=="test-supabase" goto :action_test_supabase
 goto :menu
 
 :run_preflight
@@ -106,7 +122,7 @@ if not exist "%ENV_FILE%" (
     if exist "%ENV_EXAMPLE%" (
         echo       - Auto-creating %ENV_FILE% from %ENV_EXAMPLE%...
         copy "%ENV_EXAMPLE%" "%ENV_FILE%" >nul
-        echo       - [IMPORTANT] Please update your Supabase and Gemini keys in %ENV_FILE%.
+        echo       - [IMPORTANT] Please update your Supabase keys in %ENV_FILE%.
     ) else (
         echo       - [WARN] %ENV_EXAMPLE% missing as well.
     )
@@ -147,7 +163,7 @@ goto :eof
 :: Dynamic Port Allocation with safe process checks
 :: ----------------------------------------------------------------------------
 :resolve_port
-if not "%EXTRA_ARG%"=="dev" if not "%EXTRA_ARG%"=="" (
+if not "%EXTRA_ARG%"=="dev" if not "%EXTRA_ARG%"=="" if not "%EXTRA_ARG%"=="local" if not "%EXTRA_ARG%"=="supabase" (
     set "PORT=%EXTRA_ARG%"
     goto :eof
 )
@@ -163,11 +179,9 @@ if %ERRORLEVEL% equ 0 (
         tasklist /FI "PID eq !PID!" /NH 2>nul | findstr /I "node.exe" >nul 2>nul
         if !ERRORLEVEL! equ 0 (
             echo [INFO] Node.js process !PID! is using port %CHECK_PORT%. This may be a previous instance.
-            echo       Use 'run.bat dev' or kill it manually before starting a new server.
             echo [%TIMESTAMP%] WARN: Port %CHECK_PORT% occupied by node PID !PID! >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
         ) else (
-            echo [INFO] Non-node process !PID! is using port %CHECK_PORT%. Not killing automatically.
-            echo       Please free the port manually or specify an alternative with run.bat dev ^<port^>.
+            echo [INFO] Non-node process !PID! is using port %CHECK_PORT%.
         )
     )
     set /a CHECK_PORT+=1
@@ -184,7 +198,9 @@ goto :eof
 :: Helper: Pause & Loop
 :: ----------------------------------------------------------------------------
 :finish_action
-if not "%CMD_ARG%"=="" exit /b %1
+if not "%CMD_ARG%"=="" (
+        exit /b 0
+)
 echo.
 echo [%TIMESTAMP%] Session ended >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 pause
@@ -197,13 +213,21 @@ goto :menu
 call :print_banner
 echo.
 echo ----------------------------------------------------------------------------
-echo  DEVELOPMENT and SERVERS:
-echo    [1] Start Development Full-Stack (SQL Server API + Vite UI)
-echo    [C] Open Google Chrome at App URL (http://localhost:%PORT%)
-echo    [2] Start Local SQL Server API Only (Port 5000)
-echo    [3] Build Production Bundle
-echo    [4] Preview Production Build
-echo    [5] Run TypeScript Verification and Lint
+echo  RUN MODES (DEVELOPMENT and CLOUD):
+echo    [1] Start Local Dev with LOCAL DATABASE (SQL Server localhost\SQLEXPRESS)
+echo    [2] Start Local Dev with SUPABASE CLOUD DATABASE
+echo    [3] Open LIVE VERCEL Deployment in Chrome (Cloud + Supabase)
+echo    [C] Open Google Chrome to Local Dev (http://localhost:%PORT%)
+echo    [4] Start Standalone Local SQL Server API Only (Port 5000)
+echo.
+echo  BUILD and CODE QUALITY:
+echo    [B] Build Production Bundle (/dist)
+echo    [P] Preview Production Build (http://localhost:4173)
+echo    [L] Run TypeScript Verification and Lint (tsc --noEmit)
+echo.
+echo  CLOUD and SUPABASE CONFIGURATION:
+echo    [K] View / Configure Supabase Cloud Keys in .env
+echo    [T] Test Supabase Cloud API Connection
 echo.
 echo  DATABASE and SQL SERVER (SSPU_Exam):
 echo    [S] Check SQL Server DB Status (SSPU_Exam on localhost\SQLEXPRESS)
@@ -211,37 +235,45 @@ echo    [M] Apply Versioned Additive Migrations (verified backup first)
 echo    [X] Reset Operational DB (Keep User Profiles intact)
 echo.
 echo  DEPLOYMENT and GIT:
-echo    [6] Push to GitHub (Verify + Stage + Commit + Sync)
-echo    [7] Deploy to Vercel (Preview or Production)
+echo    [5] Push to GitHub (Verify + Stage + Commit + Sync)
+echo    [6] Deploy to Vercel (Preview or Production)
 echo    [V] Login / Re-authenticate Vercel CLI
-echo    [8] Full Safe Release (Lint + Build + Push + Vercel Prod)
+echo    [7] Full Safe Release (Lint + Build + Push + Vercel Prod)
 echo.
-echo  TESTING and TOOLS:
-echo    [P] Install / Verify Playwright and Playwright MCP
-echo.
-echo  MAINTENANCE:
+echo  TESTING and MAINTENANCE:
+echo    [W] Install / Verify Playwright and Playwright MCP
 echo    [9] Clean Build Artifacts and Cache
 echo    [R] Fresh Reinstall (clean node_modules and npm install)
 echo    [0] Exit
 echo ----------------------------------------------------------------------------
 set "CHOICE=1"
-set /p "CHOICE=Enter choice [0-9, S, M, X, V, P, R] (Default is 1): "
+set /p "CHOICE=Enter choice [1-7, B, P, L, K, T, S, M, X, V, W, 9, R, C, 0] (Default is 1): "
 set "CHOICE=%CHOICE: =%"
 
-if "%CHOICE%"=="1" goto :action_dev
+if "%CHOICE%"=="1" goto :action_dev_local
+if "%CHOICE%"=="2" goto :action_dev_supabase
+if "%CHOICE%"=="3" goto :action_open_vercel
+if "%CHOICE%"=="4" goto :action_server
 if /i "%CHOICE%"=="C" goto :action_open_chrome
-if "%CHOICE%"=="2" goto :action_server
-if "%CHOICE%"=="3" goto :action_build
-if "%CHOICE%"=="4" goto :action_preview
-if "%CHOICE%"=="5" goto :action_lint
+
+if /i "%CHOICE%"=="B" goto :action_build
+if /i "%CHOICE%"=="P" goto :action_preview
+if /i "%CHOICE%"=="L" goto :action_lint
+
+if /i "%CHOICE%"=="K" goto :action_config_supabase
+if /i "%CHOICE%"=="T" goto :action_test_supabase
+
 if /i "%CHOICE%"=="S" goto :action_sql_status
 if /i "%CHOICE%"=="M" goto :action_sql_migrate
 if /i "%CHOICE%"=="X" goto :action_reset_db
-if "%CHOICE%"=="6" goto :action_git_push
-if "%CHOICE%"=="7" goto :action_deploy
+
+if "%CHOICE%"=="5" goto :action_git_push
+if "%CHOICE%"=="6" goto :action_deploy
 if /i "%CHOICE%"=="V" goto :action_vercel_login
+if "%CHOICE%"=="7" goto :action_release
 if "%CHOICE%"=="8" goto :action_release
-if /i "%CHOICE%"=="P" goto :action_playwright
+
+if /i "%CHOICE%"=="W" goto :action_playwright
 if "%CHOICE%"=="9" goto :action_clean
 if /i "%CHOICE%"=="R" goto :action_reinstall
 if "%CHOICE%"=="0" goto :action_exit
@@ -251,18 +283,18 @@ timeout /t 2 >nul
 goto :menu
 
 :: ----------------------------------------------------------------------------
-:: Action: Start Full-Stack Dev
+:: Action 1: Local Mode with Local SQL Server Database
 :: ----------------------------------------------------------------------------
-:action_dev
+:action_dev_local
 call :resolve_port
 echo ----------------------------------------------------------------------------
-echo  Launching Acharya360 ExamTrack Development Stack...
+echo  ACHARYA360 EXAMTRACK - LOCAL MODE (LOCAL DATABASE)
 echo  Database Server : localhost\SQLEXPRESS
 echo  Database Name   : SSPU_Exam
 echo  Backend API     : http://localhost:5000 (Express + SQL Bridge)
-echo  Frontend UI     : http://localhost:%PORT% (Vite + React 19)
+echo  Frontend UI     : http://localhost:%PORT%/?db=local
 echo ----------------------------------------------------------------------------
-echo [%TIMESTAMP%] Dev session started on port %PORT% >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
+echo [%TIMESTAMP%] Local dev (Local DB) started on port %PORT% >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 echo.
 
 netstat -ano | findstr /R /C:":5000 " >nul 2>nul
@@ -282,13 +314,90 @@ if %ERRORLEVEL% neq 0 (
     )
 )
 
+set "VITE_DB_MODE=local"
 echo [INFO] Launching Vite development server on port %PORT%...
-call :open_chrome_url "http://localhost:%PORT%"
-call npm run dev -- --port %PORT%
+call :open_chrome_url "http://localhost:%PORT%/?db=local"
+call npm.cmd run dev -- --port %PORT%
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
-:: Action: Start Server Only
+:: Action 2: Local Mode with Supabase Cloud Database
+:: ----------------------------------------------------------------------------
+:action_dev_supabase
+call :resolve_port
+echo ----------------------------------------------------------------------------
+echo  ACHARYA360 EXAMTRACK - LOCAL DEV (SUPABASE CLOUD DATABASE)
+echo  Mode            : Cloud Supabase via Client SDK
+echo  Frontend UI     : http://localhost:%PORT%/?db=supabase
+echo ----------------------------------------------------------------------------
+echo [%TIMESTAMP%] Local dev (Supabase DB) started on port %PORT% >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
+echo.
+
+set "ACTIVE_SB_URL="
+set "ACTIVE_SB_KEY="
+if exist ".env" (
+    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+        if "%%a"=="VITE_SUPABASE_URL" set "ACTIVE_SB_URL=%%b"
+        if "%%a"=="VITE_SUPABASE_ANON_KEY" set "ACTIVE_SB_KEY=%%b"
+    )
+)
+
+echo [INFO] Configured Supabase URL : !ACTIVE_SB_URL!
+if "!ACTIVE_SB_KEY!"=="" (
+    echo [WARN] VITE_SUPABASE_ANON_KEY is missing in .env!
+    set /p CFG_NOW="Would you like to configure your Supabase Cloud credentials now? (y/N): "
+    if /i "!CFG_NOW!"=="y" call :action_config_supabase
+) else if "!ACTIVE_SB_KEY!"=="placeholder-key" (
+    echo [WARN] VITE_SUPABASE_ANON_KEY is set to 'placeholder-key'.
+    set /p CFG_NOW="Would you like to enter your actual Supabase Anon Key now? (y/N): "
+    if /i "!CFG_NOW!"=="y" call :action_config_supabase
+)
+
+set "VITE_DB_MODE=supabase"
+echo [INFO] Launching Vite development server with Supabase connection on port %PORT%...
+call :open_chrome_url "http://localhost:%PORT%/?db=supabase"
+call npm.cmd run dev -- --port %PORT%
+goto :finish_action
+
+:: ----------------------------------------------------------------------------
+:: Action 3: Open Vercel Deployed Cloud App in Chrome
+:: ----------------------------------------------------------------------------
+:action_open_vercel
+echo ----------------------------------------------------------------------------
+echo  ACHARYA360 EXAMTRACK - VERCEL CLOUD DEPLOYMENT
+echo  Production URL : %DEFAULT_VERCEL_URL%
+echo  Cloud Database : Supabase PostgreSQL (Cloud)
+echo ----------------------------------------------------------------------------
+echo.
+echo What would you like to do?
+echo   [1] Open Live Production App in Google Chrome
+echo   [2] Open Specific Preview Deployment URL
+echo   [3] Deploy / Redeploy to Vercel Production (--prod)
+echo   [4] Return to Main Menu
+echo.
+set "VCHOICE=1"
+set /p "VCHOICE=Enter choice [1-4] (Default is 1): "
+set "VCHOICE=%VCHOICE: =%"
+
+if "%VCHOICE%"=="1" (
+    echo [INFO] Opening %DEFAULT_VERCEL_URL% in Google Chrome...
+    call :open_chrome_now "%DEFAULT_VERCEL_URL%"
+    goto :finish_action
+)
+if "%VCHOICE%"=="2" (
+    set "PREV_URL="
+    set /p "PREV_URL=Enter Vercel Preview URL: "
+    if not "!PREV_URL!"=="" (
+        echo [INFO] Opening !PREV_URL! in Google Chrome...
+        call :open_chrome_now "!PREV_URL!"
+    )
+    goto :finish_action
+)
+if "%VCHOICE%"=="3" goto :deploy_prod
+goto :menu
+
+:: ----------------------------------------------------------------------------
+:: Action 4: Start Server Only (Port 5000)
 :: ----------------------------------------------------------------------------
 :action_server
 echo ----------------------------------------------------------------------------
@@ -299,13 +408,77 @@ node server.js
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
+:: Action K: Configure Supabase Cloud Keys in .env
+:: ----------------------------------------------------------------------------
+:action_config_supabase
+echo ----------------------------------------------------------------------------
+echo  Configure Supabase Cloud Credentials (.env)
+echo ----------------------------------------------------------------------------
+echo Find these in your Supabase Dashboard: Settings -^> API
+echo.
+set "CURR_URL="
+set "CURR_KEY="
+if exist ".env" (
+    for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
+        if "%%a"=="VITE_SUPABASE_URL" set "CURR_URL=%%b"
+        if "%%a"=="VITE_SUPABASE_ANON_KEY" set "CURR_KEY=%%b"
+    )
+)
+echo Current URL : !CURR_URL!
+if defined CURR_KEY (
+    echo Current Key : !CURR_KEY:~0,15!... (hidden)
+) else (
+    echo Current Key : (Not set)
+)
+echo.
+
+set "NEW_URL="
+set /p "NEW_URL=Enter Supabase URL (Press Enter to keep current): "
+if "!NEW_URL!"=="" set "NEW_URL=!CURR_URL!"
+if "!NEW_URL!"=="" set "NEW_URL=https://noqsfzdotsgjkjcwpkpu.supabase.co"
+
+set "NEW_KEY="
+set /p "NEW_KEY=Enter Supabase Anon Key (Press Enter to keep current): "
+if "!NEW_KEY!"=="" set "NEW_KEY=!CURR_KEY!"
+
+echo.
+echo Writing credentials to .env...
+(
+    echo VITE_SUPABASE_URL=!NEW_URL!
+    echo VITE_SUPABASE_ANON_KEY=!NEW_KEY!
+) > ".env"
+
+echo [SUCCESS] .env updated successfully!
+echo.
+echo Testing Supabase cloud connection...
+node scripts/test-supabase.mjs
+goto :finish_action
+
+:: ----------------------------------------------------------------------------
+:: Action T: Test Supabase Cloud API Connection
+:: ----------------------------------------------------------------------------
+:action_test_supabase
+echo ----------------------------------------------------------------------------
+echo  Testing Supabase Cloud API Connection
+echo ----------------------------------------------------------------------------
+node scripts/test-supabase.mjs
+goto :finish_action
+
+:: ----------------------------------------------------------------------------
 :: Action: SQL Server Status
 :: ----------------------------------------------------------------------------
 :action_sql_status
 echo ----------------------------------------------------------------------------
 echo  Checking Microsoft SQL Server Database Status (SSPU_Exam)...
 echo ----------------------------------------------------------------------------
-node -e "const sql = require('mssql'); const config = { server: 'localhost', database: 'SSPU_Exam', options: { trustedConnection: true, trustServerCertificate: true, enableArithAbort: true, instanceName: 'SQLEXPRESS' } }; (async () => { try { const pool = await sql.connect(config); const r = await pool.request().query('SELECT COUNT(*) AS tables_count FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = \'BASE TABLE\''); console.log('[SUCCESS] Successfully connected to SSPU_Exam on localhost\\SQLEXPRESS.'); console.log('[INFO] Operational tables registered in schema: ' + r.recordset[0].tables_count); const users = await pool.request().query('SELECT COUNT(*) AS user_count FROM dbo.profiles'); console.log('[INFO] Configured faculty/admin user profiles: ' + users.recordset[0].user_count); pool.close(); } catch(e) { console.error('[ERROR] SQL Server connection failed: ' + e.message); } })();"
+sqlcmd -S "localhost\SQLEXPRESS" -d "SSPU_Exam" -E -C -Q "SET NOCOUNT ON; SELECT 'Registered Tables      : ' + CAST(COUNT(*) AS VARCHAR) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE'; SELECT 'Configured User Profiles: ' + CAST(COUNT(*) AS VARCHAR) FROM dbo.profiles;"
+if %ERRORLEVEL% equ 0 (
+    echo.
+    echo [SUCCESS] Successfully connected to SSPU_Exam on localhost\SQLEXPRESS!
+) else (
+    echo.
+    echo [ERROR] SQL Server connection failed. Check if SQLEXPRESS service is running.
+)
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
@@ -316,7 +489,7 @@ echo ---------------------------------------------------------------------------
 echo  Applying Versioned Additive Migrations to SSPU_Exam...
 echo ----------------------------------------------------------------------------
 echo [%TIMESTAMP%] Migrations run started >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
-call npm run migrate
+call npm.cmd run migrate
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
@@ -373,7 +546,7 @@ echo ---------------------------------------------------------------------------
 echo  Building Production Bundle (Vite)...
 echo ----------------------------------------------------------------------------
 echo [%TIMESTAMP%] Production build started >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
-call npm run build
+call npm.cmd run build
 if %ERRORLEVEL% equ 0 (
     echo [SUCCESS] Production build generated in /dist.
     echo [%TIMESTAMP%] SUCCESS: Build complete >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
@@ -391,7 +564,7 @@ echo ---------------------------------------------------------------------------
 echo  Previewing Production Build from /dist...
 echo ----------------------------------------------------------------------------
 call :open_chrome_url "http://localhost:4173"
-call npm run preview
+call npm.cmd run preview
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
@@ -477,7 +650,7 @@ echo  Vercel CLI Authentication Setup
 echo ----------------------------------------------------------------------------
 echo Checking current login status...
 set "VERCEL_USER="
-for /f "tokens=*" %%u in ('npx --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
+for /f "tokens=*" %%u in ('npx.cmd --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
 
 if not "%VERCEL_USER%"=="" (
     echo [OK] Currently logged in as: %VERCEL_USER%
@@ -487,9 +660,9 @@ if not "%VERCEL_USER%"=="" (
 )
 
 echo Opening Vercel login in your default web browser...
-call npx --yes vercel login
+call npx.cmd --yes vercel login
 echo.
-for /f "tokens=*" %%u in ('npx --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
+for /f "tokens=*" %%u in ('npx.cmd --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
 if not "%VERCEL_USER%"=="" (
     echo [SUCCESS] Authenticated as: %VERCEL_USER%
 ) else (
@@ -506,11 +679,11 @@ echo  Vercel Cloud Deployment
 echo ----------------------------------------------------------------------------
 echo Checking Vercel login status...
 set "VERCEL_USER="
-for /f "tokens=*" %%u in ('npx --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
+for /f "tokens=*" %%u in ('npx.cmd --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
 if "%VERCEL_USER%"=="" (
     echo [WARN] Not currently logged in to Vercel.
     echo Opening Vercel login...
-    call npx --yes vercel login
+    call npx.cmd --yes vercel login
 ) else (
     echo [OK] Logged in as Vercel user: %VERCEL_USER%
 )
@@ -533,7 +706,7 @@ set "DCHOICE=%DCHOICE: =%"
 if "%DCHOICE%"=="1" goto :deploy_preview
 if "%DCHOICE%"=="2" goto :deploy_prod
 if "%DCHOICE%"=="3" (
-    call npx --yes vercel login
+    call npx.cmd --yes vercel login
     goto :deploy_menu
 )
 if "%DCHOICE%"=="4" goto :finish_action
@@ -543,7 +716,7 @@ goto :deploy_menu
 :deploy_preview
 echo.
 echo Starting Vercel Preview Deployment...
-call npx vercel --yes
+call npx.cmd vercel --yes
 if %ERRORLEVEL% equ 0 (
     echo [SUCCESS] Preview deployment completed!
 ) else (
@@ -554,9 +727,11 @@ goto :finish_action
 :deploy_prod
 echo.
 echo Starting Vercel Production Deployment (--prod)...
-call npx vercel --prod --yes
+call npx.cmd vercel --prod --yes
 if %ERRORLEVEL% equ 0 (
     echo [SUCCESS] Live Production deployment completed!
+    echo [INFO] Opening live URL in Chrome...
+    call :open_chrome_now "%DEFAULT_VERCEL_URL%"
 ) else (
     echo [ERROR] Production deployment failed.
 )
@@ -586,7 +761,7 @@ echo [OK] TypeScript check passed.
 echo.
 
 echo [Step 2/4] Generating Production Build...
-call npm run build
+call npm.cmd run build
 if %ERRORLEVEL% neq 0 (
     echo.
     echo [ABORT] Build failed! Aborting release.
@@ -620,43 +795,44 @@ echo.
 echo [Step 4/4] Deploying to Vercel Production (--prod)...
 echo Checking Vercel login credentials...
 set "VERCEL_USER="
-for /f "tokens=*" %%u in ('npx --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
+for /f "tokens=*" %%u in ('npx.cmd --yes vercel whoami 2^>nul') do set "VERCEL_USER=%%u"
 if "%VERCEL_USER%"=="" (
     echo [WARN] Not currently logged in to Vercel.
     echo Opening Vercel login in your browser...
-    call npx --yes vercel login
+    call npx.cmd --yes vercel login
 ) else (
     echo [OK] Authenticated as Vercel user: %VERCEL_USER%
 )
 
-call npx vercel --prod --yes
+call npx.cmd vercel --prod --yes
 if %ERRORLEVEL% equ 0 (
     echo.
     echo ============================================================================
     echo  [CONGRATULATIONS] Full Safe Release Successfully Deployed!
     echo ============================================================================
     echo [%TIMESTAMP%] SUCCESS: Release deployed >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
+    call :open_chrome_now "%DEFAULT_VERCEL_URL%"
 ) else (
     echo.
     echo ============================================================================
     echo  [NOTE] Direct Vercel CLI deploy exited.
     echo  If this repository is connected to Vercel on GitHub:
-    echo  Vercel is already automatically building and deploying from origin/main!
-    echo  Check your status at: https://vercel.com
+    echo  Vercel is automatically building and deploying from origin/main!
+    echo  Check status at: https://vercel.com
     echo ============================================================================
     echo [%TIMESTAMP%] NOTE: Vercel deploy exited with code %ERRORLEVEL% >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 )
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
-:: Action: Playwright & Playwright MCP Setup & Verification
+:: Action: Playwright Setup & Verification
 :: ----------------------------------------------------------------------------
 :action_playwright
 echo ----------------------------------------------------------------------------
 echo  Playwright and Playwright MCP Installation and Verification
 echo ----------------------------------------------------------------------------
 echo [1/4] Installing / verifying @playwright/test...
-call npm install --save-dev @playwright/test
+call npm.cmd install --save-dev @playwright/test
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] @playwright/test installation failed.
     goto :finish_action
@@ -664,7 +840,7 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo [2/4] Installing Playwright browsers...
-call npx playwright install
+call npx.cmd playwright install
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Playwright browser installation failed.
     goto :finish_action
@@ -672,16 +848,16 @@ if %ERRORLEVEL% neq 0 (
 
 echo.
 echo [3/4] Verifying Playwright CLI...
-call npx playwright --version
+call npx.cmd playwright --version
 
 echo.
 echo [4/4] Verifying @playwright/mcp...
-call npm list @playwright/mcp --depth=0 >nul 2>&1
+call npm.cmd list @playwright/mcp --depth=0 >nul 2>&1
 if %ERRORLEVEL% neq 0 (
     echo Installing @playwright/mcp...
-    call npm install --save-dev @playwright/mcp
+    call npm.cmd install --save-dev @playwright/mcp
 )
-call npm list @playwright/mcp --depth=0
+call npm.cmd list @playwright/mcp --depth=0
 
 echo.
 echo [SUCCESS] Playwright and Playwright MCP are ready.
@@ -717,7 +893,7 @@ echo - Removing node_modules...
 if exist "node_modules\" rmdir /s /q "node_modules"
 echo.
 echo - Installing fresh dependencies...
-call npm install
+call npm.cmd install
 if %ERRORLEVEL% equ 0 (
     echo [SUCCESS] Dependencies reinstalled successfully.
     echo [%TIMESTAMP%] INFO: Reinstall succeeded >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
@@ -739,15 +915,17 @@ goto :finish_action
 
 :open_chrome_url
 set "TARGET_URL=%~1"
-start "" cmd /c "timeout /t 2 /nobreak >nul & if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" %TARGET_URL%) else (start chrome %TARGET_URL% 2>nul || start %TARGET_URL%)"
+start "" cmd /c "timeout /t 2 /nobreak >nul & if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%") else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%") else (start "" "%TARGET_URL%")"
 goto :eof
 
 :open_chrome_now
 set "TARGET_URL=%~1"
-if exist "C:\Program Files\Google\Chrome\Application\chrome.exe" (
-    start "" "C:\Program Files\Google\Chrome\Application\chrome.exe" %TARGET_URL%
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
+    start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%"
+) else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
+    start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%"
 ) else (
-    start chrome %TARGET_URL% 2>nul || start %TARGET_URL%
+    start "" "%TARGET_URL%"
 )
 goto :eof
 
@@ -759,12 +937,16 @@ echo.
 echo Acharya360 ExamTrack Master Controller Usage:
 echo.
 echo   run.bat                    Launch interactive master dashboard menu
-echo   run.bat dev [PORT]         Start Vite dev server and auto-open Chrome
-echo   run.bat chrome [PORT]      Open Google Chrome directly to the app URL
+echo   run.bat local [PORT]       Start Local Dev with Local SQL Server Database
+echo   run.bat supabase [PORT]    Start Local Dev with Supabase Cloud Database
+echo   run.bat vercel             Open Live Vercel Production deployment in Chrome
+echo   run.bat chrome [PORT]      Open Google Chrome to Local Dev URL
 echo   run.bat server             Start local Express API server on port 5000
-echo   run.bat build              Build production bundle
-echo   run.bat preview            Preview production build
+echo   run.bat build              Build production bundle (/dist)
+echo   run.bat preview            Preview production build (port 4173)
 echo   run.bat lint               Run TypeScript validation (tsc --noEmit)
+echo   run.bat config-supabase    Configure Supabase Cloud keys in .env
+echo   run.bat test-supabase      Test Supabase Cloud API connection
 echo   run.bat db                 Check SQL Server database connection (SSPU_Exam)
 echo   run.bat migrate            Apply versioned additive migrations
 echo   run.bat reset-db           Reset operational database (keep user profiles)

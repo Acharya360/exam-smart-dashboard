@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { isSupabaseConfigured } from '../../services/supabaseClient';
+import { getActiveDatabaseMode, setActiveDatabaseMode } from '../../services/db';
 import { 
   Building2, 
   Lock, 
@@ -11,7 +11,8 @@ import {
   ShieldCheck, 
   ArrowRight,
   Sparkles,
-  Zap
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 
 export const LoginScreen: React.FC = () => {
@@ -34,6 +35,9 @@ export const LoginScreen: React.FC = () => {
     setIsLoading(false);
   };
 
+
+  const currentDbMode = getActiveDatabaseMode();
+  const isLocalHost = typeof window !== 'undefined' && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 sm:px-6 lg:px-8 selection:bg-indigo-600 selection:text-white">
@@ -126,12 +130,30 @@ export const LoginScreen: React.FC = () => {
             </div>
           </form>
 
-          {/* Security badge footer */}
-          <div className="mt-5 text-center flex items-center justify-center gap-1.5 text-xs text-slate-500">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-            <span>
-              Secure session · {isSupabaseConfigured() ? 'Supabase Cloud Database' : 'Local university database'}
-            </span>
+          {/* Security badge footer and Database Provider Indicator */}
+          <div className="mt-5 text-center flex flex-col items-center justify-center gap-1.5 text-xs text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+              <span>
+                Secure session · {currentDbMode === 'supabase' ? 'Supabase Cloud Database' : 'Local Database (SSPU_Exam)'}
+              </span>
+            </div>
+
+            {isLocalHost && (
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveDatabaseMode(currentDbMode === 'supabase' ? 'local' : 'supabase')}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-800/80 hover:bg-slate-800 text-[11px] text-slate-300 hover:text-white border border-slate-700/80 transition-all cursor-pointer"
+                  title="Toggle active database connection"
+                >
+                  <RefreshCw className="w-3 h-3 text-indigo-400" />
+                  <span>
+                    Switch to {currentDbMode === 'supabase' ? 'Local SQL Server' : 'Supabase Cloud'}
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
