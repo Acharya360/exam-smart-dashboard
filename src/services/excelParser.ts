@@ -547,10 +547,16 @@ export function downloadCourseMasterTemplate() {
   const sampleRows = [
     {
       'Sr. No.': 1,
+      'AcademicPeriod': '',
+      'Term': '',
+      'Program Code': '',
       'Program Name': 'B.Tech. Construction Engineering & Management',
+      'Regulation Group': 'CAT + CAP + CAS |\nEST + ESP + ESS',
+      'Subject Type': '',
       'Semester': 'I',
       'Course Code': 'APSC102',
       'Course Name': 'Applied Physics',
+      'Student Count': '',
       'L_Cr': 2,
       'T_Cr': 0,
       'P_Cr': 1,
@@ -573,10 +579,16 @@ export function downloadCourseMasterTemplate() {
     },
     {
       'Sr. No.': 2,
+      'AcademicPeriod': '',
+      'Term': '',
+      'Program Code': '',
       'Program Name': 'B.Arch. Architecture & Planning',
+      'Regulation Group': 'CAS |\nESS',
+      'Subject Type': '',
       'Semester': 'I',
       'Course Code': 'ARCH101',
       'Course Name': 'Architectural Design Studio I',
+      'Student Count': '',
       'L_Cr': 1,
       'T_Cr': 0,
       'P_Cr': 2,
@@ -599,10 +611,16 @@ export function downloadCourseMasterTemplate() {
     },
     {
       'Sr. No.': 3,
+      'AcademicPeriod': '',
+      'Term': '',
+      'Program Code': '',
       'Program Name': 'B.Tech. Computer Science & AI',
+      'Regulation Group': 'CAT + CAS |\nEST + ESS',
+      'Subject Type': '',
       'Semester': 'I',
       'Course Code': 'MATH101',
       'Course Name': 'Calculus & Linear Algebra',
+      'Student Count': '',
       'L_Cr': 3,
       'T_Cr': 1,
       'P_Cr': 0,
@@ -628,10 +646,16 @@ export function downloadCourseMasterTemplate() {
   const ws = XLSX.utils.json_to_sheet(sampleRows);
   ws['!cols'] = [
     { wch: 8 },  // Sr. No.
+    { wch: 16 }, // AcademicPeriod
+    { wch: 10 }, // Term
+    { wch: 14 }, // Program Code
     { wch: 45 }, // Program Name
+    { wch: 25 }, // Regulation Group
+    { wch: 15 }, // Subject Type
     { wch: 10 }, // Semester
     { wch: 14 }, // Course Code
     { wch: 32 }, // Course Name
+    { wch: 14 }, // Student Count
     { wch: 8 },  // L_Cr
     { wch: 8 },  // T_Cr
     { wch: 8 },  // P_Cr
@@ -655,14 +679,34 @@ export function downloadCourseMasterTemplate() {
 
   const instructionsWs = XLSX.utils.json_to_sheet([
     {
-      'Field / Column': 'Program Name',
-      'Requirement': 'Mandatory. Degree / Programme Name.',
-      'Rule / Behavior': 'Full degree name (e.g. B.Tech. Construction Engineering & Management).'
+      'Field / Column': 'AcademicPeriod & Term',
+      'Requirement': 'Optional. Academic cycle / term identifier.',
+      'Rule / Behavior': 'e.g., "AY 2024-25", "Term 1", "Odd", "Even".'
+    },
+    {
+      'Field / Column': 'Program Code & Program Name',
+      'Requirement': 'Mandatory. Degree / Programme Name & Code.',
+      'Rule / Behavior': 'Full degree name (e.g. B.Tech. Construction Engineering & Management) and optional Program Code (e.g. BTECH-CEM).'
+    },
+    {
+      'Field / Column': 'Regulation Group',
+      'Requirement': 'Optional. Evaluation regulation descriptor.',
+      'Rule / Behavior': 'Active component heads (e.g., "CAT + CAP + CAS | EST + ESP + ESS"). Auto-derived if blank.'
+    },
+    {
+      'Field / Column': 'Subject Type',
+      'Requirement': 'Optional. Classification of course.',
+      'Rule / Behavior': 'Core, Elective, Practical, Theory, Seminar, Studio, etc.'
     },
     {
       'Field / Column': 'Course Code & Course Name',
       'Requirement': 'Mandatory. Subject Paper Code and Title.',
       'Rule / Behavior': 'Unique subject code (e.g. APSC102) and descriptive course title.'
+    },
+    {
+      'Field / Column': 'Student Count',
+      'Requirement': 'Optional. Number of enrolled students.',
+      'Rule / Behavior': 'Integer count of registered students for this course offering.'
     },
     {
       'Field / Column': 'L_Cr, T_Cr, P_Cr, S_Cr, Total Credits',
@@ -760,6 +804,14 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         rowObj['code'] ||
         ''
       ).trim();
+
+      const academicPeriod = String(rowObj['academicperiod'] || rowObj['academic_period'] || rowObj['acadperiod'] || rowObj['ay'] || '').trim();
+      const term = String(rowObj['term'] || rowObj['semesterterm'] || rowObj['session'] || '').trim();
+      const programCode = String(rowObj['programcode'] || rowObj['program_code'] || rowObj['progcode'] || '').trim();
+      const regulationGroupRaw = String(rowObj['regulationgroup'] || rowObj['regulation_group'] || rowObj['regulation'] || '').trim();
+      const subjectType = String(rowObj['subjecttype'] || rowObj['subject_type'] || rowObj['coursetype'] || rowObj['type'] || '').trim();
+      const studentCountRaw = rowObj['studentcount'] ?? rowObj['student_count'] ?? rowObj['students'] ?? rowObj['count'];
+      const studentCount = (studentCountRaw !== undefined && studentCountRaw !== '' && studentCountRaw !== null) ? Number(studentCountRaw) : null;
 
       if (!courseName || !semester || !paperCode || !subjectName) {
         errors.push(`Row ${rowNum}: Missing mandatory fields (Program Name, Semester, Course Code, Course Name).`);
@@ -971,12 +1023,39 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         },
       };
 
+      // Determine Regulation Group descriptor if not explicitly provided
+      const internalHeads: string[] = [];
+      if (cat_max_marks > 0) internalHeads.push('CAT');
+      if (cap_max_marks > 0) internalHeads.push('CAP');
+      if (cas_max_marks > 0) internalHeads.push('CAS');
+
+      const eseHeads: string[] = [];
+      if (est_max > 0) eseHeads.push('EST');
+      if (esp_max > 0) eseHeads.push('ESP');
+      if (ess_max > 0) eseHeads.push('ESS');
+
+      const autoRegulationGroup = [
+        internalHeads.join(' + '),
+        eseHeads.join(' + ')
+      ].filter(Boolean).join(' | ');
+
+      const regulationGroup = regulationGroupRaw || autoRegulationGroup;
+
       validCourses.push({
         sr_no: parseInt(String(rowObj['srno'] || rowObj['serialno'] || index + 1)) || (index + 1),
+        academic_period: academicPeriod || null,
+        term: term || null,
+        program_code: programCode || null,
         cm_course_name: courseName,
+        program_name: courseName,
+        regulation_group: regulationGroup || null,
+        subject_type: subjectType || null,
         semester,
         paper_code: paperCode,
+        course_code: paperCode,
         sm_subject_name: subjectName,
+        course_name: subjectName,
+        student_count: (studentCount !== null && Number.isFinite(studentCount) && studentCount >= 0) ? studentCount : null,
         l,
         t,
         p,

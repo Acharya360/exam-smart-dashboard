@@ -835,10 +835,16 @@ app.post('/api/course-master/bulk', async (req, res) => {
       const params = {
         id,
         sr_no: c.sr_no || null,
+        academic_period: c.academic_period || null,
+        term: c.term || null,
+        program_code: c.program_code || null,
         cm_course_name: c.cm_course_name,
+        regulation_group: c.regulation_group || null,
+        subject_type: c.subject_type || null,
         semester: String(c.semester || ''),
         paper_code: c.paper_code,
         sm_subject_name: c.sm_subject_name,
+        student_count: (c.student_count !== undefined && c.student_count !== null && c.student_count !== '') ? Number(c.student_count) : null,
         l: Number(c.l || 0),
         t: Number(c.t || 0),
         p: Number(c.p || 0),
@@ -867,7 +873,15 @@ app.post('/api/course-master/bulk', async (req, res) => {
         IF EXISTS (SELECT 1 FROM dbo.course_master WHERE id = @id)
         BEGIN
           UPDATE dbo.course_master 
-          SET sr_no = @sr_no, semester = @semester, sm_subject_name = @sm_subject_name,
+          SET sr_no = @sr_no,
+              academic_period = @academic_period,
+              term = @term,
+              program_code = @program_code,
+              regulation_group = @regulation_group,
+              subject_type = @subject_type,
+              semester = @semester,
+              sm_subject_name = @sm_subject_name,
+              student_count = @student_count,
               l = @l, t = @t, p = @p, s = @s, total_credits = @total_credits,
               grading_category = @grading_category,
               cat1_max = @cat1_max, cat1_min = @cat1_min,
@@ -892,7 +906,7 @@ app.post('/api/course-master/bulk', async (req, res) => {
         ELSE
         BEGIN
           INSERT INTO dbo.course_master (
-            id, sr_no, cm_course_name, semester, paper_code, sm_subject_name,
+            id, sr_no, academic_period, term, program_code, cm_course_name, regulation_group, subject_type, semester, paper_code, sm_subject_name, student_count,
             l, t, p, s, total_credits, grading_category,
             cat1_max, cat1_min, cat2_max, cat2_min, cat3_max, cat3_min,
             cap1_max, cap1_min, cap2_max, cap2_min, cap3_max, cap3_min,
@@ -903,7 +917,7 @@ app.post('/api/course-master/bulk', async (req, res) => {
             total_marks, total_marks_min, created_at, updated_at
           )
           VALUES (
-            @id, @sr_no, @cm_course_name, @semester, @paper_code, @sm_subject_name,
+            @id, @sr_no, @academic_period, @term, @program_code, @cm_course_name, @regulation_group, @subject_type, @semester, @paper_code, @sm_subject_name, @student_count,
             @l, @t, @p, @s, @total_credits, @grading_category,
             @cat1_max, @cat1_min, @cat2_max, @cat2_min, @cat3_max, @cat3_min,
             @cap1_max, @cap1_min, @cap2_max, @cap2_min, @cap3_max, @cap3_min,

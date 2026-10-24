@@ -130,10 +130,19 @@ export interface ExamScheduleRow {
 export interface CourseMaster {
   id: string;
   sr_no: number;
+  academic_period?: string | null;
+  term?: string | null;
+  program_code?: string | null;
   cm_course_name: string;
+  program_name?: string | null;
+  regulation_group?: string | null;
+  subject_type?: string | null;
   semester: string;
   paper_code: string;
+  course_code?: string;
   sm_subject_name: string;
+  course_name?: string;
+  student_count?: number | null;
   l: number;
   t: number;
   p: number;
@@ -180,10 +189,23 @@ export interface CourseMaster {
 
 export interface CourseMasterRow {
   'Sr. No.'?: number | string;
+  AcademicPeriod?: string;
+  Term?: string;
+  'Program Code'?: string;
+  'Program Name'?: string;
   CM_Course_Name?: string;
+  'Regulation Group'?: string;
+  'Subject Type'?: string;
   Semester?: number | string;
+  'Course Code'?: string;
   PaperCode?: string;
+  'Course Name'?: string;
   SM_Subject_Name?: string;
+  'Student Count'?: number | string;
+  L_Cr?: number | string;
+  T_Cr?: number | string;
+  P_Cr?: number | string;
+  S_Cr?: number | string;
   L?: number | string;
   T?: number | string;
   P?: number | string;

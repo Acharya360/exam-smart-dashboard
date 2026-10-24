@@ -31,13 +31,22 @@ import {
   GraduationCap,
   CalendarDays,
   BarChart3,
+  Users,
+  Grid3X3,
+  List,
 } from 'lucide-react';
 
 type CourseSortKey =
   | 'sr_no'
+  | 'academic_period'
+  | 'term'
+  | 'program_code'
   | 'program'
+  | 'regulation_group'
+  | 'subject_type'
   | 'paper_code'
   | 'semester'
+  | 'student_count'
   | 'total_credits'
   | 'grading_category'
   | 'total_marks'
@@ -45,9 +54,15 @@ type CourseSortKey =
 
 const COURSE_SORT_LABELS: Record<CourseSortKey, string> = {
   sr_no: '#',
+  academic_period: 'Period',
+  term: 'Term',
+  program_code: 'Prog Code',
   program: 'Program & Course Name',
+  regulation_group: 'Regulation Group',
+  subject_type: 'Subject Type',
   paper_code: 'Course Code',
   semester: 'Sem',
+  student_count: 'Students',
   total_credits: 'Cr.',
   grading_category: 'Category & Pass %',
   total_marks: 'Total Max',
@@ -74,6 +89,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
   const [selectedCourses, setSelectedCourses] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState(initialSearch || '');
   const [categoryFilter, setCategoryFilter] = useState<'ALL' | 'Non-Architecture' | 'Architecture'>('ALL');
+  const [viewMode, setViewMode] = useState<'standard' | 'excel_grid'>('standard');
   const [sort, setSort] = useState<{ key: CourseSortKey; dir: 'asc' | 'desc' }>({ key: 'sr_no', dir: 'asc' });
 
   useEffect(() => {
@@ -210,9 +226,14 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return (
-      c.cm_course_name.toLowerCase().includes(q) ||
-      c.paper_code.toLowerCase().includes(q) ||
-      c.sm_subject_name.toLowerCase().includes(q)
+      (c.cm_course_name || '').toLowerCase().includes(q) ||
+      (c.paper_code || '').toLowerCase().includes(q) ||
+      (c.sm_subject_name || '').toLowerCase().includes(q) ||
+      (c.academic_period || '').toLowerCase().includes(q) ||
+      (c.term || '').toLowerCase().includes(q) ||
+      (c.program_code || '').toLowerCase().includes(q) ||
+      (c.regulation_group || '').toLowerCase().includes(q) ||
+      (c.subject_type || '').toLowerCase().includes(q)
     );
   });
 
@@ -225,7 +246,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
     const active = sort.key === k;
     const Icon = !active ? ArrowUpDown : sort.dir === 'asc' ? ArrowUp : ArrowDown;
     return (
-      <th className={`px-4 py-3 ${align} ${className}`}>
+      <th className={`px-3 py-2.5 ${align} ${className}`}>
         <button
           onClick={() => toggleSort(k)}
           className={`inline-flex items-center gap-1 font-bold hover:text-indigo-700 transition-colors ${
@@ -245,12 +266,24 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
       switch (sort.key) {
         case 'sr_no':
           return c.sr_no ?? 0;
+        case 'academic_period':
+          return (c.academic_period || '').toLowerCase();
+        case 'term':
+          return (c.term || '').toLowerCase();
+        case 'program_code':
+          return (c.program_code || '').toLowerCase();
         case 'program':
           return (c.cm_course_name || '').toLowerCase();
+        case 'regulation_group':
+          return (c.regulation_group || '').toLowerCase();
+        case 'subject_type':
+          return (c.subject_type || '').toLowerCase();
         case 'paper_code':
           return (c.paper_code || '').toLowerCase();
         case 'semester':
           return c.semester ?? 0;
+        case 'student_count':
+          return c.student_count ?? 0;
         case 'total_credits':
           return c.total_credits ?? 0;
         case 'grading_category':
@@ -354,7 +387,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
             <BookOpen className="w-5 h-5 text-indigo-600" />
@@ -387,6 +420,17 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
           </div>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center gap-3">
+          <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+            <Users className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <div className="text-xl font-bold text-slate-900">
+              {courses.reduce((sum, c) => sum + (c.student_count || 0), 0).toLocaleString()}
+            </div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Total Students</div>
+          </div>
+        </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs flex items-center gap-3 col-span-2 sm:col-span-1">
           <div className="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
             <Award className="w-5 h-5 text-purple-600" />
           </div>
@@ -408,7 +452,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search subject or paper code..."
+                placeholder="Search subject, paper code, program, regulation..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
@@ -423,6 +467,36 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
               <option value="Non-Architecture">Non-Architecture (40% Passing)</option>
               <option value="Architecture">Architecture (45% Passing)</option>
             </select>
+
+            {/* View Mode Switcher */}
+            <div className="flex items-center rounded-lg border border-slate-200 bg-white p-0.5 shadow-2xs ml-1">
+              <button
+                type="button"
+                onClick={() => setViewMode('standard')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  viewMode === 'standard'
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+                title="Standard operational view with curriculum attributes and active assessment heads"
+              >
+                <List className="w-3.5 h-3.5" />
+                Standard View
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('excel_grid')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  viewMode === 'excel_grid'
+                    ? 'bg-indigo-600 text-white shadow-2xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+                title="Excel 1:1 layout with all 30 columns including individual CAT1-3, CAP1-3, CAS1-3, EST, ESP, ESS marks"
+              >
+                <Grid3X3 className="w-3.5 h-3.5" />
+                Excel 1:1 Grid (30 Cols)
+              </button>
+            </div>
           </div>
           <div className="text-xs text-slate-500 font-medium flex items-center gap-3 flex-wrap">
             <span>
@@ -437,7 +511,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
             <thead className="sticky top-0 z-10 bg-slate-100 shadow-2xs">
               <tr className="bg-slate-100 border-b border-slate-200">
                 {isSuperAdmin && (
-                  <th className="text-center px-4 py-3 w-10">
+                  <th className="text-center px-3 py-3 w-10">
                     <input
                       type="checkbox"
                       className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
@@ -452,17 +526,59 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                     />
                   </th>
                 )}
-                <SortHeader k="sr_no" align="text-left" className="w-12" />
-                <SortHeader k="program" align="text-left" className="min-w-[200px]" />
-                <SortHeader k="paper_code" />
-                <SortHeader k="semester" className="whitespace-nowrap" />
-                <th className="text-center px-2 py-3 font-bold text-slate-700" title="Lecture-Tutorial-Practical-Skills">L-T-P-S</th>
-                <SortHeader k="total_credits" />
-                <SortHeader k="grading_category" className="border-l border-slate-200" />
-                <th className="text-center px-3 py-3 font-bold text-slate-700">Scheme Heads</th>
-                <SortHeader k="total_marks" className="border-l border-slate-200" />
-                <SortHeader k="total_marks_min" />
-                <th className="text-center px-2 py-3 font-bold text-slate-700 border-l border-slate-200">Actions</th>
+                {viewMode === 'standard' ? (
+                  <>
+                    <SortHeader k="sr_no" align="text-left" className="w-10" />
+                    <SortHeader k="academic_period" className="whitespace-nowrap" />
+                    <SortHeader k="program" align="text-left" className="min-w-[180px]" />
+                    <SortHeader k="paper_code" />
+                    <SortHeader k="subject_type" className="whitespace-nowrap" />
+                    <SortHeader k="semester" className="whitespace-nowrap w-12" />
+                    <SortHeader k="student_count" className="whitespace-nowrap w-16" />
+                    <SortHeader k="regulation_group" className="whitespace-nowrap min-w-[130px]" />
+                    <th className="text-center px-2 py-3 font-bold text-slate-700" title="Lecture-Tutorial-Practical-Skills">L-T-P-S</th>
+                    <SortHeader k="total_credits" />
+                    <SortHeader k="grading_category" className="border-l border-slate-200" />
+                    <th className="text-center px-3 py-3 font-bold text-slate-700">Scheme Heads</th>
+                    <SortHeader k="total_marks" className="border-l border-slate-200" />
+                    <SortHeader k="total_marks_min" />
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 border-l border-slate-200">Actions</th>
+                  </>
+                ) : (
+                  <>
+                    <SortHeader k="sr_no" align="text-left" className="w-10 whitespace-nowrap" />
+                    <SortHeader k="academic_period" className="whitespace-nowrap" />
+                    <SortHeader k="term" className="whitespace-nowrap" />
+                    <SortHeader k="program_code" className="whitespace-nowrap" />
+                    <SortHeader k="program" align="text-left" className="min-w-[200px]" />
+                    <SortHeader k="regulation_group" className="whitespace-nowrap min-w-[150px]" />
+                    <SortHeader k="subject_type" className="whitespace-nowrap" />
+                    <SortHeader k="semester" className="whitespace-nowrap" />
+                    <SortHeader k="paper_code" className="whitespace-nowrap" />
+                    <th className="px-3 py-3 text-left font-bold text-slate-700 min-w-[180px]">Course Name</th>
+                    <SortHeader k="student_count" className="whitespace-nowrap" />
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">L_Cr</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">T_Cr</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">P_Cr</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">S_Cr</th>
+                    <SortHeader k="total_credits" className="whitespace-nowrap" />
+                    <SortHeader k="grading_category" className="border-l border-slate-200 whitespace-nowrap" />
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAT1 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAT2 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAT3 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAP1 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAP2 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAP3 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAS1 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAS2 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">CAS3 Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">EST Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">ESP Max</th>
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 whitespace-nowrap">ESS Max</th>
+                    <SortHeader k="total_marks" className="border-l border-slate-200 whitespace-nowrap" />
+                    <th className="text-center px-2 py-3 font-bold text-slate-700 border-l border-slate-200">Actions</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -475,7 +591,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                 return (
                   <tr key={c.id} className="hover:bg-indigo-50/30 transition-colors group">
                     {isSuperAdmin && (
-                      <td className="px-4 py-3 text-center border-r border-slate-100">
+                      <td className="px-3 py-3 text-center border-r border-slate-100">
                         <input
                           type="checkbox"
                           className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
@@ -489,59 +605,136 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                         />
                       </td>
                     )}
-                    <td className="px-4 py-3 text-slate-500">{c.sr_no || idx + 1}</td>
-                    <td className="px-4 py-3">
-                      <div className="font-semibold text-slate-900">{c.sm_subject_name}</div>
-                      <div className="text-[10px] text-slate-500 mt-0.5 truncate max-w-[250px]" title={c.cm_course_name}>
-                        {c.cm_course_name}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700">
-                        {c.paper_code}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-center font-bold text-slate-700">{c.semester}</td>
-                    <td className="px-2 py-3 text-center text-slate-500 font-mono tracking-widest">
-                      {c.l}-{c.t}-{c.p}-{c.s}
-                    </td>
-                    <td className="px-2 py-3 text-center font-bold text-indigo-700 bg-indigo-50/50">
-                      {c.total_credits}
-                    </td>
-                    <td className="px-3 py-3 text-center border-l border-slate-100">
-                      <span
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          isArch
-                            ? 'bg-purple-100 text-purple-700 border border-purple-200'
-                            : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
-                        }`}
-                      >
-                        {c.grading_category || 'Non-Architecture'}
-                        <span className="text-[9px] font-semibold opacity-80">({isArch ? '45%' : '40%'})</span>
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      <button
-                        onClick={() => setInspectedCourse(c)}
-                        className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-lg text-[10px] text-slate-600 hover:text-indigo-700 transition-colors cursor-pointer"
-                        title="Click to view complete marking scheme and component details"
-                      >
-                        <span className={`w-1.5 h-1.5 rounded-full ${thActive ? 'bg-blue-500' : 'bg-slate-300'}`} />
-                        <span className="font-semibold">T</span>
-                        <span className={`w-1.5 h-1.5 rounded-full ml-1 ${prActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
-                        <span className="font-semibold">P</span>
-                        <span className={`w-1.5 h-1.5 rounded-full ml-1 ${skActive ? 'bg-amber-500' : 'bg-slate-300'}`} />
-                        <span className="font-semibold">S</span>
-                        <Info className="w-3 h-3 ml-1 text-slate-400" />
-                      </button>
-                    </td>
-                    <td className="px-2 py-3 text-center font-bold text-slate-800 border-l border-slate-100">
-                      {c.total_marks}
-                    </td>
-                    <td className="px-2 py-3 text-center font-bold text-rose-700 bg-rose-50/30">
-                      {c.total_marks_min}
-                    </td>
-                    <td className="px-2 py-3 text-center border-l border-slate-100">
+                    {viewMode === 'standard' ? (
+                      <>
+                        <td className="px-3 py-3 text-slate-500">{c.sr_no || idx + 1}</td>
+                        <td className="px-2 py-3 text-center text-slate-600 whitespace-nowrap">
+                          <div className="font-medium text-[11px]">{c.academic_period || '—'}</div>
+                          {c.term && <div className="text-[10px] text-slate-400 font-semibold">{c.term}</div>}
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-semibold text-slate-900">{c.cm_course_name}</span>
+                            {c.program_code && (
+                              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                                {c.program_code}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700 font-bold">
+                              {c.paper_code}
+                            </span>
+                            <span className="font-medium text-slate-800">{c.sm_subject_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-2 py-3 text-center">
+                          {c.subject_type ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                              {c.subject_type}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-3 text-center font-bold text-slate-700">{c.semester}</td>
+                        <td className="px-2 py-3 text-center font-mono text-slate-700 font-semibold">
+                          {c.student_count !== null && c.student_count !== undefined ? c.student_count : '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center whitespace-nowrap">
+                          {c.regulation_group ? (
+                            <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-slate-50 text-slate-700 border border-slate-200" title={c.regulation_group}>
+                              {c.regulation_group}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                        <td className="px-2 py-3 text-center text-slate-500 font-mono tracking-widest whitespace-nowrap">
+                          {c.l}-{c.t}-{c.p}-{c.s}
+                        </td>
+                        <td className="px-2 py-3 text-center font-bold text-indigo-700 bg-indigo-50/50">
+                          {c.total_credits}
+                        </td>
+                        <td className="px-3 py-3 text-center border-l border-slate-100 whitespace-nowrap">
+                          <span
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isArch
+                                ? 'bg-purple-100 text-purple-700 border border-purple-200'
+                                : 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+                            }`}
+                          >
+                            {c.grading_category || 'Non-Architecture'}
+                            <span className="text-[9px] font-semibold opacity-80">({isArch ? '45%' : '40%'})</span>
+                          </span>
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          <button
+                            onClick={() => setInspectedCourse(c)}
+                            className="inline-flex items-center gap-1 px-2 py-1 bg-slate-50 hover:bg-indigo-50 border border-slate-200 rounded-lg text-[10px] text-slate-600 hover:text-indigo-700 transition-colors cursor-pointer"
+                            title="Click to view complete marking scheme and component details"
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${thActive ? 'bg-blue-500' : 'bg-slate-300'}`} />
+                            <span className="font-semibold">T</span>
+                            <span className={`w-1.5 h-1.5 rounded-full ml-1 ${prActive ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                            <span className="font-semibold">P</span>
+                            <span className={`w-1.5 h-1.5 rounded-full ml-1 ${skActive ? 'bg-amber-500' : 'bg-slate-300'}`} />
+                            <span className="font-semibold">S</span>
+                            <Info className="w-3 h-3 ml-1 text-slate-400" />
+                          </button>
+                        </td>
+                        <td className="px-2 py-3 text-center font-bold text-slate-800 border-l border-slate-100">
+                          {c.total_marks}
+                        </td>
+                        <td className="px-2 py-3 text-center font-bold text-rose-700 bg-rose-50/30">
+                          {c.total_marks_min}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-2 py-3 text-slate-500 text-center font-mono">{c.sr_no || idx + 1}</td>
+                        <td className="px-2 py-3 text-slate-700 whitespace-nowrap text-center">{c.academic_period || '—'}</td>
+                        <td className="px-2 py-3 text-slate-700 whitespace-nowrap text-center">{c.term || '—'}</td>
+                        <td className="px-2 py-3 font-mono text-slate-700 text-center">{c.program_code || '—'}</td>
+                        <td className="px-3 py-3 font-semibold text-slate-900 min-w-[180px]">{c.cm_course_name}</td>
+                        <td className="px-2 py-3 font-mono text-[10px] text-slate-600 whitespace-nowrap" title={c.regulation_group || ''}>
+                          {c.regulation_group || '—'}
+                        </td>
+                        <td className="px-2 py-3 text-slate-700 text-center whitespace-nowrap">{c.subject_type || '—'}</td>
+                        <td className="px-2 py-3 font-bold text-slate-700 text-center">{c.semester}</td>
+                        <td className="px-2 py-3 font-mono font-bold text-slate-800 text-center">{c.paper_code}</td>
+                        <td className="px-3 py-3 font-medium text-slate-800 min-w-[160px]">{c.sm_subject_name}</td>
+                        <td className="px-2 py-3 font-mono text-center font-semibold text-slate-800">
+                          {c.student_count !== null && c.student_count !== undefined ? c.student_count : '—'}
+                        </td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-600">{c.l}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-600">{c.t}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-600">{c.p}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-600">{c.s}</td>
+                        <td className="px-2 py-3 font-mono text-center font-bold text-indigo-700 bg-indigo-50/40">{c.total_credits}</td>
+                        <td className="px-2 py-3 text-center border-l border-slate-100 whitespace-nowrap">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${isArch ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'}`}>
+                            {c.grading_category || 'Non-Architecture'}
+                          </span>
+                        </td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cat1_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cat2_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cat3_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cap1_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cap2_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cap3_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cas1_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cas2_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center text-slate-700">{c.cas3_max || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center font-semibold text-blue-700">{c.est_max_marks || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center font-semibold text-emerald-700">{c.esp_max_marks || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center font-semibold text-amber-700">{c.ess_max_marks || 0}</td>
+                        <td className="px-2 py-3 font-mono text-center font-bold text-slate-900 border-l border-slate-100 bg-slate-50">{c.total_marks}</td>
+                      </>
+                    )}
+                    <td className="px-2 py-3 text-center border-l border-slate-100 whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
                         {onNavigateToFaculty && (
                           <button
@@ -595,7 +788,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
               })}
               {sortedCourses.length === 0 && (
                 <tr>
-                  <td colSpan={isSuperAdmin ? 12 : 11} className="px-4 py-12 text-center">
+                  <td colSpan={isSuperAdmin ? (viewMode === 'excel_grid' ? 32 : 16) : (viewMode === 'excel_grid' ? 31 : 15)} className="px-4 py-12 text-center">
                     <div className="flex flex-col items-center justify-center text-slate-500">
                       <BookOpen className="w-8 h-8 text-slate-300 mb-2" />
                       <p>No courses found.</p>
@@ -661,6 +854,24 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                   <div className="text-[10px] text-slate-500 font-semibold uppercase">Total Max / Min</div>
                   <div className="text-xs font-bold text-slate-900 mt-1">
                     {inspectedCourse.total_marks} / <span className="text-rose-600">{inspectedCourse.total_marks_min}</span>
+                  </div>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Academic Period & Term</div>
+                  <div className="text-xs font-bold text-slate-900 mt-1">
+                    {inspectedCourse.academic_period || '—'} {inspectedCourse.term ? `· ${inspectedCourse.term}` : ''}
+                  </div>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Program Code & Type</div>
+                  <div className="text-xs font-bold text-slate-900 mt-1">
+                    {inspectedCourse.program_code || '—'} · {inspectedCourse.subject_type || 'General'}
+                  </div>
+                </div>
+                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                  <div className="text-[10px] text-slate-500 font-semibold uppercase">Regulation & Students</div>
+                  <div className="text-xs font-bold text-slate-900 mt-1 truncate" title={inspectedCourse.regulation_group || ''}>
+                    {inspectedCourse.regulation_group || 'Standard'} · {inspectedCourse.student_count ?? '—'} Students
                   </div>
                 </div>
               </div>

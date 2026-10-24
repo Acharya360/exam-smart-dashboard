@@ -57,9 +57,14 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
     if (!search) return true;
     const q = search.toLowerCase();
     return (
-      c.cm_course_name.toLowerCase().includes(q) ||
-      c.paper_code.toLowerCase().includes(q) ||
-      c.sm_subject_name.toLowerCase().includes(q) ||
+      (c.cm_course_name || '').toLowerCase().includes(q) ||
+      (c.paper_code || '').toLowerCase().includes(q) ||
+      (c.sm_subject_name || '').toLowerCase().includes(q) ||
+      (c.academic_period || '').toLowerCase().includes(q) ||
+      (c.term || '').toLowerCase().includes(q) ||
+      (c.program_code || '').toLowerCase().includes(q) ||
+      (c.regulation_group || '').toLowerCase().includes(q) ||
+      (c.subject_type || '').toLowerCase().includes(q) ||
       (c.grading_category || '').toLowerCase().includes(q)
     );
   });
@@ -195,16 +200,21 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
             <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 border-b border-slate-200 font-semibold shadow-2xs">
               <tr>
                 <th className="px-3 py-2.5 w-10 text-center">#</th>
-                <th className="px-3 py-2.5 min-w-[200px]">Program & Course Name</th>
-                <th className="px-3 py-2.5 text-center">Course Code / Sem</th>
-                <th className="px-2 py-2.5 text-center" title="L_Cr - T_Cr - P_Cr - S_Cr">L-T-P-S</th>
-                <th className="px-2 py-2.5 text-center" title="Total Credits">Total Cr.</th>
-                <th className="px-3 py-2.5 text-center">Grading Category</th>
-                <th className="px-3 py-2.5 text-center">Heads (Theory/Practical/Skills)</th>
-                <th className="px-3 py-2.5 text-center">Internal (IA Max / Min)</th>
-                <th className="px-3 py-2.5 text-center" title="End Semester Exam: EST (Theory) / ESP (Practical) / ESS (Skills)">ESE (EST / ESP / ESS)</th>
-                <th className="px-3 py-2.5 text-center">Total Marks (Max / Min)</th>
-                <th className="px-3 py-2.5 text-center">Sync Action</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">Period / Term</th>
+                <th className="px-3 py-2.5 min-w-[180px]">Program & Code</th>
+                <th className="px-3 py-2.5 min-w-[180px]">Course Code & Name</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">Regulation Group</th>
+                <th className="px-2 py-2.5 text-center whitespace-nowrap">Type</th>
+                <th className="px-2 py-2.5 text-center whitespace-nowrap">Sem</th>
+                <th className="px-2 py-2.5 text-center whitespace-nowrap">Students</th>
+                <th className="px-2 py-2.5 text-center whitespace-nowrap" title="L_Cr - T_Cr - P_Cr - S_Cr">L-T-P-S</th>
+                <th className="px-2 py-2.5 text-center whitespace-nowrap" title="Total Credits">Total Cr.</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">Grading Category</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">Heads</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">Internal (IA)</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap" title="End Semester Exam: EST (Theory) / ESP (Practical) / ESS (Skills)">ESE (EST/ESP/ESS)</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">Total Marks</th>
+                <th className="px-3 py-2.5 text-center whitespace-nowrap">Sync Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -221,25 +231,49 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                     <td className="px-3 py-2 text-center text-slate-400 font-mono text-[11px]">
                       {c.sr_no || idx + 1}
                     </td>
+                    <td className="px-2 py-2 text-center text-slate-600 whitespace-nowrap text-[11px]">
+                      <div>{c.academic_period || '—'}</div>
+                      {c.term && <div className="text-[10px] text-slate-400 font-medium">{c.term}</div>}
+                    </td>
                     <td className="px-3 py-2">
-                      <div className="font-bold text-slate-900">{c.sm_subject_name}</div>
-                      <div className="text-[10px] text-slate-500 truncate max-w-[220px]" title={c.cm_course_name}>
-                        {c.cm_course_name}
+                      <div className="font-semibold text-slate-900">{c.cm_course_name}</div>
+                      {c.program_code && (
+                        <div className="text-[10px] text-slate-500 font-mono font-medium">{c.program_code}</div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700 font-bold text-[11px]">
+                          {c.paper_code}
+                        </span>
+                        <span className="font-medium text-slate-900">{c.sm_subject_name}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700 font-semibold">
-                        {c.paper_code}
-                      </span>
-                      <span className="ml-1 text-[10px] text-slate-500 font-medium">Sem {c.semester}</span>
+                    <td className="px-2 py-2 text-center whitespace-nowrap">
+                      {c.regulation_group ? (
+                        <span className="font-mono text-[10px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700" title={c.regulation_group}>
+                          {c.regulation_group}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
                     </td>
-                    <td className="px-2 py-2 text-center font-mono tracking-wider text-slate-600 text-[11px]">
+                    <td className="px-2 py-2 text-center text-[11px] text-slate-600 whitespace-nowrap">
+                      {c.subject_type || '—'}
+                    </td>
+                    <td className="px-2 py-2 text-center font-bold text-slate-700 text-[11px]">
+                      {c.semester}
+                    </td>
+                    <td className="px-2 py-2 text-center font-mono font-semibold text-slate-700 text-[11px]">
+                      {c.student_count !== null && c.student_count !== undefined ? c.student_count : '—'}
+                    </td>
+                    <td className="px-2 py-2 text-center font-mono tracking-wider text-slate-600 text-[11px] whitespace-nowrap">
                       {c.l}-{c.t}-{c.p}-{c.s}
                     </td>
                     <td className="px-2 py-2 text-center font-bold text-indigo-700 bg-indigo-50/40">
                       {c.total_credits}
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <span
                         className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
                           isArch
@@ -251,7 +285,7 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                         <span className="text-[9px] font-semibold opacity-80">({isArch ? '45%' : '40%'})</span>
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1 flex-wrap">
                         {thActive && (
                           <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200" title={`CAT1: ${c.cat1_max}, CAT2: ${c.cat2_max}, CAT3: ${c.cat3_max}, EST: ${c.est_max_marks}`}>
@@ -270,15 +304,15 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <span className="font-bold text-slate-800">{c.ia_max_marks}</span>
                       <span className="text-[10px] text-slate-400 mx-1">/</span>
                       <span className="text-emerald-700 font-semibold">{c.ia_min_marks}</span>
                     </td>
-                    <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600" title={`EST: ${c.est_max_marks || 0} (Min: ${c.est_min_marks || 0}), ESP: ${c.esp_max_marks || 0} (Min: ${c.esp_min_marks || 0}), ESS: ${c.ess_max_marks || 0} (Min: ${c.ess_min_marks || 0})`}>
+                    <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600 whitespace-nowrap" title={`EST: ${c.est_max_marks || 0} (Min: ${c.est_min_marks || 0}), ESP: ${c.esp_max_marks || 0} (Min: ${c.esp_min_marks || 0}), ESS: ${c.ess_max_marks || 0} (Min: ${c.ess_min_marks || 0})`}>
                       {c.est_max_marks || 0} / {c.esp_max_marks || 0} / {c.ess_max_marks || 0}
                     </td>
-                    <td className="px-3 py-2 text-center">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <div className="font-bold text-slate-900">{c.total_marks}</div>
                       <div className="text-[10px] text-rose-600 font-medium">Min: {c.total_marks_min}</div>
                     </td>
