@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSPU - Student Names Directory</title>
+  
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/student-names.css">
+
+  <!-- SheetJS Library -->
+  <script src="../xlsx.full.min.js"></script>
+
+  <!-- Embedded Master Dataset -->
+  <script src="../SSPU_Master_Data_Compact.js"></script>
+
+  <!-- Modular Scripts -->
+  <script src="../js/data-store.js"></script>
+  <script src="../js/common.js"></script>
+  <script src="../js/student-names.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar Placeholder -->
+  <div id="navbarPlaceholder"></div>
+
+  <main class="app-container">
+    <div style="margin-bottom:12px;">
+      <button class="btn btn-secondary btn-sm" onclick="commonUI.goBack()" title="Return to Dashboard">
+        <span>←</span> Back to Dashboard
+      </button>
+    </div>
+
+    <!-- Hero Banner with Live Badge -->
+    <div class="names-hero">
+      <div class="names-hero-content">
+        <h1 style="font-size:22px; font-weight:800; margin-bottom:6px;">Student Names Directory &amp; PRN Matcher</h1>
+        <p style="font-size:13px; color:#cbd5e1; line-height:1.45;">Assign candidate full names to University PRNs. Names are instantly merged and displayed across the Result Gazette (A3), Student Grade Cards, and printable examination registers.</p>
+      </div>
+      <div class="names-hero-badge" id="heroNamesBadge">
+        <span>👥</span> 0 Active PRN Mappings
+      </div>
+    </div>
+
+    <div class="names-grid">
+      <!-- Left Panel: Upload Spreadsheet & Bulk Paste -->
+      <div class="names-panel">
+        
+        <!-- Panel Header with Template Download Actions -->
+        <div class="panel-header-row">
+          <div>
+            <h2 style="font-size:15.5px; font-weight:700; margin-bottom:2px;">Register Student Names</h2>
+            <p style="font-size:12px; color:#64748b;">Upload an Excel/CSV spreadsheet or paste two-column TSV data.</p>
+          </div>
+          <div class="template-actions">
+            <button class="btn btn-gold btn-sm" onclick="studentNamesApp.downloadTemplate('xlsx')" title="Download formatted Excel template (.xlsx)">
+              <span>📥</span> Download Template (.xlsx)
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="studentNamesApp.downloadTemplate('csv')" title="Download CSV template">
+              <span>📄</span> CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="import-tabs-bar">
+          <button class="import-tab-btn active" id="tabUploadBtn" onclick="studentNamesApp.switchTab('upload')">
+            <span>📂</span> Upload Excel / CSV
+          </button>
+          <button class="import-tab-btn" id="tabPasteBtn" onclick="studentNamesApp.switchTab('paste')">
+            <span>📋</span> Copy &amp; Paste (TSV)
+          </button>
+        </div>
+
+        <!-- TAB 1: UPLOAD SPREADSHEET -->
+        <div id="uploadTabContent" class="tab-content-panel active">
+          
+          <!-- Drag & Drop Zone -->
+          <div class="names-drop-zone" id="namesDropZone" onclick="document.getElementById('namesFileInput').click()">
+            <input type="file" id="namesFileInput" accept=".xlsx,.xls,.csv" style="display:none;" onchange="studentNamesApp.handleFileInput(this)">
+
+            <!-- State A: Default Prompt -->
+            <div id="dropPromptState" class="drop-prompt-content">
+              <div class="drop-icon">📁</div>
+              <div class="drop-title">Click to Browse or Drag &amp; Drop Excel / CSV File</div>
+              <div class="drop-subtitle">
+                Supports <b>.xlsx, .xls, .csv</b> with columns: <code>StudentRollNo</code> and <code>StudentName</code>
+              </div>
+              <div class="drop-hint">
+                <span>💡 Don't have a spreadsheet yet?</span>
+                <a href="javascript:void(0)" onclick="event.stopPropagation(); studentNamesApp.downloadTemplate('xlsx')" class="drop-hint-link">Download Official Template</a>
+              </div>
+            </div>
+
+            <!-- State B: Attached File Preview -->
+            <div id="dropAttachedState" class="drop-attached-content" style="display:none;" onclick="event.stopPropagation()">
+              <div class="attached-badge-pill">
+                <span style="font-size:16px;">✅</span>
+                <span id="attachedFileName">Student_Names.xlsx</span>
+              </div>
+              <div class="attached-meta-row">
+                <span class="meta-tag">📏 Size: <strong id="attachedFileSize">0 KB</strong></span>
+                <span class="meta-tag">👥 Valid Names: <strong id="attachedNamesCount" style="color:#15803d;">0</strong></span>
+                <span class="meta-tag" id="attachedSkippedTag" style="display:none;">⚠️ Skipped: <strong id="attachedSkippedCount">0</strong></span>
+              </div>
+
+              <!-- Preview chips of parsed student entries -->
+              <div class="attached-preview-box">
+                <div class="preview-box-header">Sample Records Preview:</div>
+                <div class="preview-chips-list" id="attachedPreviewChips"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Staged Action Buttons (Shown when file is attached) -->
+          <div class="staged-actions-bar" id="stagedActionsBar" style="display:none;">
+            <button class="btn btn-primary" id="btnImportMerge" onclick="studentNamesApp.executeImport('merge')" title="Add or update student names without deleting existing ones">
+              <span>➕</span> Merge &amp; Append Names
+            </button>
+            <button class="btn btn-danger" id="btnImportReplace" onclick="studentNamesApp.executeImport('replace')" title="Clear all existing names and replace with this file">
+              <span>⚠️</span> Replace All
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="studentNamesApp.clearStagedFile()" title="Cancel and choose another file">
+              <span>✕</span> Remove File
+            </button>
+          </div>
+
+          <!-- Processing Progress Bar -->
+          <div class="import-progress-wrap" id="importProgressWrap" style="display:none;">
+            <div class="progress-info-row">
+              <span id="importProgressText" style="font-weight:600; color:var(--sspu-blue);">Processing spreadsheet...</span>
+              <span id="importProgressPct" style="font-weight:700; color:var(--sspu-blue);">0%</span>
+            </div>
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" id="importProgressFill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: COPY & PASTE TSV -->
+        <div id="pasteTabContent" class="tab-content-panel">
+          <p style="font-size:12px; color:#64748b; margin-bottom:8px;">Copy two columns from your Excel sheet (Column 1: StudentRollNo, Column 2: Full Name) and paste below:</p>
+          <textarea class="tsv-textarea" id="tsvInput" placeholder="2100810001	Aarav Sharma&#10;2100810002	Ananya Verma&#10;2100810003	Rohan Patil"></textarea>
+          <div style="margin-top:10px;">
+            <button class="btn btn-primary" onclick="studentNamesApp.savePastedNames()">
+              <span>💾</span> Save Pasted Names
+            </button>
+          </div>
+        </div>
+
+        <!-- Global Action Bar (Always visible) -->
+        <div class="global-actions-bar">
+          <button class="btn btn-secondary" onclick="studentNamesApp.populateDemoNames()" title="Generate sample demo student names from current database">
+            <span>✨</span> Populate Sample Names
+          </button>
+          <button class="btn btn-secondary" onclick="studentNamesApp.exportNamesCSV()" title="Export all registered student names as CSV">
+            <span>📤</span> Export CSV
+          </button>
+          <button class="btn btn-secondary" onclick="studentNamesApp.exportNamesExcel()" title="Export all registered student names as Excel (.xlsx)">
+            <span>📊</span> Export Excel
+          </button>
+          <button class="btn btn-secondary" style="color:#c53030;" onclick="studentNamesApp.clearAllNames()" title="Delete all registered student names">
+            <span>🗑️</span> Clear Stored Names
+          </button>
+        </div>
+
+        <div style="margin-top:18px; padding-top:14px; border-top:1px solid var(--sspu-border);">
+          <strong style="font-size:12px;">💡 Quick Inline Editing:</strong>
+          <p style="font-size:11.5px; color:#64748b; margin-top:4px;">You can also click directly on any student's name in the table on the right or inside the Result Gazette matrix to edit it on the fly.</p>
+        </div>
+      </div>
+
+      <!-- Right Panel: Directory Table -->
+      <div class="names-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+          <div>
+            <h2 style="font-size:16px; font-weight:700;">Registered Names Directory</h2>
+            <div style="font-size:11.5px; color:#64748b;" id="totalNamesCount">0 Registered Names</div>
+          </div>
+          <a href="gazette.html" class="btn btn-outline btn-sm">View in Gazette &rarr;</a>
+        </div>
+
+        <input type="text" id="searchNamesInput" placeholder="Filter by PRN or Name..." style="width:100%; padding:8px 12px; border:1px solid var(--sspu-border); border-radius:6px; font-size:12.5px; margin-bottom:12px;" oninput="studentNamesApp.handleSearchInput(this.value)">
+
+        <div class="names-table-container">
+          <table class="names-directory-table">
+            <thead>
+              <tr>
+                <th style="width:45px;">#</th>
+                <th style="width:120px;">PRN</th>
+                <th>Student Full Name</th>
+                <th style="width:75px;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="namesDirectoryBody">
+              <tr><td colspan="4" style="text-align:center; padding:30px; color:#64748b;">Loading directory...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer no-print">
+    Symbiosis Skills &amp; Professional University, Pune • Controller of Examinations • Student Directory
+  </footer>
+
+  <script>
+    function bootstrapNames() {
+      studentNamesApp.initStudentNamesPage();
+    }
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', bootstrapNames);
+    } else {
+      bootstrapNames();
+    }
+  </script>
+</body>
+</html>

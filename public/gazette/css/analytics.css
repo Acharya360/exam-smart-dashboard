@@ -1,0 +1,623 @@
+/* =====================================================================
+   SSPU PROGRAMME PERFORMANCE & ANALYTICS - MASTER PRO ENTERPRISE STYLES
+   ===================================================================== */
+
+/* Top Header Bar */
+.analytics-hero-bar {
+  background: linear-gradient(135deg, #07111e 0%, #0d233a 50%, #173860 100%);
+  color: #ffffff;
+  padding: 28px 36px;
+  border-radius: 16px;
+  margin-bottom: 24px;
+  box-shadow: 0 10px 30px rgba(13, 35, 58, 0.2);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+
+.analytics-hero-bar::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.15) 0%, transparent 65%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.analytics-hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 780px;
+}
+
+.analytics-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.analytics-breadcrumb a {
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+.analytics-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.analytics-hero-title {
+  font-size: 24px;
+  font-weight: 850;
+  letter-spacing: -0.4px;
+  margin-bottom: 6px;
+  color: #ffffff;
+}
+
+.analytics-hero-desc {
+  font-size: 13.5px;
+  color: #cbd5e1;
+  line-height: 1.5;
+}
+
+.analytics-hero-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  flex-wrap: wrap;
+}
+
+/* =========================================================================
+   KPI METRICS GRID
+   ========================================================================= */
+.analytics-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-bottom: 26px;
+}
+
+.analytics-kpi-card {
+  background: var(--sspu-card-bg);
+  border: 1px solid var(--sspu-border);
+  border-radius: 14px;
+  padding: 22px 24px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.analytics-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: var(--card-color, #2563eb);
+}
+
+.analytics-kpi-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.kpi-icon-circle {
+  width: 50px;
+  height: 50px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.kpi-text-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.kpi-title-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #64748b;
+  margin-bottom: 2px;
+}
+
+.kpi-large-num {
+  font-size: 28px;
+  font-weight: 850;
+  line-height: 1.1;
+  color: var(--sspu-text);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+}
+
+.kpi-micro-tag {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 3px;
+  font-weight: 500;
+}
+
+/* =========================================================================
+   ANALYTICS SPLIT GRID
+   ========================================================================= */
+.analytics-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 22px;
+  margin-bottom: 28px;
+  align-items: stretch;
+}
+
+@media (max-width: 980px) {
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.analytics-card {
+  background: var(--sspu-card-bg);
+  border: 1px solid var(--sspu-border);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.analytics-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.analytics-card-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--sspu-navy);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+body.dark-mode .analytics-card-title {
+  color: #38bdf8;
+}
+
+.analytics-search-input {
+  padding: 6px 12px;
+  border: 1px solid var(--sspu-border);
+  border-radius: 6px;
+  font-size: 12px;
+  outline: none;
+  background: var(--sspu-light);
+  color: var(--sspu-text);
+  transition: all 0.2s ease;
+}
+
+.analytics-search-input:focus {
+  border-color: #2563eb;
+  background: #ffffff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+/* School Performance Progress Rows */
+.school-perf-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.school-perf-item {
+  background: var(--sspu-light);
+  border: 1px solid var(--sspu-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.school-perf-item:hover {
+  background: #ffffff;
+  border-color: #94a3b8;
+  transform: translateX(3px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+body.dark-mode .school-perf-item:hover {
+  background: #1e293b;
+  border-color: #38bdf8;
+}
+
+.school-perf-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+  gap: 10px;
+}
+
+.school-name-text {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sspu-text);
+  line-height: 1.3;
+}
+
+.school-stats-pill {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 2px 10px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill-pass-high {
+  background: #dcfce7;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.pill-pass-mid {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border: 1px solid #bfdbfe;
+}
+
+.pill-pass-low {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+body.dark-mode .pill-pass-high {
+  background: #064e3b;
+  color: #6ee7b7;
+  border-color: #047857;
+}
+
+body.dark-mode .pill-pass-mid {
+  background: #1e3a8a;
+  color: #93c5fd;
+  border-color: #2563eb;
+}
+
+body.dark-mode .pill-pass-low {
+  background: #78350f;
+  color: #fde68a;
+  border-color: #b45309;
+}
+
+.school-perf-meta {
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.progress-track {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+body.dark-mode .progress-track {
+  background: #334155;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* =========================================================================
+   EXECUTIVE COMMAND CARD (RIGHT COLUMN)
+   ========================================================================= */
+.command-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.command-links-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.command-link-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--sspu-light);
+  border: 1px solid var(--sspu-border);
+  border-radius: 10px;
+  text-decoration: none;
+  color: var(--sspu-text);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.command-link-item:hover {
+  background: #ffffff;
+  border-color: #2563eb;
+  transform: translateX(4px);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.12);
+}
+
+body.dark-mode .command-link-item:hover {
+  background: #1e293b;
+  border-color: #38bdf8;
+}
+
+.command-link-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.command-link-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.command-link-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--sspu-text);
+}
+
+.command-link-sub {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 1px;
+}
+
+.command-link-arrow {
+  color: var(--sspu-accent);
+  font-size: 16px;
+  font-weight: 800;
+  transition: transform 0.2s ease;
+}
+
+.command-link-item:hover .command-link-arrow {
+  transform: translateX(4px);
+}
+
+/* Distribution Summary Box */
+.distribution-box {
+  background: var(--sspu-light);
+  border: 1px solid var(--sspu-border);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.distribution-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--sspu-navy);
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+body.dark-mode .distribution-title {
+  color: #38bdf8;
+}
+
+.distribution-bar {
+  height: 10px;
+  border-radius: 5px;
+  background: #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.dist-segment-pass {
+  background: #16a34a;
+  height: 100%;
+  transition: width 0.6s ease;
+}
+
+.dist-segment-fail {
+  background: #dc2626;
+  height: 100%;
+  transition: width 0.6s ease;
+}
+
+.distribution-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11.5px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+/* =========================================================================
+   PROGRAMME RESULTS SUMMARY TABLE (ENTERPRISE EDITION)
+   ========================================================================= */
+.programme-table-panel {
+  background: var(--sspu-card-bg);
+  border: 1px solid var(--sspu-border);
+  border-radius: 14px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.programme-table-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.table-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.programme-table-container {
+  overflow-x: auto;
+  border: 1px solid var(--sspu-border);
+  border-radius: 10px;
+  max-height: 520px;
+  overflow-y: auto;
+}
+
+.analytics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.analytics-table th {
+  position: sticky;
+  top: 0;
+  background: var(--sspu-header-bg);
+  border-bottom: 2px solid var(--sspu-border);
+  padding: 11px 14px;
+  font-weight: 700;
+  text-align: left;
+  z-index: 10;
+  color: var(--sspu-navy);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+body.dark-mode .analytics-table th {
+  color: #38bdf8;
+  background: #0f172a;
+}
+
+.analytics-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--sspu-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.analytics-table tr:hover {
+  background: rgba(37, 99, 235, 0.03);
+}
+
+body.dark-mode .analytics-table tr:hover {
+  background: rgba(56, 189, 248, 0.04);
+}
+
+.pass-pill-badge {
+  font-weight: 800;
+  font-size: 12px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.num-regular {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.num-backlog {
+  color: #d97706;
+  font-weight: 600;
+}
+
+.num-passed {
+  color: #16a34a;
+  font-weight: 700;
+}
+
+.num-failed {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+/* Dark Mode Refinements for Analytics */
+body.dark-mode .analytics-search-input {
+  background: #0f172a;
+  border-color: #334155;
+  color: #f1f5f9;
+}
+
+body.dark-mode .analytics-search-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+body.dark-mode .distribution-box {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+body.dark-mode .command-link-item {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+body.dark-mode .command-link-title {
+  color: #f1f5f9;
+}
+
+body.dark-mode .school-perf-item {
+  background: #0f172a;
+  border-color: #334155;
+}
+
+body.dark-mode .school-name-text {
+  color: #f1f5f9;
+}
+

@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSPU - Excel Import & Data Hub</title>
+  
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/data-hub.css">
+
+  <!-- SheetJS Library -->
+  <script src="../xlsx.full.min.js"></script>
+
+  <!-- Embedded Master Dataset -->
+  <script src="../SSPU_Master_Data_Compact.js"></script>
+
+  <!-- Modular Scripts -->
+  <script src="../js/data-store.js"></script>
+  <script src="../js/common.js"></script>
+  <script src="../js/data-hub.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar Placeholder -->
+  <div id="navbarPlaceholder"></div>
+
+  <main class="data-hub-compact-container">
+    <!-- Compact Top Bar -->
+    <div class="hub-top-bar no-print">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="btn btn-secondary btn-sm" onclick="commonUI.goBack()" title="Return to Dashboard">
+          <span>←</span> Back to Dashboard
+        </button>
+        <div class="hub-top-title">
+          <span>📂</span> Excel Import &amp; Master Data Hub
+        </div>
+      </div>
+
+      <a href="gazette.html" class="btn btn-gold btn-sm">
+        <span>📊</span> Open Result Gazette (A3) &rarr;
+      </a>
+    </div>
+
+    <!-- Main Side-by-Side 1-Page Grid -->
+    <div class="hub-main-grid">
+      
+      <!-- LEFT: Upload Engine -->
+      <section class="upload-panel">
+        <div class="upload-panel-title">
+          <span>Spreadsheet Import &amp; Active Dataset</span>
+          <span style="font-size:11px; font-weight:500; color:#64748b;">Supports .xlsx, .xls, .csv</span>
+        </div>
+
+        <!-- ACTIVE ATTACHED FILE CARD (Always visible: displays current database file) -->
+        <div class="active-file-card" id="activeFileCard">
+          <div class="active-file-header">
+            <div class="active-file-status-pill">
+              <span class="pulse-dot"></span>
+              <span id="activeFileStatusText">Active Master File Attached</span>
+            </div>
+            <span class="active-file-badge" id="activeFileSourceBadge">Embedded Master</span>
+          </div>
+
+          <div class="active-file-main">
+            <span class="active-file-icon">📄</span>
+            <div class="active-file-details">
+              <div class="active-file-name" id="activeDbFileName">Master_File.xlsx</div>
+              <div class="active-file-meta-row">
+                <span class="meta-tag">📏 Size: <strong id="activeDbFileSize">35.9 MB</strong></span>
+                <span class="meta-tag">📊 Rows: <strong id="activeDbRowCount">140,799</strong> Records</span>
+                <span class="meta-tag">🎓 Programmes: <strong id="activeDbProgCount">26</strong></span>
+                <span class="meta-tag">📅 Range: <strong id="activeDbPeriods">4 Batches</strong></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Drop Zone (Transforms on attachment) -->
+        <div class="upload-drop-zone" id="uploadDropZone" onclick="document.getElementById('modalFileInput').click()">
+          <input type="file" id="modalFileInput" accept=".xlsx,.xls,.csv" style="display:none;">
+
+          <!-- State A: Prompt to choose/drop -->
+          <div id="dropPromptState" style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+            <div style="font-size:30px;">📂</div>
+            <div style="font-size:13.5px; font-weight:700; color:var(--sspu-navy);">Click to Browse or Drag &amp; Drop Excel File to Update</div>
+            <div style="font-size:11px; color:#64748b;">Attach Master_File.xlsx or examination session spreadsheet (.xlsx, .xls, .csv)</div>
+          </div>
+
+          <!-- State B: Attached File Card (Clean, Prominent & Obvious) -->
+          <div id="dropAttachedState" class="attached-file-box" style="display:none;" onclick="event.stopPropagation()">
+            <div class="attached-icon">✅</div>
+            <div class="attached-filename" id="attachedFileName">file.xlsx</div>
+            <div class="attached-file-meta-grid">
+              <span class="staged-badge">📏 Size: <strong id="attachedFileSizeText">0 KB</strong></span>
+              <span class="staged-badge">🕒 Modified: <strong id="attachedFileModDate">Today</strong></span>
+              <span class="staged-badge">📑 Sheets: <strong id="attachedFileSheets">Exam Sheet</strong></span>
+            </div>
+            <div style="font-size:11.5px; font-weight:600; color:#15803d; margin-top:4px;">
+              Spreadsheet verified &amp; ready to import into Master Database. Choose an import action below:
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons (Shown when file is attached) -->
+        <div class="upload-actions-bar" id="uploadActionsBar" style="display:none;">
+          <button class="btn btn-primary" id="btnAppend" onclick="dataHubApp.executeUpload('append')" title="Keep existing records and append/merge new rows">
+            <span>➕</span> Merge &amp; Append
+          </button>
+          <button class="btn btn-danger" id="btnReplace" onclick="dataHubApp.executeUpload('replace')" title="Clear all existing records and replace with this file">
+            <span>⚠️</span> Replace All
+          </button>
+          <button class="btn btn-secondary btn-sm" onclick="dataHubApp.clearStagedFile()" title="Cancel and remove attached file">
+            <span>✕</span> Remove
+          </button>
+        </div>
+
+        <!-- Real-Time Animated Progress Bar -->
+        <div class="progress-panel" id="uploadProgressWrap">
+          <div class="progress-header-row">
+            <span id="progressStepMsg" style="color:var(--sspu-blue);">Preparing import...</span>
+            <span id="progressPercent" style="font-weight:700; color:var(--sspu-blue);">0%</span>
+          </div>
+
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+
+          <div style="font-size:11px; color:#64748b; margin-top:6px; display:flex; align-items:center; justify-content:space-between;">
+            <span id="progressSubMsg">Processing workbook data...</span>
+            <span id="progressSpinner" class="loading-pulse-ring" style="width:14px; height:14px; border-width:2px; display:none;"></span>
+          </div>
+        </div>
+      </section>
+
+      <!-- RIGHT: Compact Tools & Stats -->
+      <section class="tools-column">
+        <!-- Templates Card -->
+        <div class="tool-card">
+          <div class="tool-card-title">
+            <span>📑</span> Official Excel Templates
+          </div>
+          <div class="tool-btn-grid">
+            <button class="btn btn-secondary btn-sm" onclick="dataHubApp.downloadBlankTemplate()" style="justify-content:flex-start;">
+              <span>📥</span> Blank Template
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="dataHubApp.downloadDataTemplate()" style="justify-content:flex-start;">
+              <span>📋</span> Sample Template
+            </button>
+          </div>
+        </div>
+
+        <!-- Database Management Card -->
+        <div class="tool-card">
+          <div class="tool-card-title">
+            <span>⚙️</span> Database Memory
+          </div>
+          <div class="tool-btn-grid">
+            <button class="btn btn-secondary btn-sm" onclick="dataHubApp.restoreDefault()" style="justify-content:flex-start;" title="Restore original embedded dataset">
+              <span>🔄</span> Restore Default
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="dataHubApp.clearAllRecords()" style="justify-content:flex-start; color:#c53030;" title="Clear in-memory database">
+              <span>🗑️</span> Clear All
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Database Status Card -->
+        <div class="tool-card">
+          <div class="tool-card-title">
+            <span>📊</span> Active Database Status
+          </div>
+          <div class="compact-stats-list">
+            <div class="compact-stat-item">
+              <span class="compact-stat-label">Total Records</span>
+              <span class="compact-stat-val" id="statRecCount">0</span>
+            </div>
+            <div class="compact-stat-item">
+              <span class="compact-stat-label">Programmes</span>
+              <span class="compact-stat-val" id="statProgCount">0</span>
+            </div>
+            <div class="compact-stat-item">
+              <span class="compact-stat-label">Candidate PRNs</span>
+              <span class="compact-stat-val" id="statStudCount">0</span>
+            </div>
+            <div class="compact-stat-item">
+              <span class="compact-stat-label">Pass Percentage</span>
+              <span class="compact-stat-val" style="color:#2f855a;" id="statPassPct">0%</span>
+            </div>
+          </div>
+          <div style="margin-top:8px; font-size:11px; color:#64748b; display:flex; justify-content:space-between;">
+            <span>Active Master: <strong id="statActiveFileName" style="color:var(--sspu-navy);">Master_File.xlsx</strong></span>
+            <span id="statPeriodRange">4 Batches</span>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="app-footer no-print" style="margin-top:auto; padding:8px 16px; font-size:11px;">
+    Symbiosis Skills &amp; Professional University, Pune • Controller of Examinations • Data Management Hub
+  </footer>
+
+  <script>
+    function bootstrapDataHub() {
+      dataHubApp.initDataHubPage();
+    }
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', bootstrapDataHub);
+    } else {
+      bootstrapDataHub();
+    }
+  </script>
+</body>
+</html>

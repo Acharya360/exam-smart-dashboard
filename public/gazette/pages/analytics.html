@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSPU - Results &amp; Programme Analytics</title>
+  
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/analytics.css">
+
+  <!-- SheetJS Library -->
+  <script src="../xlsx.full.min.js"></script>
+
+  <!-- Embedded Master Dataset -->
+  <script src="../SSPU_Master_Data_Compact.js"></script>
+
+  <!-- Modular Scripts -->
+  <script src="../js/data-store.js"></script>
+  <script src="../js/common.js"></script>
+  <script src="../js/analytics.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar Placeholder -->
+  <div id="navbarPlaceholder"></div>
+
+  <main class="app-container">
+    
+    <!-- Executive Top Header Bar -->
+    <div class="analytics-hero-bar anim-fade-in">
+      <div class="analytics-hero-content">
+        <div class="analytics-breadcrumb">
+          <a href="../index.html">Dashboard</a>
+          <span>/</span>
+          <span>Executive KPI</span>
+          <span>/</span>
+          <span style="color:#ffffff;">Examination Analytics</span>
+        </div>
+        <h1 class="analytics-hero-title">Examination Performance &amp; Result Analytics</h1>
+        <p class="analytics-hero-desc">Comprehensive institutional overview of student passing rates, backlog distribution ratios, and departmental academic metrics across Symbiosis Skills &amp; Professional University.</p>
+      </div>
+      <div class="analytics-hero-actions">
+        <button class="btn btn-secondary btn-sm" onclick="commonUI.goBack()" title="Return to Dashboard">
+          <span>←</span> Dashboard
+        </button>
+        <button class="btn btn-secondary btn-sm" onclick="window.print()" title="Print Executive Report">
+          <span>🖨️</span> Print Dossier
+        </button>
+        <a href="gazette.html" class="btn btn-gold btn-sm">
+          <span>📊</span> Open Gazette (A3) &rarr;
+        </a>
+      </div>
+    </div>
+
+    <!-- Analytics KPI Cards -->
+    <div class="analytics-kpi-grid anim-slide-up">
+      <div class="analytics-kpi-card" style="--card-color:#2563eb;">
+        <div class="kpi-icon-circle" style="background:rgba(37, 99, 235, 0.1); color:#2563eb;">📋</div>
+        <div class="kpi-text-block">
+          <div class="kpi-title-label">Total Exam Records</div>
+          <div class="kpi-large-num" id="anaTotalRecords">0</div>
+          <span class="kpi-micro-tag">Canonical 56-Col Rows</span>
+        </div>
+      </div>
+
+      <div class="analytics-kpi-card" style="--card-color:#0891b2;">
+        <div class="kpi-icon-circle" style="background:rgba(8, 145, 178, 0.1); color:#0891b2;">🎓</div>
+        <div class="kpi-text-block">
+          <div class="kpi-title-label">Active Programmes</div>
+          <div class="kpi-large-num" id="anaTotalProgrammes" style="color:#0891b2;">0</div>
+          <span class="kpi-micro-tag">Across 12 Schools &amp; Depts</span>
+        </div>
+      </div>
+
+      <div class="analytics-kpi-card" style="--card-color:#16a34a;">
+        <div class="kpi-icon-circle" style="background:rgba(22, 163, 74, 0.1); color:#16a34a;">🏆</div>
+        <div class="kpi-text-block">
+          <div class="kpi-title-label">Overall Pass Rate</div>
+          <div class="kpi-large-num" id="anaPassRate" style="color:#16a34a;">0%</div>
+          <span class="kpi-micro-tag">Statutory Assessment Pass</span>
+        </div>
+      </div>
+
+      <div class="analytics-kpi-card" style="--card-color:#d97706;">
+        <div class="kpi-icon-circle" style="background:rgba(217, 119, 6, 0.1); color:#d97706;">⚠️</div>
+        <div class="kpi-text-block">
+          <div class="kpi-title-label">Backlog Candidate Ratio</div>
+          <div class="kpi-large-num" id="anaBacklogRate" style="color:#d97706;">0%</div>
+          <span class="kpi-micro-tag">Re-appear Assessment Share</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Grid: School Breakdown & Detail Table -->
+    <div class="analytics-grid anim-slide-up">
+      <!-- School Performance Card -->
+      <div class="analytics-card">
+        <div class="analytics-card-header">
+          <div class="analytics-card-title">
+            <span>🏫</span> School / Department Pass Percentages
+          </div>
+          <input type="text" id="schoolSearchInput" class="analytics-search-input" placeholder="Filter schools..." oninput="analyticsApp.filterSchools(this.value)">
+        </div>
+        <div class="school-perf-list" id="schoolAnalyticsContainer">
+          <p style="color:#64748b; padding:16px; font-size:12.5px;">Calculating school statistics...</p>
+        </div>
+      </div>
+
+      <!-- Action Card & Distribution Summary -->
+      <div class="analytics-card command-card">
+        <div>
+          <div class="analytics-card-header">
+            <div class="analytics-card-title">
+              <span>⚡</span> Executive Command Center
+            </div>
+          </div>
+          
+          <div class="command-links-group">
+            <a href="gazette.html" class="command-link-item">
+              <div class="command-link-left">
+                <div class="command-link-icon" style="background:rgba(37, 99, 235, 0.1); color:#2563eb;">📊</div>
+                <div>
+                  <div class="command-link-title">Result Gazette (A3 Matrix)</div>
+                  <div class="command-link-sub">Official ledger with locked uniform heights</div>
+                </div>
+              </div>
+              <span class="command-link-arrow">&rarr;</span>
+            </a>
+
+            <a href="grade-cards.html" class="command-link-item">
+              <div class="command-link-left">
+                <div class="command-link-icon" style="background:rgba(22, 163, 74, 0.1); color:#16a34a;">🪪</div>
+                <div>
+                  <div class="command-link-title">Student Grade Cards (A4)</div>
+                  <div class="command-link-sub">Batch print official semester grade sheets</div>
+                </div>
+              </div>
+              <span class="command-link-arrow">&rarr;</span>
+            </a>
+
+            <a href="data-hub.html" class="command-link-item">
+              <div class="command-link-left">
+                <div class="command-link-icon" style="background:rgba(217, 119, 6, 0.1); color:#d97706;">📂</div>
+                <div>
+                  <div class="command-link-title">Excel Data Hub</div>
+                  <div class="command-link-sub">Import master spreadsheets &amp; download templates</div>
+                </div>
+              </div>
+              <span class="command-link-arrow">&rarr;</span>
+            </a>
+
+            <a href="student-names.html" class="command-link-item">
+              <div class="command-link-left">
+                <div class="command-link-icon" style="background:rgba(139, 92, 246, 0.1); color:#8b5cf6;">👥</div>
+                <div>
+                  <div class="command-link-title">Student Names Directory</div>
+                  <div class="command-link-sub">Spreadsheet upload &amp; PRN matcher</div>
+                </div>
+              </div>
+              <span class="command-link-arrow">&rarr;</span>
+            </a>
+          </div>
+        </div>
+
+        <!-- University Performance Distribution Bar -->
+        <div class="distribution-box">
+          <div class="distribution-title">
+            <span>📈</span> Result Distribution Ratio
+          </div>
+          <div class="distribution-bar">
+            <div class="dist-segment-pass" id="distBarPass" style="width:78%;"></div>
+            <div class="dist-segment-fail" id="distBarFail" style="width:22%;"></div>
+          </div>
+          <div class="distribution-legend">
+            <span style="color:#16a34a;" id="distLegendPass">Passed: Calculating...</span>
+            <span style="color:#dc2626;" id="distLegendFail">Backlog: Calculating...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Programme Details Table (Enterprise Edition) -->
+    <div class="programme-table-panel anim-slide-up">
+      <div class="programme-table-header">
+        <div class="table-title-wrap">
+          <span style="font-size:18px;">📋</span>
+          <h2 style="font-size:16px; font-weight:800; color:var(--sspu-navy);">Programme-Level Results Summary</h2>
+        </div>
+        <input type="text" id="programmeSearchInput" class="analytics-search-input" style="width:240px;" placeholder="Search programme or school..." oninput="analyticsApp.filterProgrammes(this.value)">
+      </div>
+      
+      <div class="programme-table-container">
+        <table class="analytics-table">
+          <thead>
+            <tr>
+              <th style="width:45px;">#</th>
+              <th>Programme / Course Name</th>
+              <th>School / Department</th>
+              <th style="width:95px; text-align:right;">Candidates</th>
+              <th style="width:85px; text-align:right;">Regular</th>
+              <th style="width:85px; text-align:right;">Backlog</th>
+              <th style="width:85px; text-align:right;">Passed</th>
+              <th style="width:85px; text-align:right;">Failed</th>
+              <th style="width:95px; text-align:center;">Pass %</th>
+            </tr>
+          </thead>
+          <tbody id="courseAnalyticsBody">
+            <tr><td colspan="9" style="text-align:center; padding:36px; color:#64748b;">Calculating programme statistics...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer class="app-footer no-print">
+    Symbiosis Skills &amp; Professional University, Pune • Controller of Examinations • Results Analytics
+  </footer>
+
+  <script>
+    function bootstrapAnalytics() {
+      analyticsApp.initAnalyticsPage();
+    }
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', bootstrapAnalytics);
+    } else {
+      bootstrapAnalytics();
+    }
+  </script>
+</body>
+</html>

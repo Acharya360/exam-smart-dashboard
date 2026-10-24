@@ -17,8 +17,6 @@ interface AuthContextType {
   updateProfile: (updates: Partial<UserProfile>) => Promise<{ success: boolean; error?: string }>;
   changeOwnPassword: (currentPassword: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
   changeUserPassword: (targetUserId: string, newPassword: string) => Promise<{ success: boolean; error?: string }>;
-  switchUser: (userId: string) => void;
-  updateCurrentUser: (user: UserProfile) => void;
   getUserRoleLabel: (role: UserRole) => string;
   getUserPrograms: (userId?: string) => { primary: Program[]; alternate: Program[]; all: Program[] };
   refreshUsers: () => Promise<void>;
@@ -97,19 +95,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return result;
   };
 
-  const switchUser = (userId: string) => {
-    const user = users.find((u) => u.id === userId);
-    if (user) {
-      setCurrentUser(user);
-      db.setCurrentUser(user);
-    }
-  };
-
-  const updateCurrentUser = (user: UserProfile) => {
-    setCurrentUser(user);
-    db.setCurrentUser(user);
-  };
-
   const isSuperAdmin = ['COE', 'DYCOE', 'ACOE'].includes(currentUser.role);
   const isCoE = currentUser.role === 'COE';
   const isCoordinator = currentUser.role === 'COORDINATOR';
@@ -164,8 +149,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateProfile,
         changeOwnPassword,
         changeUserPassword,
-        switchUser,
-        updateCurrentUser,
         getUserRoleLabel,
         getUserPrograms,
         refreshUsers,

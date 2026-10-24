@@ -84,8 +84,14 @@ export function registerTimetable(app, executeSql, requireSession) {
           executeSql('SELECT * FROM dbo.programs ORDER BY sr_no ASC'),
         ]);
 
-      // Format programs from database
-      const programs = (programsRes.data || []).map((p) => ({
+      // Format programs from database. Coordinators may only see programs they are
+      // mapped to (AGENTS.md scoped visibility); the main /api array filter cannot
+      // scope this endpoint because it returns a nested object, so scope it here.
+      const allPrograms = programsRes.data || [];
+      const scopedPrograms = req.user.role === 'COORDINATOR'
+        ? allPrograms.filter((p) => p.primary_coordinator_id === req.user.id || p.alternate_coordinator_id === req.user.id)
+        : allPrograms;
+      const programs = scopedPrograms.map((p) => ({
         id: p.id,
         sr_no: p.sr_no,
         program_code: p.program_code,
@@ -517,9 +523,14 @@ export function registerTimetable(app, executeSql, requireSession) {
             p.program_name.toLowerCase() === row.programName.toLowerCase() ||
             p.program_code.toLowerCase() === row.programName.toLowerCase() ||
             p.school_name.toLowerCase() === row.schoolName.toLowerCase()
-        ) || programs[0];
+        );
 
-        const programCode = prog ? prog.program_code : 'GEN';
+        // Skip rows that cannot be attributed to a known program. Publishing them
+        // would either misassign the exam to an unrelated program or violate the
+        // exam_schedules.program_code foreign key.
+        if (!prog) continue;
+
+        const programCode = prog.program_code;
         const semDigits = row.semester.replace(/\D/g, '') || '1';
         const isPM = (row.slotTime || '').toLowerCase().includes('pm');
         const period = isPM ? 'PM' : 'AM';

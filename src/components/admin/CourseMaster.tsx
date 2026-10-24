@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/db';
-import { CourseMaster } from '../../types';
-import { parseCourseMasterExcel, downloadCourseMasterTemplate } from '../../services/excelParser';
+import { CourseMaster, Program } from '../../types';
+import { parseCourseMasterExcel, downloadCourseMasterTemplate, exportCourseMasterToExcel } from '../../services/excelParser';
 import { CourseMasterPreviewModal } from './CourseMasterPreviewModal';
 import {
   validateParsedEntities,
@@ -53,7 +53,7 @@ type CourseSortKey =
   | 'total_marks_min';
 
 const COURSE_SORT_LABELS: Record<CourseSortKey, string> = {
-  sr_no: '#',
+  sr_no: 'ID',
   academic_period: 'Period',
   term: 'Term',
   program_code: 'Prog Code',
@@ -106,6 +106,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
   const [previewCourses, setPreviewCourses] = useState<CourseDraft[]>([]);
   const [previewErrors, setPreviewErrors] = useState<string[]>([]);
   const [previewResult, setPreviewResult] = useState<ValidationResult<CourseDraft> | null>(null);
+  const [registeredPrograms, setRegisteredPrograms] = useState<Program[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Scheme detail inspection modal
@@ -116,8 +117,18 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
     setCourses(data);
   };
 
+  const fetchPrograms = async () => {
+    const progs = await db.getPrograms().catch((err) => {
+      console.error('Course Master: failed to load programs', err);
+      return [];
+    });
+    setRegisteredPrograms(progs);
+    return progs;
+  };
+
   useEffect(() => {
     fetchCourses();
+    fetchPrograms();
   }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -142,7 +153,10 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
       // Master cross-validation: warn when a course programme is not yet in the
       // Program master. Never blocks the import (Course Master legitimately
       // introduces programmes); nearest-match is offered for confirmation.
-      const programs = await db.getPrograms().catch(() => []);
+      const programs = await db.getPrograms().catch((err) => {
+        console.error('Course Master: failed to load programs for cross-validation', err);
+        return [];
+      });
       const programmes: MasterRecord[] = programs.map(p => ({
         id: p.id, code: p.program_code, name: p.program_name,
       }));
@@ -182,11 +196,12 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
     if (previewResult) generateImportErrorReport(previewResult);
   };
 
-  const handleConfirmImport = async () => {
-    if (previewCourses.length === 0) return;
+  const handleConfirmImport = async (coursesToImport?: CourseDraft[], clearExisting: boolean = false) => {
+    const toImport = coursesToImport && coursesToImport.length > 0 ? coursesToImport : previewCourses;
+    if (toImport.length === 0) return;
     setIsUploading(true);
 
-    const upsertResult = await db.upsertCourseMaster(previewCourses);
+    const upsertResult = await db.upsertCourseMaster(toImport, clearExisting);
     setIsUploading(false);
 
     if (upsertResult.error) {
@@ -194,7 +209,17 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
     } else {
       setIsPreviewOpen(false);
       setPreviewResult(null);
-      setUploadSuccess(`Successfully imported and configured ${previewCourses.length} course(s) and assessment schemes!`);
+      const skippedCount = previewCourses.length - toImport.length;
+      const modeText = clearExisting ? ' (Cleared previous database records)' : '';
+      if (skippedCount > 0) {
+        setUploadSuccess(
+          `Successfully imported ${toImport.length} matched course(s)${modeText}! ${skippedCount} mismatched course(s) were excluded.`
+        );
+      } else {
+        setUploadSuccess(
+          `Successfully imported and configured all ${toImport.length} course(s) and assessment schemes${modeText}!`
+        );
+      }
       await fetchCourses();
     }
   };
@@ -340,10 +365,19 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
             <button
               onClick={downloadCourseMasterTemplate}
               className="flex items-center gap-2 px-3 py-2 bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-200 transition-colors shadow-xs border border-slate-300"
-              title="Download enhanced LTPS Course Master template with native Excel dropdown data validation"
+              title="Download official LTPS Course Master template (31 columns)"
             >
               <Download className="w-3.5 h-3.5" />
               Template
+            </button>
+            <button
+              onClick={() => exportCourseMasterToExcel(courses)}
+              disabled={courses.length === 0}
+              className="flex items-center gap-2 px-3 py-2 bg-white text-slate-700 text-xs font-semibold rounded-lg hover:bg-slate-100 transition-colors shadow-xs border border-slate-300 disabled:opacity-50"
+              title="Export all active course master records in the 31-column template format"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              Export ({courses.length})
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -825,6 +859,7 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
         validation={previewResult}
         onDownloadReport={handleDownloadReport}
         isSaving={isUploading}
+        registeredPrograms={registeredPrograms}
       />
 
       {/* Scheme Detail Inspection Modal */}

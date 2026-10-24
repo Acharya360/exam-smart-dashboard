@@ -26,6 +26,30 @@ const TimetableGenerator = lazy(() => import('./components/timetable/TimetableGe
 const FacultyCourseAllocation = lazy(() => import('./components/faculty/FacultyCourseAllocation').then(m => ({ default: m.FacultyCourseAllocation })));
 const ExamPerformanceDashboard = lazy(() => import('./components/reports/ExamPerformanceDashboard').then(m => ({ default: m.ExamPerformanceDashboard })));
 
+// The Sidebar hides Super-Admin-only links, but the active view is driven by the
+// URL hash, so a coordinator could otherwise navigate directly (e.g. #users).
+// App.tsx enforces the same gate the Sidebar applies.
+// Generates a strong random temporary password for bulk-imported users who were not
+// given one. Avoids the old shared 'Admin@123' default (a known-credential backdoor);
+// an admin sets the real password afterwards via the Staff Passwords modal.
+function generateTempPassword(): string {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const bytes = new Uint8Array(14);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => alphabet[b % alphabet.length]).join('');
+}
+
+function AccessDenied() {
+  return (
+    <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-6 text-center">
+      <h2 className="text-lg font-semibold text-rose-800">Access denied</h2>
+      <p className="mt-1 text-sm text-rose-700">
+        You do not have permission to view this area. It is restricted to Super Admins (CoE, DyCoE, ACoE).
+      </p>
+    </div>
+  );
+}
+
 function MainApp() {
   const { currentUser, isSuperAdmin, isLoggedIn } = useAuth();
   const screenScale = useScreenScale();
@@ -242,7 +266,7 @@ function MainApp() {
           const res = await db.createUser({
             id: u.id,
             email: u.email,
-            password: u.password || 'Admin@123',
+            password: u.password || generateTempPassword(),
             full_name: u.full_name,
             role: u.role || 'COORDINATOR',
             title: u.title || 'Exam Coordinator',
@@ -418,7 +442,7 @@ function MainApp() {
           )}
 
           {/* VIEW: USER MANAGEMENT */}
-          {currentView === 'users' && <UserManagement />}
+          {currentView === 'users' && (isSuperAdmin ? <UserManagement /> : <AccessDenied />)}
 
           {/* VIEW: COURSE MASTER */}
           {currentView === 'courseMaster' && (

@@ -60,48 +60,26 @@ export class SupabaseDBService {
   }
 
   async isLoggedIn(): Promise<boolean> {
-    this.restoreUserFromStorage();
-    if (this.user.id && this.user.email) return true;
     try {
       const { data } = await supabase.auth.getSession();
-      return !!data?.session;
-    } catch {
-      return false;
-    }
-  }
+      const session = data?.session;
+      if (!session?.user) {
+        // No valid Supabase session: drop any stale/tampered local copy.
+        this.user = { id: '', email: '', full_name: '', role: 'COORDINATOR', title: '', created_at: '' };
+        if (typeof window !== 'undefined') localStorage.removeItem('examtrack_current_user_v2');
+        return false;
+      }
 
-  async login(email: string, password: string): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
-    try {
-      const cleanEmail = email.trim().toLowerCase();
-
-      // 1. First check profiles table directly
-      const { data: profile, error: profileErr } = await supabase
+      // Re-derive role/metadata from profiles (source of truth) rather than
+      // trusting the tamperable localStorage snapshot.
+      const { data: profile } = await supabase
         .from('profiles')
         .select('*')
-        .ilike('email', cleanEmail)
+        .eq('id', session.user.id)
         .maybeSingle();
 
       if (profile) {
-        const storedPassword = profile.password || 'Admin@123';
-        // Password verification (supports plain 'Admin@123' or password match)
-        const passwordMatches =
-          storedPassword === password ||
-          password === 'Admin@123' ||
-          (storedPassword.startsWith('scrypt$') && password === 'Admin@123');
-
-        if (!passwordMatches) {
-          // If profile check didn't match plain, attempt Supabase Auth as secondary
-          const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-            email: cleanEmail,
-            password,
-          });
-
-          if (authError || !authData.user) {
-            return { success: false, error: 'Invalid password. Please check your credentials.' };
-          }
-        }
-
-        const userObj: UserProfile = {
+        this.setCurrentUser({
           id: profile.id,
           email: profile.email,
           full_name: profile.full_name,
@@ -111,35 +89,62 @@ export class SupabaseDBService {
           phone: profile.phone || '',
           created_at: profile.created_at || new Date().toISOString(),
           last_password_change: profile.last_password_change,
-        };
-
-        this.setCurrentUser(userObj);
-        return { success: true, user: userObj };
+        });
       }
 
-      // 2. If profile wasn't found directly, try Supabase Auth
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async login(email: string, password: string): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+    try {
+      const cleanEmail = email.trim().toLowerCase();
+
+      // Supabase Auth is the sole credential verifier: it checks the password
+      // against the server-side bcrypt hash in auth.users. The client never
+      // reads or compares a stored password value.
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email: cleanEmail,
         password,
       });
 
       if (authError || !authData?.user) {
-        return { success: false, error: authError?.message || 'User account not found for ' + email };
+        return { success: false, error: authError?.message || 'Invalid email or password.' };
       }
 
-      const { data: userProfile } = await supabase
+      // Role/metadata live in profiles, keyed to the authenticated user's id.
+      const { data: profile, error: profileErr } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authData.user.id)
-        .single();
+        .maybeSingle();
 
-      if (!userProfile) {
+      if (profileErr) {
+        await supabase.auth.signOut();
+        return { success: false, error: profileErr.message };
+      }
+
+      if (!profile) {
+        await supabase.auth.signOut();
         return { success: false, error: 'User profile record missing in Supabase.' };
       }
 
-      const mappedUser = userProfile as UserProfile;
-      this.setCurrentUser(mappedUser);
-      return { success: true, user: mappedUser };
+      const userObj: UserProfile = {
+        id: profile.id,
+        email: profile.email,
+        full_name: profile.full_name,
+        role: profile.role,
+        title: profile.title || 'Exam Coordinator',
+        department: profile.department || '',
+        phone: profile.phone || '',
+        created_at: profile.created_at || new Date().toISOString(),
+        last_password_change: profile.last_password_change,
+      };
+
+      this.setCurrentUser(userObj);
+      return { success: true, user: userObj };
     } catch (e: any) {
       return { success: false, error: e?.message || 'Authentication request failed.' };
     }
@@ -170,11 +175,33 @@ export class SupabaseDBService {
 
   async createUser(payload: CreateUserPayload): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
     try {
-      const id = 'user-' + Date.now();
+      const email = payload.email.trim().toLowerCase();
+      if (!payload.password) {
+        return { success: false, error: 'A password is required to create a Supabase Auth user.' };
+      }
+
+      // signUp replaces the client session with the new user's; preserve and
+      // restore the acting admin's session so they stay logged in.
+      const { data: prev } = await supabase.auth.getSession();
+      const prevSession = prev?.session;
+
+      // Provision the auth user; Supabase stores a bcrypt hash server-side.
+      const { data: authData, error: authError } = await supabase.auth.signUp({ email, password: payload.password });
+
+      if (prevSession) {
+        await supabase.auth.setSession({ access_token: prevSession.access_token, refresh_token: prevSession.refresh_token });
+      }
+
+      if (authError) throw authError;
+
+      const newId = authData.user?.id;
+      if (!newId) {
+        return { success: false, error: 'Sign-up returned no user id. If email confirmation is enabled, the account must be confirmed before it can sign in.' };
+      }
+
       const profileData = {
-        id,
-        email: payload.email.trim().toLowerCase(),
-        password: payload.password || 'Admin@123',
+        id: newId,
+        email,
         full_name: payload.full_name,
         role: payload.role,
         department: payload.department || '',
@@ -232,11 +259,18 @@ export class SupabaseDBService {
 
   async updateUserPassword(id: string, newPassword: string, _actor: string, _currentPassword?: string): Promise<{ success: boolean; error?: string }> {
     try {
+      if (id !== this.user.id) {
+        return { success: false, error: 'Resetting another user\'s password requires a server-side service-role operation and cannot be done from the client.' };
+      }
+
+      // Updates the authenticated user's bcrypt hash in auth.users.
+      const { error: authError } = await supabase.auth.updateUser({ password: newPassword });
+      if (authError) throw authError;
+
       const { error } = await supabase
         .from('profiles')
-        .update({ password: newPassword, last_password_change: new Date().toISOString() })
+        .update({ last_password_change: new Date().toISOString() })
         .eq('id', id);
-
       if (error) throw error;
       return { success: true };
     } catch (e: any) {
@@ -264,7 +298,8 @@ export class SupabaseDBService {
 
   async addOrUpdatePrograms(programs: Program[], clearExisting: boolean = false): Promise<Program[]> {
     if (clearExisting) {
-      await supabase.from('programs').delete().neq('id', 'keep_all');
+      const { error: deleteErr } = await supabase.from('programs').delete().neq('id', 'keep_all');
+      if (deleteErr) throw deleteErr;
     }
     const { data, error } = await supabase
       .from('programs')
@@ -299,7 +334,24 @@ export class SupabaseDBService {
   }
 
   async addSchedules(schedules: ExamSchedule[]): Promise<ExamSchedule[]> {
-    const { data, error } = await supabase.from('exam_schedules').upsert(schedules).select();
+    // De-dupe on the natural key so re-publishing updates existing rows rather
+    // than inserting fresh-UUID duplicates (mirrors the local SQL server).
+    const { data: existing } = await supabase
+      .from('exam_schedules')
+      .select('id, program_code, paper_code, exam_date');
+    const keyOf = (s: { program_code?: string; paper_code?: string; exam_date?: string }) =>
+      `${s.program_code || ''}|${s.paper_code || ''}|${s.exam_date || ''}`;
+    const idByKey = new Map<string, string>();
+    for (const row of (existing || []) as { id: string; program_code?: string; paper_code?: string; exam_date?: string }[]) {
+      idByKey.set(keyOf(row), row.id);
+    }
+
+    const payload = schedules.map((s) => {
+      const matchId = idByKey.get(keyOf(s));
+      return matchId ? { ...s, id: matchId } : s;
+    });
+
+    const { data, error } = await supabase.from('exam_schedules').upsert(payload).select();
     if (error) throw error;
     return (data || []) as ExamSchedule[];
   }
@@ -335,14 +387,26 @@ export class SupabaseDBService {
   }
 
   async escalateTask(id: string, reason: string): Promise<void> {
+    // The escalation contract requires reassigning the task to the alternate
+    // coordinator; read that id first so the update can set assigned_to.
+    const { data: task, error: fetchErr } = await supabase
+      .from('exam_tasks')
+      .select('alternate_user_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (fetchErr) throw fetchErr;
+
+    const updates: Record<string, unknown> = {
+      status: 'ESCALATED_TO_ALTERNATE',
+      escalation_reason: reason,
+      escalated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    if (task?.alternate_user_id) updates.assigned_to = task.alternate_user_id;
+
     const { error } = await supabase
       .from('exam_tasks')
-      .update({
-        status: 'ESCALATED_TO_ALTERNATE',
-        escalation_reason: reason,
-        escalated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
+      .update(updates)
       .eq('id', id);
 
     if (error) throw error;
@@ -402,9 +466,18 @@ export class SupabaseDBService {
     return (data || []) as CourseMaster[];
   }
 
-  async upsertCourseMaster(courses: Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[]): Promise<{ inserted: number; updated: number; error?: string }> {
+  async upsertCourseMaster(courses: Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[], clearExisting?: boolean): Promise<{ inserted: number; updated: number; error?: string }> {
     try {
-      const { data, error } = await supabase.from('course_master').upsert(courses).select();
+      if (clearExisting) {
+        // Clear existing courses in cloud mode; surface any error (e.g. RLS)
+        // instead of upserting against un-cleared rows.
+        const { error: deleteErr } = await supabase.from('course_master').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+        if (deleteErr) throw deleteErr;
+      }
+      const { data, error } = await supabase
+        .from('course_master')
+        .upsert(courses, { onConflict: 'cm_course_name,semester,paper_code' })
+        .select();
       if (error) throw error;
       return { inserted: data?.length || 0, updated: 0 };
     } catch (e: any) {
@@ -448,6 +521,8 @@ export class SupabaseDBService {
     let query = supabase.from('student_marks').select('*', { count: 'exact' });
     if (filters?.paper_code) query = query.eq('paper_code', filters.paper_code);
     if (filters?.cm_course_name) query = query.eq('cm_course_name', filters.cm_course_name);
+    if (filters?.assessment_type) query = query.eq('assessment_type', filters.assessment_type);
+    if (filters?.academic_year) query = query.eq('academic_year', filters.academic_year);
     if (filters?.prn) query = query.eq('prn', filters.prn);
 
     const { data, count, error } = await query.range(from, to).order('prn');
@@ -460,7 +535,13 @@ export class SupabaseDBService {
 
   async upsertStudentMarks(marks: Omit<StudentMark, 'id' | 'uploaded_at' | 'updated_at'>[], _uploaderId?: string): Promise<{ total: number; error?: string }> {
     try {
-      const { data, error } = await supabase.from('student_marks').upsert(marks).select();
+      // Conflict target matches uq_student_marks_unique so re-uploading the
+      // same (prn, course, semester, paper, years, assessment) updates in place
+      // instead of inserting duplicate rows.
+      const { data, error } = await supabase
+        .from('student_marks')
+        .upsert(marks, { onConflict: 'prn,cm_course_name,semester,paper_code,academic_year,exam_year,assessment_type' })
+        .select();
       if (error) throw error;
       return { total: data?.length || 0 };
     } catch (e: any) {
@@ -581,7 +662,8 @@ export class SupabaseDBService {
 
   async uploadTimetableRecords(sessionId: string, records: StudentRecord[], append = false) {
     if (!append) {
-      await supabase.from('timetable_student_records').delete().eq('session_id', sessionId);
+      const { error: deleteErr } = await supabase.from('timetable_student_records').delete().eq('session_id', sessionId);
+      if (deleteErr) throw deleteErr;
     }
     const withSession = records.map((r) => ({ ...r, session_id: sessionId }));
     const { error } = await supabase.from('timetable_student_records').insert(withSession);
@@ -596,7 +678,14 @@ export class SupabaseDBService {
   }
 
   async saveGeneratedTimetable(sessionId: string, schedule: ScheduleRow[], overrides: Record<string, ManualOverride>) {
-    return { success: true, savedCount: schedule.length };
+    // Supabase mode has no timetable_generated_schedules / timetable_manual_overrides
+    // tables (the cloud migration drops them and never recreates them), so the
+    // generated timetable cannot be persisted here. Warn instead of silently
+    // reporting success, which previously implied the schedule was saved.
+    console.warn(
+      `[SupabaseDB] saveGeneratedTimetable is a no-op in Supabase mode: timetable persistence is not implemented for session ${sessionId} (${schedule.length} rows, ${Object.keys(overrides || {}).length} overrides were NOT saved).`
+    );
+    return { success: false, savedCount: 0 };
   }
 
   async publishTimetableToSchedules(scheduleRows: ScheduleRow[]) {

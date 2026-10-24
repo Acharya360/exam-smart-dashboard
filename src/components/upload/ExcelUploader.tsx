@@ -30,8 +30,8 @@ import {
 type ProgramItem = { program: Program; primaryUser?: UserProfile; alternateUser?: UserProfile };
 
 interface ExcelUploaderProps {
-  onCommitSchedules: (schedules: ExamSchedule[], autoGenerateTasks: boolean) => void;
-  onCommitPrograms: (programs: Program[], newUsers: UserProfile[]) => void;
+  onCommitSchedules: (schedules: ExamSchedule[], autoGenerateTasks: boolean) => void | Promise<void>;
+  onCommitPrograms: (programs: Program[], newUsers: UserProfile[]) => void | Promise<void>;
   onNavigate: (view: string) => void;
 }
 
@@ -58,11 +58,13 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
   const [programValidation, setProgramValidation] = useState<ValidationResult<ProgramItem> | null>(null);
 
   const [committedSuccess, setCommittedSuccess] = useState<string | null>(null);
+  const [commitError, setCommitError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (file: File) => {
     setCommittedSuccess(null);
+    setCommitError(null);
     const arrayBuffer = await file.arrayBuffer();
 
     if (activeTab === 'schedules') {
@@ -113,19 +115,26 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
     }
   };
 
-  const handleCommitSchedules = () => {
+  const handleCommitSchedules = async () => {
     if (parsedSchedules.length === 0) return;
-    onCommitSchedules(parsedSchedules, autoGenTasks);
+    setCommitError(null);
+    setCommittedSuccess(null);
     try {
-      confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
-    } catch {}
-    setCommittedSuccess(`Successfully imported ${parsedSchedules.length} examination papers!`);
-    setParsedSchedules([]);
-    setScheduleValidation(null);
-    setScheduleFileName('');
+      // Await the actual DB write so success is only reported once it has persisted.
+      await onCommitSchedules(parsedSchedules, autoGenTasks);
+      try {
+        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+      } catch {}
+      setCommittedSuccess(`Successfully imported ${parsedSchedules.length} examination papers!`);
+      setParsedSchedules([]);
+      setScheduleValidation(null);
+      setScheduleFileName('');
+    } catch (err) {
+      setCommitError(err instanceof Error ? err.message : 'Failed to import examination papers. No data was saved.');
+    }
   };
 
-  const handleCommitPrograms = () => {
+  const handleCommitPrograms = async () => {
     if (parsedPrograms.length === 0) return;
     const progs = parsedPrograms.map((p) => p.program);
     const newUsers: UserProfile[] = [];
@@ -134,14 +143,20 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
       if (p.alternateUser && !users.find((u) => u.id === p.alternateUser?.id)) newUsers.push(p.alternateUser);
     });
 
-    onCommitPrograms(progs, newUsers);
+    setCommitError(null);
+    setCommittedSuccess(null);
     try {
-      confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
-    } catch {}
-    setCommittedSuccess(`Successfully imported ${progs.length} academic programs & coordinator mappings!`);
-    setParsedPrograms([]);
-    setProgramValidation(null);
-    setProgramFileName('');
+      await onCommitPrograms(progs, newUsers);
+      try {
+        confetti({ particleCount: 50, spread: 70, origin: { y: 0.6 } });
+      } catch {}
+      setCommittedSuccess(`Successfully imported ${progs.length} academic programs & coordinator mappings!`);
+      setParsedPrograms([]);
+      setProgramValidation(null);
+      setProgramFileName('');
+    } catch (err) {
+      setCommitError(err instanceof Error ? err.message : 'Failed to import programs. No data was saved.');
+    }
   };
 
   return (
@@ -205,6 +220,14 @@ export const ExcelUploader: React.FC<ExcelUploaderProps> = ({
             <span>Go to {activeTab === 'schedules' ? 'Dashboard' : 'Programs Directory'}</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* Commit Failure Notification */}
+      {commitError && (
+        <div role="alert" className="p-4 bg-rose-50 border border-rose-200 rounded-xl flex items-center gap-2 text-rose-800 text-xs font-medium animate-in fade-in">
+          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          <span>{commitError}</span>
         </div>
       )}
 

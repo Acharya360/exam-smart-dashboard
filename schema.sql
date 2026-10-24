@@ -2,6 +2,14 @@
   -- EXAM DEPARTMENT TRACK DASHBOARD & TASK MANAGEMENT SYSTEM
   -- PostgreSQL Schema & Supabase Row-Level Security (RLS) Migration
   -- ============================================================================
+  --
+  -- ⚠ DESTRUCTIVE SCRIPT — FRESH SETUP ONLY ⚠
+  -- This file DROPs core tables (profiles, programs, exam_schedules, exam_tasks)
+  -- with CASCADE and recreates them from scratch. Running it against a database
+  -- that holds live data WILL permanently delete that data (and anything with a
+  -- foreign key to the dropped tables). Never run it on production to "refresh"
+  -- the schema; use a targeted migration instead.
+  -- ============================================================================
 
   -- 0. CLEANUP EXISTING TYPES AND TABLES (Idempotent Setup)
   -- ============================================================================
@@ -258,6 +266,7 @@
   CREATE INDEX idx_student_marks_paper ON public.student_marks(paper_code);
   CREATE INDEX idx_student_marks_course ON public.student_marks(cm_course_name);
   CREATE INDEX idx_student_marks_assessment ON public.student_marks(assessment_type);
+  CREATE UNIQUE INDEX uq_student_marks_unique ON public.student_marks(prn, cm_course_name, semester, paper_code, academic_year, exam_year, assessment_type);
 
   -- ============================================================================
   -- 7. Student Results Table (Computed final results per subject per student)
@@ -415,9 +424,13 @@
   USING (
     public.is_super_admin() OR
     EXISTS (
-      SELECT 1 FROM public.programs 
-      WHERE program_code = public.student_marks.cm_course_name
-      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+      SELECT 1
+      FROM public.course_master cm
+      JOIN public.programs p ON p.program_code = cm.program_code
+      WHERE cm.cm_course_name = public.student_marks.cm_course_name
+        AND cm.semester = public.student_marks.semester
+        AND cm.paper_code = public.student_marks.paper_code
+        AND (p.primary_coordinator_id = auth.uid() OR p.alternate_coordinator_id = auth.uid())
     )
   );
 
@@ -434,9 +447,13 @@
   USING (
     public.is_super_admin() OR
     EXISTS (
-      SELECT 1 FROM public.programs 
-      WHERE program_code = public.student_results.cm_course_name
-      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+      SELECT 1
+      FROM public.course_master cm
+      JOIN public.programs p ON p.program_code = cm.program_code
+      WHERE cm.cm_course_name = public.student_results.cm_course_name
+        AND cm.semester = public.student_results.semester
+        AND cm.paper_code = public.student_results.paper_code
+        AND (p.primary_coordinator_id = auth.uid() OR p.alternate_coordinator_id = auth.uid())
     )
   );
 
@@ -453,9 +470,12 @@
   USING (
     public.is_super_admin() OR
     EXISTS (
-      SELECT 1 FROM public.programs 
-      WHERE program_code = public.student_sgpa.cm_course_name
-      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+      SELECT 1
+      FROM public.course_master cm
+      JOIN public.programs p ON p.program_code = cm.program_code
+      WHERE cm.cm_course_name = public.student_sgpa.cm_course_name
+        AND cm.semester = public.student_sgpa.semester
+        AND (p.primary_coordinator_id = auth.uid() OR p.alternate_coordinator_id = auth.uid())
     )
   );
 
@@ -472,9 +492,11 @@
   USING (
     public.is_super_admin() OR
     EXISTS (
-      SELECT 1 FROM public.programs 
-      WHERE program_code = public.student_cgpa.cm_course_name
-      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+      SELECT 1
+      FROM public.course_master cm
+      JOIN public.programs p ON p.program_code = cm.program_code
+      WHERE cm.cm_course_name = public.student_cgpa.cm_course_name
+        AND (p.primary_coordinator_id = auth.uid() OR p.alternate_coordinator_id = auth.uid())
     )
   );
 
@@ -491,9 +513,9 @@
   USING (
     public.is_super_admin() OR
     EXISTS (
-      SELECT 1 FROM public.programs 
-      WHERE program_code = public.course_master.cm_course_name
-      AND (primary_coordinator_id = auth.uid() OR alternate_coordinator_id = auth.uid())
+      SELECT 1 FROM public.programs p
+      WHERE p.program_code = public.course_master.program_code
+        AND (p.primary_coordinator_id = auth.uid() OR p.alternate_coordinator_id = auth.uid())
     )
   );
 

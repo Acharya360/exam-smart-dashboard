@@ -15,6 +15,12 @@ const app = express();
 const PORT = process.env.API_PORT || 5000;
 const sessions = new Map();
 const safeProfile = ({ password, ...user }) => user;
+// Centralised 500 handler: logs the real error server-side, returns a generic
+// message so internal details (SQL text, connection strings) never reach clients.
+function serverError(res, err) {
+  console.error('[API Error]', err);
+  if (!res.headersSent) res.status(500).json({ error: 'An unexpected server error occurred.' });
+}
 async function requireSession(req, res, next) {
   const cookie = (req.headers.cookie || '').split(';').map(s => s.trim()).find(s => s.startsWith('exam_session='));
   const token = cookie?.slice('exam_session='.length);
@@ -30,6 +36,17 @@ async function requireSession(req, res, next) {
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
+// Serve Gazette Engine static files from public/gazette/
+app.use('/gazette', express.static(path.join(__dirname, 'public', 'gazette'), {
+  maxAge: '1h',
+  setHeaders: (res, filePath) => {
+    // Ensure proper MIME types for gazette assets
+    if (filePath.endsWith('.js')) res.setHeader('Content-Type', 'application/javascript');
+    if (filePath.endsWith('.css')) res.setHeader('Content-Type', 'text/css');
+    if (filePath.endsWith('.html')) res.setHeader('Content-Type', 'text/html');
+  }
+}));
+
 // CORS headers
 app.use((req, res, next) => {
   const allowedOrigins = new Set(['http://localhost:3000', 'http://127.0.0.1:3000', `http://localhost:${PORT}`]);
@@ -43,10 +60,14 @@ app.use((req, res, next) => {
 // Root API Welcome / Status
 app.get('/', (req, res) => {
   res.json({
-    app: 'Acharya360 ExamTrack API',
+    app: 'SSPU Examination Portal API',
     status: 'online',
     port: PORT,
     database: 'SSPU_Exam',
+    modules: {
+      dashboard: 'React Admin Dashboard',
+      gazette: '/gazette/ — Result Gazette & Tabulation Register Engine'
+    },
     health: '/api/health'
   });
 });
@@ -169,7 +190,8 @@ app.get('/api/health', requireSession, async (req, res) => {
       counts
     });
   } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
+    console.error('[Health Error]', err);
+    res.status(500).json({ status: 'error', message: 'Unable to collect database status.' });
   }
 });
 
@@ -202,7 +224,7 @@ app.post('/api/auth/login', createRateLimiter(20), async (req, res) => {
     res.cookie('exam_session', token, { httpOnly: true, sameSite: 'strict', secure: req.secure, maxAge: 8 * 60 * 60 * 1000 });
     res.json({ user: safeUser });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -269,7 +291,7 @@ app.post('/api/auth/change-password', createRateLimiter(10), async (req, res) =>
     await executeSql('INSERT INTO dbo.exam_processing_audit(action,actor,detail) VALUES(@action,@actor,@detail)',{action:'PASSWORD_RESET',actor:req.user.id,detail:JSON.stringify({targetId:target.id})},'execute');
     res.json({ success: true, message: 'Password updated successfully' });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -279,7 +301,7 @@ app.get('/api/profiles', async (req, res) => {
     const result = await executeSql('SELECT * FROM dbo.profiles ORDER BY full_name ASC');
     res.json((result.data || []).map(safeProfile));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 app.patch('/api/profiles/:id', async (req,res) => {
@@ -355,7 +377,7 @@ app.post('/api/profiles', async (req, res) => {
     const updated = await executeSql('SELECT TOP 1 * FROM dbo.profiles WHERE LOWER(email) = LOWER(@email)', { email: email.trim() });
     res.json(updated.data?.[0] ? safeProfile(updated.data[0]) : null);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -365,7 +387,7 @@ app.get('/api/programs', async (req, res) => {
     const result = await executeSql('SELECT * FROM dbo.programs ORDER BY sr_no ASC');
     res.json(result.data || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -508,7 +530,7 @@ app.post('/api/programs/bulk', async (req, res) => {
     const all = await executeSql('SELECT * FROM dbo.programs ORDER BY sr_no ASC');
     res.json(all.data || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -526,7 +548,7 @@ app.get('/api/schedules', async (req, res) => {
     const result = await executeSql(sql, params);
     res.json(result.data || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -602,7 +624,7 @@ app.post('/api/schedules/bulk', async (req, res) => {
     const all = await executeSql('SELECT * FROM dbo.exam_schedules ORDER BY exam_day ASC, pkg_no ASC');
     res.json(all.data || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -612,7 +634,7 @@ app.delete('/api/schedules/:id', async (req, res) => {
     await executeSql('DELETE FROM dbo.exam_tasks WHERE schedule_id = @id; DELETE FROM dbo.exam_schedules WHERE id = @id;', { id }, 'execute');
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 app.post('/api/schedules/bulk-delete', async (req, res) => {
@@ -627,7 +649,7 @@ app.post('/api/schedules/bulk-delete', async (req, res) => {
     `, params, 'execute');
     res.json({ success: true, count: ids.length });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -649,7 +671,7 @@ app.get('/api/tasks', async (req, res) => {
     const result = await executeSql(sql, params);
     res.json(result.data || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -681,7 +703,7 @@ app.post('/api/tasks', async (req, res) => {
     res.json(created.data ? created.data[0] : null);
   } catch (err) {
     if (/FOREIGN KEY constraint/i.test(err.message)) return res.status(400).json({ error: 'The schedule or staff account referenced by this task does not exist.' });
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -731,7 +753,7 @@ app.patch('/api/tasks/:id', async (req, res) => {
     const updated = await executeSql('SELECT TOP 1 * FROM dbo.exam_tasks WHERE id = @id', { id });
     res.json(updated.data ? updated.data[0] : null);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -755,15 +777,27 @@ app.get('/api/course-master', async (req, res) => {
     }));
     res.json(courses);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
 app.post('/api/course-master/bulk', async (req, res) => {
   try {
-    const { courses } = req.body;
+    const { courses, clearExisting } = req.body;
     if (!Array.isArray(courses) || courses.length === 0) {
       return res.status(400).json({ error: 'Courses array is required' });
+    }
+
+    if (clearExisting === true || clearExisting === 'true') {
+      // Atomic clear: both deletes run in one transactional batch so a failure on the
+      // second cannot leave exam_course_settings pruned while course_master is intact.
+      await executeSql(`
+        SET XACT_ABORT ON;
+        BEGIN TRAN;
+        DELETE FROM dbo.exam_course_settings WHERE course_id IN (SELECT id FROM dbo.course_master);
+        DELETE FROM dbo.course_master;
+        COMMIT;
+      `, {}, 'execute');
     }
 
     const programs = (await executeSql('SELECT id, program_name, program_code FROM dbo.programs')).data || [];
@@ -936,7 +970,11 @@ app.post('/api/course-master/bulk', async (req, res) => {
       await executeSql(sql, params, 'execute');
 
       // Match program_id
-      const matchedProg = programs.find(p => p.program_name === c.cm_course_name || p.program_code === c.program_code);
+      const normStr = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const matchedProg = programs.find(p => 
+        (p.program_name && c.cm_course_name && normStr(p.program_name) === normStr(c.cm_course_name)) ||
+        (p.program_code && c.program_code && normStr(p.program_code) === normStr(c.program_code))
+      );
       const programId = matchedProg ? matchedProg.id : null;
 
       // Construct scheme if not provided
@@ -1006,7 +1044,7 @@ app.post('/api/course-master/bulk', async (req, res) => {
     }));
     res.json(all);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1016,7 +1054,7 @@ app.delete('/api/course-master/:id', async (req, res) => {
     await executeSql('DELETE FROM dbo.course_master WHERE id = @id', { id }, 'execute');
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 app.post('/api/course-master/bulk-delete', async (req, res) => {
@@ -1028,7 +1066,7 @@ app.post('/api/course-master/bulk-delete', async (req, res) => {
     await executeSql(`DELETE FROM dbo.course_master WHERE id IN (${placeholders})`, params, 'execute');
     res.json({ success: true, count: ids.length });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1089,7 +1127,7 @@ app.get('/api/student-marks', async (req, res) => {
       res.json({ data: rows, total, page: Math.floor(params.offset / params.limit) + 1, pageSize: params.limit });
     }
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1100,7 +1138,7 @@ app.delete('/api/student-marks/:id', async (req, res) => {
     await examination.sync();
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1145,7 +1183,7 @@ app.get('/api/faculty-allocations', async (req, res) => {
     const result = await executeSql(sql, params);
     res.json(result.data || []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1217,7 +1255,7 @@ app.post('/api/faculty-allocations', async (req, res) => {
     const created = (await executeSql('SELECT * FROM dbo.faculty_course_allocations WHERE id = @id', { id })).data?.[0];
     res.json(created);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1243,7 +1281,7 @@ app.patch('/api/faculty-allocations/:id', async (req, res) => {
     const updated = (await executeSql('SELECT * FROM dbo.faculty_course_allocations WHERE id = @id', { id })).data?.[0];
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1253,7 +1291,7 @@ app.delete('/api/faculty-allocations/:id', async (req, res) => {
     await executeSql('DELETE FROM dbo.faculty_course_allocations WHERE id = @id', { id }, 'execute');
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1296,7 +1334,7 @@ app.post('/api/faculty-allocations/bulk-upload', async (req, res) => {
 
     res.json({ success: true, count: inserted });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
@@ -1321,13 +1359,15 @@ app.get('/api/performance-reports/summary', async (req, res) => {
       }
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    serverError(res, err);
   }
 });
 
-// Start Express server
-const server = app.listen(PORT, '127.0.0.1', () => {
-  console.log(`[Express API] SSPU_Exam Backend Server running at http://localhost:${PORT}`);
+// Start Express server. Binds to loopback by default so the SQL-bridge API is not
+// exposed on the LAN; set API_HOST=0.0.0.0 explicitly to bind all interfaces.
+const HOST = process.env.API_HOST || '127.0.0.1';
+const server = app.listen(PORT, HOST, () => {
+  console.log(`[Express API] SSPU_Exam Backend Server running at http://${HOST}:${PORT}`);
   console.log(`[Express API] Connected to Microsoft SQL Server: ${process.env.SQL_SERVER || 'localhost\\SQLEXPRESS'} (Database: SSPU_Exam)`);
 });
 

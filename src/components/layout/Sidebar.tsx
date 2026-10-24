@@ -102,6 +102,18 @@ const groups: NavGroupDef[] = [
     ],
   },
   {
+    name: 'Gazette & Print Engine',
+    items: [
+      { id: 'gazetteHome', label: 'Gazette Dashboard', icon: LayoutDashboard },
+      { id: 'gazetteRegister', label: 'Result Gazette (A3)', icon: FileText },
+      { id: 'gazetteCards', label: 'Grade Cards (A4)', icon: UserCheck },
+      { id: 'gazetteAnalytics', label: 'Gazette Analytics', icon: BarChart3 },
+      { id: 'gazetteDataHub', label: 'Excel Data Hub', icon: FileSpreadsheet },
+      { id: 'gazetteNames', label: 'Student Names Directory', icon: Users },
+      { id: 'gazetteMaster', label: 'Master Records', icon: Database },
+    ],
+  },
+  {
     name: 'Governance & Settings',
     items: [
       { id: 'users', label: 'User Management', icon: UserCog, superAdminOnly: true },
@@ -243,8 +255,19 @@ export function Sidebar({
     setClosed((p) => (p.includes(name) ? p.filter((n) => n !== name) : [...p, name]));
   };
 
+  const gazetteRoutes: Record<string, string> = {
+    gazetteHome: '/gazette/index.html',
+    gazetteRegister: '/gazette/pages/gazette.html',
+    gazetteCards: '/gazette/pages/grade-cards.html',
+    gazetteAnalytics: '/gazette/pages/analytics.html',
+    gazetteDataHub: '/gazette/pages/data-hub.html',
+    gazetteNames: '/gazette/pages/student-names.html',
+    gazetteMaster: '/gazette/pages/master-records.html',
+  };
+
   const handleItemClick = (id: string) => {
     if (id === 'passwords') onOpenPasswordModal();
+    else if (gazetteRoutes[id]) window.location.href = gazetteRoutes[id];
     else onNavigate(id);
     if (autoHide) setCollapsed(true);
     if (isOpen && window.innerWidth < 768) onClose?.();

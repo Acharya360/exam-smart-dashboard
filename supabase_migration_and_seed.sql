@@ -70,9 +70,10 @@ CREATE TYPE public.task_status_enum AS ENUM ('PENDING', 'IN_PROGRESS', 'COMPLETE
 -- 3. PROFILES TABLE (Administrative and Faculty Users)
 -- ============================================================================
 CREATE TABLE public.profiles (
-    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    -- id MUST equal auth.users(id)::text. Rows are provisioned in section 12 below;
+    -- no password column exists here because authentication is handled by Supabase Auth.
+    id TEXT PRIMARY KEY,
     email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL DEFAULT 'Admin@123',
     full_name TEXT NOT NULL,
     role public.user_role_enum NOT NULL DEFAULT 'COORDINATOR',
     department TEXT DEFAULT '',
@@ -213,6 +214,8 @@ CREATE TABLE public.course_master (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX idx_course_master_code ON public.course_master(paper_code);
+-- Backs the upsertCourseMaster onConflict target (cm_course_name, semester, paper_code).
+CREATE UNIQUE INDEX uq_course_master_unique ON public.course_master(cm_course_name, semester, paper_code);
 
 -- ============================================================================
 -- 8. STUDENT MARKS TABLE
@@ -240,6 +243,8 @@ CREATE TABLE public.student_marks (
 );
 CREATE INDEX idx_student_marks_prn ON public.student_marks(prn);
 CREATE INDEX idx_student_marks_paper ON public.student_marks(paper_code);
+-- Backs the upsertStudentMarks onConflict target.
+CREATE UNIQUE INDEX uq_student_marks_unique ON public.student_marks(prn, cm_course_name, semester, paper_code, academic_year, exam_year, assessment_type);
 
 -- ============================================================================
 -- 9. COURSE SETTINGS & PROCESSING AUDIT
@@ -338,62 +343,111 @@ CREATE INDEX idx_fac_alloc_staff ON public.faculty_course_allocations(staff_code
 CREATE INDEX idx_fac_alloc_program ON public.faculty_course_allocations(program_name);
 
 -- ============================================================================
+-- 11b. RBAC HELPER FUNCTIONS
+-- profiles.id and coordinator/task FK columns are TEXT holding auth.users UUIDs,
+-- so auth.uid() is cast to text for comparison.
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.is_super_admin()
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()::text
+      AND role IN ('COE', 'DYCOE', 'ACOE')
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.is_coordinator_for_program(p_code TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.programs
+    WHERE program_code = p_code
+      AND (primary_coordinator_id = auth.uid()::text OR alternate_coordinator_id = auth.uid()::text)
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
 -- 12. SEED DATA MIGRATION FROM AUTHORITATIVE DATABASE (SSPU_Exam)
 -- ============================================================================
 
--- A. Insert Profiles with default password 'Admin@123'
-INSERT INTO public.profiles (id, email, password, full_name, role, department, title, created_at, last_password_change)
-VALUES
-  ('user-coe-1', 'coe@sspu.ac.in', 'Admin@123', 'Dr. Sunita Nikam', 'COE', 'Central Examination Office', 'Controller of Examinations', '2026-01-10T09:00:00Z', NOW()),
-  ('user-dycoe-1', 'DyCoe@sspu.ac.in', 'Admin@123', 'Dr. Kiran Shende', 'DYCOE', 'Central Examination Office', 'Deputy Controller of Examinations', '2026-01-12T10:00:00Z', NOW()),
-  ('user-acoe-1', 'Acoe@sspu.ac.in', 'Admin@123', 'Mr. Keshav B. Jankar', 'ACOE', 'Central Examination Office', 'Assistant Controller of Examinations', '2026-01-15T11:30:00Z', NOW()),
-  ('user-1792693422261', 'amit.vartikar@sspu.ac.in', 'Admin@123', 'Mr. Amit Vartikar', 'COORDINATOR', 'Examination Department', 'Exam Coordinator', '2026-10-22T23:53:42Z', NOW()),
-  ('user-1792693422403', 'shreyasi.joshi@sspu.ac.in', 'Admin@123', 'Ms. Shreyasi Joshi', 'COORDINATOR', 'Examination Department', 'Exam Coordinator', '2026-10-22T23:53:42Z', NOW()),
-  ('user-1792693422489', 'prathmesh.londhe@sspu.ac.in', 'Admin@123', 'Mr. Prathmesh Londhe', 'COORDINATOR', 'Examination Department', 'Exam Coordinator', '2026-10-22T23:53:42Z', NOW()),
-  ('user-1792693422591', 'rajkumar.wankhade@sspu.ac.in', 'Admin@123', 'Mr. Rajkumar Wankhade', 'COORDINATOR', 'Examination Department', 'Exam Coordinator', '2026-10-22T23:53:42Z', NOW()),
-  ('user-coord-mvjwta5a-x5op', 'suresh.patil@sspu.ac.in', 'Admin@123', 'Dr. Suresh Patil', 'COORDINATOR', 'Examination Department', 'Exam Coordinator', '2026-10-23T00:33:54Z', NOW())
-ON CONFLICT (email) DO UPDATE SET
-  password = EXCLUDED.password,
-  full_name = EXCLUDED.full_name,
-  role = EXCLUDED.role,
-  department = EXCLUDED.department,
-  title = EXCLUDED.title,
-  last_password_change = NOW();
+-- A. Provision Supabase Auth users and their matching profiles.
+-- Authentication is delegated to Supabase Auth (auth.users). Each profile.id equals
+-- its auth.users UUID (as text). Default password 'Admin@123' MUST be changed on first login.
+DO $$
+DECLARE
+  u RECORD;
+BEGIN
+  -- Guarantee deterministic ids: remove any stale auth users for these seed emails first.
+  DELETE FROM auth.users WHERE email IN (
+    'coe@sspu.ac.in', 'dycoe@sspu.ac.in', 'acoe@sspu.ac.in',
+    'amit.vartikar@sspu.ac.in', 'shreyasi.joshi@sspu.ac.in',
+    'prathmesh.londhe@sspu.ac.in', 'rajkumar.wankhade@sspu.ac.in',
+    'suresh.patil@sspu.ac.in'
+  );
+
+  FOR u IN
+    SELECT * FROM (VALUES
+      ('00000000-0000-0000-0000-000000000001', 'coe@sspu.ac.in',               'Dr. Sunita Nikam',      'COE',         'Central Examination Office', 'Controller of Examinations'),
+      ('00000000-0000-0000-0000-000000000002', 'dycoe@sspu.ac.in',             'Dr. Kiran Shende',      'DYCOE',       'Central Examination Office', 'Deputy Controller of Examinations'),
+      ('00000000-0000-0000-0000-000000000003', 'acoe@sspu.ac.in',              'Mr. Keshav B. Jankar',  'ACOE',        'Central Examination Office', 'Assistant Controller of Examinations'),
+      ('00000000-0000-0000-0000-000000000004', 'amit.vartikar@sspu.ac.in',     'Mr. Amit Vartikar',     'COORDINATOR', 'Examination Department',     'Exam Coordinator'),
+      ('00000000-0000-0000-0000-000000000005', 'shreyasi.joshi@sspu.ac.in',    'Ms. Shreyasi Joshi',    'COORDINATOR', 'Examination Department',     'Exam Coordinator'),
+      ('00000000-0000-0000-0000-000000000006', 'prathmesh.londhe@sspu.ac.in',  'Mr. Prathmesh Londhe',  'COORDINATOR', 'Examination Department',     'Exam Coordinator'),
+      ('00000000-0000-0000-0000-000000000007', 'rajkumar.wankhade@sspu.ac.in', 'Mr. Rajkumar Wankhade', 'COORDINATOR', 'Examination Department',     'Exam Coordinator'),
+      ('00000000-0000-0000-0000-000000000008', 'suresh.patil@sspu.ac.in',      'Dr. Suresh Patil',      'COORDINATOR', 'Examination Department',     'Exam Coordinator')
+    ) AS t(id, email, full_name, role, department, title)
+  LOOP
+    INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, role, confirmation_token, email_change, email_change_token_new, recovery_token)
+    VALUES (u.id::uuid, '00000000-0000-0000-0000-000000000000', u.email, crypt('Admin@123', gen_salt('bf')), NOW(), '{"provider":"email","providers":["email"]}', '{}', NOW(), NOW(), 'authenticated', '', '', '', '');
+
+    INSERT INTO public.profiles (id, email, full_name, role, department, title, created_at, last_password_change)
+    VALUES (u.id, u.email, u.full_name, u.role::public.user_role_enum, u.department, u.title, NOW(), NOW())
+    ON CONFLICT (id) DO UPDATE SET
+      email = EXCLUDED.email,
+      full_name = EXCLUDED.full_name,
+      role = EXCLUDED.role,
+      department = EXCLUDED.department,
+      title = EXCLUDED.title;
+  END LOOP;
+END $$;
 
 -- B. Insert Academic Programs
 INSERT INTO public.programs (id, sr_no, program_code, program_name, school_name, primary_coordinator_id, alternate_coordinator_id, created_at)
 VALUES
-  ('prog-b-arch-', 26, 'B.ARCH.', 'B. Arch', 'School of Architecture, Urban Development & Planning', 'user-1792693422403', 'user-1792693422261', '2026-10-23T00:35:55Z'),
-  ('prog-bba-dmm', 19, 'BBA-DMM', 'BBA (Digital Media Marketing)', 'School of Media Management', 'user-1792693422591', 'user-1792693422489', '2026-10-23T00:35:55Z'),
-  ('prog-bba-fintech', 18, 'BBA.FINTECH', 'BBA (Fintech)', 'School of Banking, Financial Services, and Insurance', 'user-1792693422591', 'user-1792693422489', '2026-10-23T00:35:55Z'),
-  ('prog-bba-l-scm', 20, 'BBA-L&SCM', 'BBA (Logistics and Supply Chain Management)', 'School of Ports, Terminal Management and Logistics', 'user-1792693422591', 'user-1792693422489', '2026-10-23T00:35:55Z'),
-  ('prog-bba-p-tm', 21, 'BBA-P&TM', 'BBA (Ports & Terminal Management)', 'School of Ports, Terminal Management and Logistics', 'user-1792693422591', 'user-1792693422489', '2026-10-23T00:35:55Z'),
-  ('prog-bba-r-e-com', 22, 'BBA-R&E-COM', 'BBA (Retail & E-Commerce Management)', 'School of Retail Management', 'user-1792693422591', 'user-1792693422489', '2026-10-23T00:35:55Z'),
-  ('prog-b-des-id', 27, 'B.DES.ID', 'B. Des. (Interior Design)', 'School of Architecture, Urban Development & Planning', 'user-1792693422403', 'user-1792693422261', '2026-10-23T00:35:55Z'),
-  ('prog-b-sc--b-w', 1, 'B.SC. B&W', 'B.Sc. (Beauty & Wellness)', 'School of Beauty and Wellness', 'user-1792693422261', 'user-1792693422403', '2026-10-23T00:35:55Z'),
-  ('prog-b-sc--ds', 2, 'B.SC. DS', 'B.Sc. (Data Science)', 'School of Data Science', 'user-1792693422261', 'user-1792693422403', '2026-10-23T00:35:55Z'),
-  ('prog-b-sc--nsd', 3, 'B.SC. NSD', 'B.Sc. (Nutritional Sciences and Dietetics)', 'School of Nutrition and Dietetics', 'user-1792693422261', 'user-1792693422403', '2026-10-23T00:35:55Z'),
-  ('prog-b-tech--ai-ml', 12, 'B.TECH. AI&ML', 'B.Tech (Artificial Intelligence and Machine learning)', 'School of Computer Science & Information Technology', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z'),
-  ('prog-b-tech--auto-eng', 13, 'B.TECH. AUTO ENG', 'B.Tech (Automobile Engineering)', 'School of Automobile Engineering', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z'),
-  ('prog-btechauto-wilp-', 31, 'BTECHAUTO(WILP)', 'B. Tech. Automobile Engineering (WILP)', 'School of Automobile Engineering', 'user-1792693422403', 'user-1792693422261', '2026-10-23T00:35:56Z'),
-  ('prog-b-tech-cem', 9, 'B.TECH CEM', 'B.Tech (Construction Engineering and Management)', 'School of Construction Engineering and Infrastructure Management', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z'),
-  ('prog-b-tech-cem-wilp-', 28, 'B.TECH CEM(WILP)', 'B.Tech. Construction Engineering and Management (WILP)', 'School of Construction Engineering and Infrastructure Management', 'user-1792693422403', 'user-1792693422261', '2026-10-23T00:35:56Z'),
-  ('prog-b-tech-cs-it', 10, 'B.TECH CS&IT', 'B.Tech [Computer Science & IT (Cyber Security)]', 'School of Computer Science & Information Technology', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z'),
-  ('prog-b-tech-defence', 15, 'B.TECH-DEFENCE', 'B.Tech (Defence Technology)', 'School of Defence Technology', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z'),
-  ('prog-b-tech--mech-eng', 14, 'B.TECH. MECH ENG', 'B.Tech (Mechatronics Engineering)', 'School of Mechatronics Engineering', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z'),
-  ('prog-b-tech--msm-wilp-', 30, 'B.TECH. MSM(WILP)', 'B.Tech. Mechanical and Smart Manufacturing (WILP)', 'School of Mechatronics Engineering', 'user-1792693422403', 'user-1792693422261', '2026-10-23T00:35:56Z'),
-  ('prog-b-tech-semicondu-eng', 17, 'B.TECH SEMICONDU ENG', 'B.Tech (Semiconductor Engineering)', 'School of Semiconductor Engineering', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z'),
-  ('prog-b-tech-s-se', 11, 'B.TECH S&SE', 'B.Tech (Smart and Sustainable Energy)', 'School of Sustainability Studies', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z'),
-  ('prog-dip-ame-', 4, 'DIP(AME)', 'Diploma in Advanced Manufacturing Excellence', 'School of Automobile Engineering', 'user-1792693422261', 'user-1792693422403', '2026-10-23T00:35:55Z'),
-  ('prog-dip-ma-', 5, 'DIP(MA)', 'Diploma in Manufacturing Automation', 'School of Mechatronics Engineering', 'user-1792693422261', 'user-1792693422403', '2026-10-23T00:35:55Z'),
-  ('prog-dip-me-', 6, 'DIP(ME)', 'Diploma in Manufacturing Excellence', 'School of Automobile Engineering', 'user-1792693422261', 'user-1792693422403', '2026-10-23T00:35:55Z'),
-  ('prog-mba--digital-marketing-', 25, 'MBA (DIGITAL MARKETING)', 'MBA (Digital Marketing)', 'School of Media Management', 'user-1792693422591', 'user-1792693422489', '2026-10-23T00:35:55Z'),
-  ('prog-mba-fintech-', 24, 'MBA(FINTECH)', 'MBA (FinTech)', 'School of Banking, Financial Services, and Insurance', 'user-1792693422591', 'user-1792693422489', '2026-10-23T00:35:55Z'),
-  ('prog-mba-l-scm-', 23, 'MBA(L&SCM)', 'MBA (Logistics and Supply Chain Management)', 'School of Ports, Terminal Management and Logistics', 'user-1792693422591', 'user-1792693422489', '2026-10-23T00:35:55Z'),
-  ('prog-m-plan-', 29, 'M.PLAN.', 'M. Plan. (Urban Planning)', 'School of Architecture, Urban Development & Planning', 'user-1792693422403', 'user-1792693422261', '2026-10-23T00:35:56Z'),
-  ('prog-m-sc--ds', 7, 'M.SC. DS', 'M.Sc. (Data Science)', 'School of Data Science', 'user-1792693422261', 'user-1792693422403', '2026-10-23T00:35:55Z'),
-  ('prog-m-sc--nsd', 8, 'M.SC. NSD', 'M.Sc. (Nutritional Sciences and Ditetics)', 'School of Nutrition and Dietetics', 'user-1792693422261', 'user-1792693422403', '2026-10-23T00:35:55Z'),
-  ('prog-m-tech--mech-eng--iot-ai-rob-', 16, 'M.TECH. MECH ENG (IOT,AI&ROB)', 'M.Tech [Mechatronics Engineering (IOT, AI & Robotics)]', 'School of Mechatronics Engineering', 'user-1792693422489', 'user-1792693422591', '2026-10-23T00:35:55Z');
+  ('prog-b-arch-', 26, 'B.ARCH.', 'B. Arch', 'School of Architecture, Urban Development & Planning', '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', '2026-10-23T00:35:55Z'),
+  ('prog-bba-dmm', 19, 'BBA-DMM', 'BBA (Digital Media Marketing)', 'School of Media Management', '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000006', '2026-10-23T00:35:55Z'),
+  ('prog-bba-fintech', 18, 'BBA.FINTECH', 'BBA (Fintech)', 'School of Banking, Financial Services, and Insurance', '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000006', '2026-10-23T00:35:55Z'),
+  ('prog-bba-l-scm', 20, 'BBA-L&SCM', 'BBA (Logistics and Supply Chain Management)', 'School of Ports, Terminal Management and Logistics', '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000006', '2026-10-23T00:35:55Z'),
+  ('prog-bba-p-tm', 21, 'BBA-P&TM', 'BBA (Ports & Terminal Management)', 'School of Ports, Terminal Management and Logistics', '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000006', '2026-10-23T00:35:55Z'),
+  ('prog-bba-r-e-com', 22, 'BBA-R&E-COM', 'BBA (Retail & E-Commerce Management)', 'School of Retail Management', '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000006', '2026-10-23T00:35:55Z'),
+  ('prog-b-des-id', 27, 'B.DES.ID', 'B. Des. (Interior Design)', 'School of Architecture, Urban Development & Planning', '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', '2026-10-23T00:35:55Z'),
+  ('prog-b-sc--b-w', 1, 'B.SC. B&W', 'B.Sc. (Beauty & Wellness)', 'School of Beauty and Wellness', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', '2026-10-23T00:35:55Z'),
+  ('prog-b-sc--ds', 2, 'B.SC. DS', 'B.Sc. (Data Science)', 'School of Data Science', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', '2026-10-23T00:35:55Z'),
+  ('prog-b-sc--nsd', 3, 'B.SC. NSD', 'B.Sc. (Nutritional Sciences and Dietetics)', 'School of Nutrition and Dietetics', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', '2026-10-23T00:35:55Z'),
+  ('prog-b-tech--ai-ml', 12, 'B.TECH. AI&ML', 'B.Tech (Artificial Intelligence and Machine learning)', 'School of Computer Science & Information Technology', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z'),
+  ('prog-b-tech--auto-eng', 13, 'B.TECH. AUTO ENG', 'B.Tech (Automobile Engineering)', 'School of Automobile Engineering', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z'),
+  ('prog-btechauto-wilp-', 31, 'BTECHAUTO(WILP)', 'B. Tech. Automobile Engineering (WILP)', 'School of Automobile Engineering', '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', '2026-10-23T00:35:56Z'),
+  ('prog-b-tech-cem', 9, 'B.TECH CEM', 'B.Tech (Construction Engineering and Management)', 'School of Construction Engineering and Infrastructure Management', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z'),
+  ('prog-b-tech-cem-wilp-', 28, 'B.TECH CEM(WILP)', 'B.Tech. Construction Engineering and Management (WILP)', 'School of Construction Engineering and Infrastructure Management', '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', '2026-10-23T00:35:56Z'),
+  ('prog-b-tech-cs-it', 10, 'B.TECH CS&IT', 'B.Tech [Computer Science & IT (Cyber Security)]', 'School of Computer Science & Information Technology', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z'),
+  ('prog-b-tech-defence', 15, 'B.TECH-DEFENCE', 'B.Tech (Defence Technology)', 'School of Defence Technology', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z'),
+  ('prog-b-tech--mech-eng', 14, 'B.TECH. MECH ENG', 'B.Tech (Mechatronics Engineering)', 'School of Mechatronics Engineering', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z'),
+  ('prog-b-tech--msm-wilp-', 30, 'B.TECH. MSM(WILP)', 'B.Tech. Mechanical and Smart Manufacturing (WILP)', 'School of Mechatronics Engineering', '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', '2026-10-23T00:35:56Z'),
+  ('prog-b-tech-semicondu-eng', 17, 'B.TECH SEMICONDU ENG', 'B.Tech (Semiconductor Engineering)', 'School of Semiconductor Engineering', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z'),
+  ('prog-b-tech-s-se', 11, 'B.TECH S&SE', 'B.Tech (Smart and Sustainable Energy)', 'School of Sustainability Studies', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z'),
+  ('prog-dip-ame-', 4, 'DIP(AME)', 'Diploma in Advanced Manufacturing Excellence', 'School of Automobile Engineering', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', '2026-10-23T00:35:55Z'),
+  ('prog-dip-ma-', 5, 'DIP(MA)', 'Diploma in Manufacturing Automation', 'School of Mechatronics Engineering', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', '2026-10-23T00:35:55Z'),
+  ('prog-dip-me-', 6, 'DIP(ME)', 'Diploma in Manufacturing Excellence', 'School of Automobile Engineering', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', '2026-10-23T00:35:55Z'),
+  ('prog-mba--digital-marketing-', 25, 'MBA (DIGITAL MARKETING)', 'MBA (Digital Marketing)', 'School of Media Management', '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000006', '2026-10-23T00:35:55Z'),
+  ('prog-mba-fintech-', 24, 'MBA(FINTECH)', 'MBA (FinTech)', 'School of Banking, Financial Services, and Insurance', '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000006', '2026-10-23T00:35:55Z'),
+  ('prog-mba-l-scm-', 23, 'MBA(L&SCM)', 'MBA (Logistics and Supply Chain Management)', 'School of Ports, Terminal Management and Logistics', '00000000-0000-0000-0000-000000000007', '00000000-0000-0000-0000-000000000006', '2026-10-23T00:35:55Z'),
+  ('prog-m-plan-', 29, 'M.PLAN.', 'M. Plan. (Urban Planning)', 'School of Architecture, Urban Development & Planning', '00000000-0000-0000-0000-000000000005', '00000000-0000-0000-0000-000000000004', '2026-10-23T00:35:56Z'),
+  ('prog-m-sc--ds', 7, 'M.SC. DS', 'M.Sc. (Data Science)', 'School of Data Science', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', '2026-10-23T00:35:55Z'),
+  ('prog-m-sc--nsd', 8, 'M.SC. NSD', 'M.Sc. (Nutritional Sciences and Ditetics)', 'School of Nutrition and Dietetics', '00000000-0000-0000-0000-000000000004', '00000000-0000-0000-0000-000000000005', '2026-10-23T00:35:55Z'),
+  ('prog-m-tech--mech-eng--iot-ai-rob-', 16, 'M.TECH. MECH ENG (IOT,AI&ROB)', 'M.Tech [Mechatronics Engineering (IOT, AI & Robotics)]', 'School of Mechatronics Engineering', '00000000-0000-0000-0000-000000000006', '00000000-0000-0000-0000-000000000007', '2026-10-23T00:35:55Z');
 
 -- C. Seed Initial Faculty Course Allocations
 INSERT INTO public.faculty_course_allocations 
@@ -414,8 +468,11 @@ VALUES
   ('fac-alloc-013', NULL, 'EE602', 'Power Systems & Smart Grids', 'T7105', 'Dr. Arun Kumar', NULL, 'A', 'VI', 'B.Tech. Electrical & Electronics', '2025-2026', 'School of Electrical Engineering', 4);
 
 -- ============================================================================
--- 13. ENABLE ROW-LEVEL SECURITY & PERMISSIVE ACCESS POLICIES
+-- 13. ENABLE ROW-LEVEL SECURITY & ROLE-SCOPED ACCESS POLICIES
 -- ============================================================================
+-- SECURITY MODEL: every policy targets the `authenticated` role, so the anonymous
+-- (anon) key has NO access to any table. Super Admins (COE/DYCOE/ACOE) manage all
+-- rows; Coordinators only read data belonging to programs they are mapped to.
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.programs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.exam_schedules ENABLE ROW LEVEL SECURITY;
@@ -430,45 +487,113 @@ ALTER TABLE public.timetable_electives ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.timetable_student_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.faculty_course_allocations ENABLE ROW LEVEL SECURITY;
 
--- Allow read & write access for authenticated users & anon client access
-CREATE POLICY "Public read profiles" ON public.profiles FOR SELECT USING (true);
-CREATE POLICY "Public write profiles" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
+-- profiles: any authenticated user may read (assignment dropdowns); only Super Admins manage.
+CREATE POLICY "profiles_select_authenticated" ON public.profiles
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "profiles_manage_super_admin" ON public.profiles
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read programs" ON public.programs FOR SELECT USING (true);
-CREATE POLICY "Public write programs" ON public.programs FOR ALL USING (true) WITH CHECK (true);
+-- programs: Super Admins see all; Coordinators see only their mapped programs.
+CREATE POLICY "programs_select" ON public.programs
+  FOR SELECT TO authenticated
+  USING (public.is_super_admin() OR public.is_coordinator_for_program(program_code));
+CREATE POLICY "programs_manage_super_admin" ON public.programs
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read exam_schedules" ON public.exam_schedules FOR SELECT USING (true);
-CREATE POLICY "Public write exam_schedules" ON public.exam_schedules FOR ALL USING (true) WITH CHECK (true);
+-- exam_schedules: scoped by program_code.
+CREATE POLICY "exam_schedules_select" ON public.exam_schedules
+  FOR SELECT TO authenticated
+  USING (public.is_super_admin() OR public.is_coordinator_for_program(program_code));
+CREATE POLICY "exam_schedules_manage_super_admin" ON public.exam_schedules
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read exam_tasks" ON public.exam_tasks FOR SELECT USING (true);
-CREATE POLICY "Public write exam_tasks" ON public.exam_tasks FOR ALL USING (true) WITH CHECK (true);
+-- exam_tasks: Super Admins manage all; Coordinators see/update tasks assigned to them
+-- (directly or as alternate) or belonging to their programs.
+CREATE POLICY "exam_tasks_select" ON public.exam_tasks
+  FOR SELECT TO authenticated
+  USING (
+    public.is_super_admin()
+    OR assigned_to = auth.uid()::text
+    OR alternate_user_id = auth.uid()::text
+    OR public.is_coordinator_for_program(program_code)
+  );
+CREATE POLICY "exam_tasks_update_own" ON public.exam_tasks
+  FOR UPDATE TO authenticated
+  USING (assigned_to = auth.uid()::text OR alternate_user_id = auth.uid()::text)
+  WITH CHECK (
+    public.is_super_admin()
+    OR assigned_to = auth.uid()::text
+    OR alternate_user_id = auth.uid()::text
+  );
+CREATE POLICY "exam_tasks_manage_super_admin" ON public.exam_tasks
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read course_master" ON public.course_master FOR SELECT USING (true);
-CREATE POLICY "Public write course_master" ON public.course_master FOR ALL USING (true) WITH CHECK (true);
+-- course_master: scoped by program_code (nullable -> only Super Admins see unmapped rows).
+CREATE POLICY "course_master_select" ON public.course_master
+  FOR SELECT TO authenticated
+  USING (public.is_super_admin() OR public.is_coordinator_for_program(program_code));
+CREATE POLICY "course_master_manage_super_admin" ON public.course_master
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read student_marks" ON public.student_marks FOR SELECT USING (true);
-CREATE POLICY "Public write student_marks" ON public.student_marks FOR ALL USING (true) WITH CHECK (true);
+-- student_marks: no program_code column, so scope via the course_master -> programs bridge.
+CREATE POLICY "student_marks_select" ON public.student_marks
+  FOR SELECT TO authenticated
+  USING (
+    public.is_super_admin()
+    OR EXISTS (
+      SELECT 1
+      FROM public.course_master cm
+      JOIN public.programs p ON p.program_code = cm.program_code
+      WHERE cm.cm_course_name = public.student_marks.cm_course_name
+        AND cm.semester = public.student_marks.semester
+        AND cm.paper_code = public.student_marks.paper_code
+        AND (p.primary_coordinator_id = auth.uid()::text OR p.alternate_coordinator_id = auth.uid()::text)
+    )
+  );
+CREATE POLICY "student_marks_manage_super_admin" ON public.student_marks
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read exam_course_settings" ON public.exam_course_settings FOR SELECT USING (true);
-CREATE POLICY "Public write exam_course_settings" ON public.exam_course_settings FOR ALL USING (true) WITH CHECK (true);
+-- exam_course_settings: scoped by program_code.
+CREATE POLICY "exam_course_settings_select" ON public.exam_course_settings
+  FOR SELECT TO authenticated
+  USING (public.is_super_admin() OR public.is_coordinator_for_program(program_code));
+CREATE POLICY "exam_course_settings_manage_super_admin" ON public.exam_course_settings
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read exam_processing_audit" ON public.exam_processing_audit FOR SELECT USING (true);
-CREATE POLICY "Public write exam_processing_audit" ON public.exam_processing_audit FOR ALL USING (true) WITH CHECK (true);
+-- exam_processing_audit: readable and appendable by any authenticated user; only Super
+-- Admins may modify or delete history.
+CREATE POLICY "exam_processing_audit_select" ON public.exam_processing_audit
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "exam_processing_audit_insert" ON public.exam_processing_audit
+  FOR INSERT TO authenticated WITH CHECK (true);
+CREATE POLICY "exam_processing_audit_manage_super_admin" ON public.exam_processing_audit
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read timetable_sessions" ON public.timetable_sessions FOR SELECT USING (true);
-CREATE POLICY "Public write timetable_sessions" ON public.timetable_sessions FOR ALL USING (true) WITH CHECK (true);
+-- timetable configuration (sessions/slots/electives): shared read, Super Admin write.
+CREATE POLICY "timetable_sessions_select" ON public.timetable_sessions
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "timetable_sessions_manage_super_admin" ON public.timetable_sessions
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read timetable_slots" ON public.timetable_slots FOR SELECT USING (true);
-CREATE POLICY "Public write timetable_slots" ON public.timetable_slots FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "timetable_slots_select" ON public.timetable_slots
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "timetable_slots_manage_super_admin" ON public.timetable_slots
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read timetable_electives" ON public.timetable_electives FOR SELECT USING (true);
-CREATE POLICY "Public write timetable_electives" ON public.timetable_electives FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "timetable_electives_select" ON public.timetable_electives
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "timetable_electives_manage_super_admin" ON public.timetable_electives
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read timetable_student_records" ON public.timetable_student_records FOR SELECT USING (true);
-CREATE POLICY "Public write timetable_student_records" ON public.timetable_student_records FOR ALL USING (true) WITH CHECK (true);
+-- timetable_student_records holds student PII (PRN, name, email): Super Admin only.
+CREATE POLICY "timetable_student_records_super_admin" ON public.timetable_student_records
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
-CREATE POLICY "Public read faculty_course_allocations" ON public.faculty_course_allocations FOR SELECT USING (true);
-CREATE POLICY "Public write faculty_course_allocations" ON public.faculty_course_allocations FOR ALL USING (true) WITH CHECK (true);
+-- faculty_course_allocations: shared read, Super Admin write.
+CREATE POLICY "faculty_course_allocations_select" ON public.faculty_course_allocations
+  FOR SELECT TO authenticated USING (true);
+CREATE POLICY "faculty_course_allocations_manage_super_admin" ON public.faculty_course_allocations
+  FOR ALL TO authenticated USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
 
 -- ============================================================================
 -- 14. VERIFICATION QUERY (Displays created tables and row counts in Results)

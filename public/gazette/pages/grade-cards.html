@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSPU - Student Grade Cards (A4)</title>
+  
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/grade-cards.css">
+
+  <!-- SheetJS Library -->
+  <script src="../xlsx.full.min.js"></script>
+
+  <!-- Embedded Master Dataset -->
+  <script src="../SSPU_Master_Data_Compact.js"></script>
+
+  <!-- Modular Scripts -->
+  <script src="../js/data-store.js"></script>
+  <script src="../js/common.js"></script>
+  <script src="../js/grade-cards.js"></script>
+</head>
+<body class="view-cards">
+
+  <!-- Navigation Bar Placeholder -->
+  <div id="navbarPlaceholder"></div>
+
+  <!-- Screen Header & Actions -->
+  <header class="screen-header no-print">
+    <div class="header-left">
+      <h1 class="portal-title">Individual Student Grade Cards</h1>
+      <p class="portal-sub">Semester Marks &amp; Credits Statement • A4 Marksheet Print Layout • Performance Ledgers</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="commonUI.goBack()" title="Return to Dashboard">
+        <span>←</span> Dashboard
+      </button>
+
+      <button class="btn btn-primary" onclick="gradeCardsApp.handlePrintAction()" title="Print A4 Student Grade Cards">
+        <span>🖨️</span> Print Grade Cards (A4)
+      </button>
+
+      <a href="gazette.html" class="btn btn-secondary" title="Switch to Tabulation Register Matrix View">
+        <span>📊</span> Switch to Gazette (A3)
+      </a>
+
+      <button class="btn btn-outline" onclick="gradeCardsApp.resetAllFilters()" title="Reset all filters">
+        <span>🔄</span> Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- Elevated Filter Bar -->
+  <section class="filter-bar no-print">
+    <!-- ROW 1: PRIMARY DATA FILTERS -->
+    <div class="filter-row filter-row-primary">
+      <div class="filter-group flex-1">
+        <label for="filterPeriod">Academic Period</label>
+        <select id="filterPeriod" onchange="gradeCardsApp.syncDropdowns(); gradeCardsApp.applyFiltersAndRender();">
+          <option value="2024-2025" selected>2024-2025</option>
+          <option value="2023-2024">2023-2024</option>
+          <option value="2022-2023">2022-2023</option>
+          <option value="2021-2022">2021-2022</option>
+          <option value="">-- All Periods --</option>
+        </select>
+      </div>
+
+      <div class="filter-group flex-1">
+        <label for="filterDept">
+          School / Department
+          <span class="dependent-badge" id="badgeDept" style="display:none;">Filtered</span>
+        </label>
+        <select id="filterDept" onchange="gradeCardsApp.syncDropdowns(); gradeCardsApp.applyFiltersAndRender();">
+          <option value="">-- All Departments --</option>
+        </select>
+      </div>
+
+      <div class="filter-group flex-15">
+        <label for="filterCourse">Programme / Course</label>
+        <select id="filterCourse" onchange="gradeCardsApp.syncDropdowns(); gradeCardsApp.applyFiltersAndRender();">
+          <option value="">-- Choose Programme --</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="width: 120px; flex-shrink: 0;">
+        <label for="filterTerm">
+          Term
+          <span class="dependent-badge" id="badgeTerm" style="display:none;">Filtered</span>
+        </label>
+        <select id="filterTerm" onchange="gradeCardsApp.onTermChange()">
+          <option value="">-- All Terms --</option>
+          <option value="Term I">Term I</option>
+          <option value="Term II">Term II</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="width: 125px; flex-shrink: 0;">
+        <label for="filterSem">
+          Semester
+          <span class="dependent-badge" id="badgeSem" style="display:none;">Filtered</span>
+        </label>
+        <select id="filterSem" onchange="gradeCardsApp.applyFiltersAndRender()"></select>
+      </div>
+
+      <div class="filter-group" style="width: 135px; flex-shrink: 0;">
+        <label for="filterExamType">Exam Type</label>
+        <select id="filterExamType" onchange="gradeCardsApp.applyFiltersAndRender()">
+          <option value="ALL">Both</option>
+          <option value="REGULAR">Regular</option>
+          <option value="BACKLOG">Backlog</option>
+        </select>
+      </div>
+
+      <div class="filter-group flex-1">
+        <label for="searchQuery">Search Student</label>
+        <input type="text" id="searchQuery" placeholder="Search PRN or Name..." oninput="gradeCardsApp.applyFiltersAndRender()">
+      </div>
+
+      <div class="filter-group" style="width: auto; flex-shrink: 0;">
+        <label>&nbsp;</label>
+        <button class="btn-reset-compact" onclick="gradeCardsApp.resetAllFilters()" title="Reset all filters">
+          <span>🔄</span> Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- ROW 2: TEMPLATE CONTROLS & PERSISTENT KPI BADGES STRIP -->
+    <div class="filter-row filter-row-secondary" id="filterRowSecondary">
+      <div class="filter-controls-subgroup">
+        <div class="filter-group" style="width: 275px;">
+          <label for="cardTemplate">Grade Card Template</label>
+          <select id="cardTemplate" onchange="gradeCardsApp.applyFiltersAndRender()">
+            <option value="template1" selected>Template 1 (Combined CA / IA / ESE)</option>
+            <option value="template2">Template 2 (Separate CAT, CAP, IA, EST, ESP)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="filter-kpi-strip" id="gradeCardsKpiStrip" style="display:none;">
+        <div class="filter-kpi-badge highlight">
+          <span class="kpi-icon">🪪</span>
+          <div class="kpi-meta">
+            <span class="kpi-val" id="kpiTotalStudents">0</span>
+            <span class="kpi-lbl">Candidates</span>
+          </div>
+        </div>
+        <div class="filter-kpi-badge">
+          <span class="kpi-icon">📝</span>
+          <div class="kpi-meta">
+            <span class="kpi-val" id="kpiRegularStudents">0</span>
+            <span class="kpi-lbl">Regular</span>
+          </div>
+        </div>
+        <div class="filter-kpi-badge">
+          <span class="kpi-icon">🔄</span>
+          <div class="kpi-meta">
+            <span class="kpi-val" id="kpiBacklogStudents">0</span>
+            <span class="kpi-lbl">Backlog</span>
+          </div>
+        </div>
+        <div class="filter-kpi-badge" style="background:#f0fdf4; border-color:#bbf7d0;">
+          <span class="kpi-icon">✅</span>
+          <div class="kpi-meta">
+            <span class="kpi-val" id="kpiPassedStudents" style="color:#15803d;">0</span>
+            <span class="kpi-lbl" style="color:#16a34a;">Passed</span>
+          </div>
+        </div>
+        <div class="filter-kpi-badge" style="background:#fef2f2; border-color:#fecaca;">
+          <span class="kpi-icon">❌</span>
+          <div class="kpi-meta">
+            <span class="kpi-val" id="kpiFailedStudents" style="color:#b91c1c;">0</span>
+            <span class="kpi-lbl" style="color:#dc2626;">Failed</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Main Viewport -->
+  <main class="app-container" id="cardsViewport">
+    <div style="background:var(--sspu-card-bg); border:1px solid var(--sspu-border); border-radius:12px; padding:60px 20px; text-align:center; max-width:600px; margin:40px auto; box-shadow:var(--shadow-sm);">
+      <div style="font-size:36px; margin-bottom:12px;">🪪</div>
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">Select a Programme</h3>
+      <p style="font-size:13px; color:#64748b;">Choose an Academic Period and Programme above to render Student Grade Cards.</p>
+    </div>
+  </main>
+
+  <footer class="app-footer no-print">
+    Symbiosis Skills & Professional University, Pune • Controller of Examinations • Student Grade Cards
+  </footer>
+
+  <script>
+    function bootstrapCards() {
+      gradeCardsApp.initGradeCardsPage();
+    }
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', bootstrapCards);
+    } else {
+      bootstrapCards();
+    }
+  </script>
+</body>
+</html>

@@ -181,7 +181,7 @@ if %ERRORLEVEL% equ 0 (
             if !ERRORLEVEL! equ 0 (
                 echo [INFO] Auto-freeing occupied port %PORT% - closing previous Node process !PID!...
                 taskkill /F /PID !PID! >nul 2>&1
-                timeout /t 1 /nobreak >nul
+                ping 127.0.0.1 -n 2 >nul
             )
         )
     )
@@ -192,10 +192,20 @@ goto :eof
 :: Helper: Pause & Loop
 :: ----------------------------------------------------------------------------
 :finish_action
-if not "%CMD_ARG%"=="" exit /b 0
 echo.
 echo [%TIMESTAMP%] Session ended >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
-pause
+if not "%CMD_ARG%"=="" (
+    echo.
+    echo ============================================================================
+    echo  [DONE] Command completed. Press any key to close this window...
+    echo ============================================================================
+    pause >nul
+    exit /b 0
+)
+echo ============================================================================
+echo  Action completed. Press any key to return to menu...
+echo ============================================================================
+pause >nul
 goto :menu
 
 :: ----------------------------------------------------------------------------
@@ -272,7 +282,7 @@ if /i "%CHOICE%"=="R" goto :action_reinstall
 if "%CHOICE%"=="0" goto :action_exit
 
 echo [ERROR] Invalid selection "%CHOICE%". Please try again.
-timeout /t 2 >nul
+ping 127.0.0.1 -n 3 >nul
 goto :menu
 
 :: ----------------------------------------------------------------------------
@@ -305,11 +315,12 @@ set "VITE_DB_MODE=local"
 echo [INFO] Launching Vite development server on port %PORT%...
 call :open_chrome_url "http://localhost:%PORT%/?db=local"
 call npm.cmd run dev -- --port %PORT%
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo [WARN] Dev server stopped or encountered an issue. Exit code: %ERRORLEVEL%
-    pause
-)
+echo.
+echo ============================================================================
+echo  [INFO] Development server stopped (exit code: %ERRORLEVEL%).
+echo ============================================================================
+echo.
+pause
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
@@ -337,11 +348,12 @@ set "VITE_DB_MODE=supabase"
 echo [INFO] Launching Vite development server with Supabase connection on port %PORT%...
 call :open_chrome_url "http://localhost:%PORT%/?db=supabase"
 call npm.cmd run dev -- --port %PORT%
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo [WARN] Dev server stopped or encountered an issue. Exit code: %ERRORLEVEL%
-    pause
-)
+echo.
+echo ============================================================================
+echo  [INFO] Development server stopped (exit code: %ERRORLEVEL%).
+echo ============================================================================
+echo.
+pause
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
@@ -891,9 +903,9 @@ if not defined CHROME_BIN if exist "C:\Program Files (x86)\Google\Chrome\Applica
 if not defined CHROME_BIN if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" set "CHROME_BIN=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
 
 if defined CHROME_BIN (
-    start "" cmd /c "ping -n 3 127.0.0.1 >nul & start \"\" \"!CHROME_BIN!\" \"%TARGET_URL%\""
+    start "" "!CHROME_BIN!" "%TARGET_URL%"
 ) else (
-    start "" cmd /c "ping -n 3 127.0.0.1 >nul & start \"\" \"%TARGET_URL%\""
+    start "" "%TARGET_URL%"
 )
 goto :eof
 
@@ -952,4 +964,5 @@ exit /b 0
 echo.
 echo Exiting Acharya360 ExamTrack Master Controller. Have a productive day!
 echo [%TIMESTAMP%] Session exited >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
+ping 127.0.0.1 -n 2 >nul
 exit /b 0

@@ -187,6 +187,13 @@ export function parseExamScheduleExcel(
         examDate = examDate.split('T')[0];
       }
 
+      // exam_date is NOT NULL in the database and a schedule without a date is
+      // meaningless, so reject the row rather than inventing a placeholder date.
+      if (!examDate) {
+        errors.push(`Row ${rowNum}: Missing Exam Date.`);
+        return;
+      }
+
       // Infer program code from course name
       const progCode = courseName
         ? courseName
@@ -212,8 +219,8 @@ export function parseExamScheduleExcel(
         regular_count: regularCount,
         backlog_count: backlogCount,
         exam_day: isNaN(examDay) ? 1 : examDay,
-        exam_date: examDate || '14/05/2026',
-        date_odd_even: dateOddEven || `${examDate || '14-05-2026'}_Odd`,
+        exam_date: examDate,
+        date_odd_even: dateOddEven || `${examDate}_Odd`,
         am_pm: amPm,
         exam_time: examTime,
         exam_type: examType,
@@ -546,17 +553,15 @@ export function downloadCourseMasterTemplate() {
 
   const sampleRows = [
     {
-      'Sr. No.': 1,
-      'AcademicPeriod': '',
-      'Term': '',
-      'Program Code': '',
+      'ID': 1,
+      'AcademicPeriod': '2026-27',
+      'Term': 'Term I',
+      'Program Code': 'B.Tech. CEM',
       'Program Name': 'B.Tech. Construction Engineering & Management',
       'Regulation Group': 'CAT + CAP + CAS |\nEST + ESP + ESS',
-      'Subject Type': '',
-      'Semester': 'I',
+      'Semester': 1,
       'Course Code': 'APSC102',
       'Course Name': 'Applied Physics',
-      'Student Count': '',
       'L_Cr': 2,
       'T_Cr': 0,
       'P_Cr': 1,
@@ -565,33 +570,31 @@ export function downloadCourseMasterTemplate() {
       'Grading Category': 'Non-Architecture',
       'CAT1 Max Marks': 10,
       'CAT2 Max Marks': 10,
-      'CAT3 Max Marks': 30,
-      'CAT Max Marks': 50,
-      'CAP1 Max Marks': 10,
-      'CAP2 Max Marks': 10,
+      'CAT3 Max Marks': 10,
+      'CAT Max Marks': 30,
+      'CAP1 Max Marks': 15,
+      'CAP2 Max Marks': 15,
       'CAP3 Max Marks': 20,
-      'CAP Max Marks': 40,
-      'CAS1 Max Marks': 0,
-      'CAS2 Max Marks': 0,
-      'CAS3 Max Marks': 0,
-      'CAS Max Marks': 0,
-      'EST Max Marks': 50,
-      'ESP Max Marks': 40,
-      'ESS Max Marks': 0,
-      'Total Marks': 180,
+      'CAP Max Marks': 50,
+      'CAS1 Max Marks': 20,
+      'CAS2 Max Marks': 20,
+      'CAS3 Max Marks': 20,
+      'CAS Max Marks': 60,
+      'EST Max Marks': 30,
+      'ESP Max Marks': 15,
+      'ESS Max Marks': 15,
+      'Total Marks': 200,
     },
     {
-      'Sr. No.': 2,
-      'AcademicPeriod': '',
-      'Term': '',
-      'Program Code': '',
+      'ID': 2,
+      'AcademicPeriod': '2026-27',
+      'Term': 'Term I',
+      'Program Code': 'B.Arch.',
       'Program Name': 'B.Arch. Architecture & Planning',
       'Regulation Group': 'CAS |\nESS',
-      'Subject Type': '',
-      'Semester': 'I',
+      'Semester': 1,
       'Course Code': 'ARCH101',
       'Course Name': 'Architectural Design Studio I',
-      'Student Count': '',
       'L_Cr': 1,
       'T_Cr': 0,
       'P_Cr': 2,
@@ -616,17 +619,15 @@ export function downloadCourseMasterTemplate() {
       'Total Marks': 300,
     },
     {
-      'Sr. No.': 3,
-      'AcademicPeriod': '',
-      'Term': '',
-      'Program Code': '',
+      'ID': 3,
+      'AcademicPeriod': '2026-27',
+      'Term': 'Term I',
+      'Program Code': 'B.Tech. CS',
       'Program Name': 'B.Tech. Computer Science & AI',
       'Regulation Group': 'CAT + CAS |\nEST + ESS',
-      'Subject Type': '',
-      'Semester': 'I',
+      'Semester': 1,
       'Course Code': 'MATH101',
       'Course Name': 'Calculus & Linear Algebra',
-      'Student Count': '',
       'L_Cr': 3,
       'T_Cr': 1,
       'P_Cr': 0,
@@ -654,17 +655,15 @@ export function downloadCourseMasterTemplate() {
 
   const ws = XLSX.utils.json_to_sheet(sampleRows);
   ws['!cols'] = [
-    { wch: 8 },  // Sr. No.
+    { wch: 8 },  // ID
     { wch: 16 }, // AcademicPeriod
     { wch: 10 }, // Term
     { wch: 14 }, // Program Code
     { wch: 45 }, // Program Name
     { wch: 25 }, // Regulation Group
-    { wch: 15 }, // Subject Type
     { wch: 10 }, // Semester
     { wch: 14 }, // Course Code
-    { wch: 32 }, // Course Name
-    { wch: 14 }, // Student Count
+    { wch: 35 }, // Course Name
     { wch: 8 },  // L_Cr
     { wch: 8 },  // T_Cr
     { wch: 8 },  // P_Cr
@@ -674,15 +673,15 @@ export function downloadCourseMasterTemplate() {
     { wch: 14 }, // CAT1 Max Marks
     { wch: 14 }, // CAT2 Max Marks
     { wch: 14 }, // CAT3 Max Marks
-    { wch: 14 }, // CAT Max Marks (Sum of CAT1,2,3)
+    { wch: 14 }, // CAT Max Marks
     { wch: 14 }, // CAP1 Max Marks
     { wch: 14 }, // CAP2 Max Marks
     { wch: 14 }, // CAP3 Max Marks
-    { wch: 14 }, // CAP Max Marks (Sum of CAP1,2,3)
+    { wch: 14 }, // CAP Max Marks
     { wch: 14 }, // CAS1 Max Marks
     { wch: 14 }, // CAS2 Max Marks
     { wch: 14 }, // CAS3 Max Marks
-    { wch: 14 }, // CAS Max Marks (Sum of CAS1,2,3)
+    { wch: 14 }, // CAS Max Marks
     { wch: 14 }, // EST Max Marks
     { wch: 14 }, // ESP Max Marks
     { wch: 14 }, // ESS Max Marks
@@ -768,6 +767,112 @@ export function downloadCourseMasterTemplate() {
   XLSX.writeFile(wb, 'Course_Master_LTPS_Template.xlsx');
 }
 
+export function exportCourseMasterToExcel(courses: CourseMaster[]) {
+  const rows = courses.map((c, i) => ({
+    'ID': c.sr_no || (i + 1),
+    'AcademicPeriod': c.academic_period || '',
+    'Term': c.term || '',
+    'Program Code': c.program_code || '',
+    'Program Name': c.cm_course_name || c.program_name || '',
+    'Regulation Group': c.regulation_group || '',
+    'Semester': c.semester || '',
+    'Course Code': c.paper_code || c.course_code || '',
+    'Course Name': c.sm_subject_name || c.course_name || '',
+    'L_Cr': c.l ?? 0,
+    'T_Cr': c.t ?? 0,
+    'P_Cr': c.p ?? 0,
+    'S_Cr': c.s ?? 0,
+    'Total Credits': c.total_credits ?? 0,
+    'Grading Category': c.grading_category || 'Non-Architecture',
+    'CAT1 Max Marks': c.cat1_max ?? 0,
+    'CAT2 Max Marks': c.cat2_max ?? 0,
+    'CAT3 Max Marks': c.cat3_max ?? 0,
+    'CAT Max Marks': c.cat_max_marks ?? 0,
+    'CAP1 Max Marks': c.cap1_max ?? 0,
+    'CAP2 Max Marks': c.cap2_max ?? 0,
+    'CAP3 Max Marks': c.cap3_max ?? 0,
+    'CAP Max Marks': c.cap_max_marks ?? 0,
+    'CAS1 Max Marks': c.cas1_max ?? 0,
+    'CAS2 Max Marks': c.cas2_max ?? 0,
+    'CAS3 Max Marks': c.cas3_max ?? 0,
+    'CAS Max Marks': c.cas_max_marks ?? 0,
+    'EST Max Marks': c.est_max_marks ?? 0,
+    'ESP Max Marks': c.esp_max_marks ?? 0,
+    'ESS Max Marks': c.ess_max_marks ?? 0,
+    'Total Marks': c.total_marks ?? 0,
+  }));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, ws, 'Course_Master');
+  XLSX.writeFile(wb, `Course_Master_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
+export interface CourseProgramMismatchItem {
+  rowNum: number;
+  srNo?: number | null;
+  paperCode: string;
+  courseName: string;
+  semester: string;
+  programNameInExcel: string;
+  programCodeInExcel?: string | null;
+  reason: string;
+  suggestedProgramName?: string;
+  suggestedProgramCode?: string;
+}
+
+export function exportCourseProgramMismatchReport(
+  mismatches: CourseProgramMismatchItem[],
+  totalCoursesCount: number,
+  registeredPrograms: Program[]
+) {
+  const wb = XLSX.utils.book_new();
+
+  // Sheet 1: Mismatches
+  const rows = mismatches.map((m, idx) => ({
+    'Sr. No.': idx + 1,
+    'Excel Row': m.rowNum,
+    'Course Code': m.paperCode,
+    'Course Title / Subject': m.courseName,
+    'Semester': m.semester,
+    'Uploaded Program Name': m.programNameInExcel,
+    'Uploaded Program Code': m.programCodeInExcel || '—',
+    'Mismatch Status': 'UNMATCHED IN REGISTRY',
+    'Mismatch Reason': m.reason,
+    'Suggested Registered Program': m.suggestedProgramName
+      ? `${m.suggestedProgramName} (${m.suggestedProgramCode || ''})`
+      : 'No close match found',
+    'Resolution Action': 'Register this program under Academic Programs (http://localhost:3000/programs) or correct the program name in Excel',
+  }));
+
+  const wsMismatches = XLSX.utils.json_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb, wsMismatches, 'Programme Mismatches');
+
+  // Sheet 2: Registered Programs Directory
+  const regRows = registeredPrograms.map((p, idx) => ({
+    'Sr. No.': idx + 1,
+    'Program Code': p.program_code,
+    'Program Name (Exact)': p.program_name,
+    'School': p.school_name,
+  }));
+  const wsRegistry = XLSX.utils.json_to_sheet(regRows);
+  XLSX.utils.book_append_sheet(wb, wsRegistry, 'Registered Programmes (DB)');
+
+  // Sheet 3: Executive Summary
+  const distinctUnmatchedPrograms = Array.from(new Set(mismatches.map((m) => m.programNameInExcel)));
+  const summaryRows = [
+    { Metric: 'Total Courses in Uploaded File', Value: totalCoursesCount },
+    { Metric: 'Valid & Matched Courses (Ready to Import)', Value: totalCoursesCount - mismatches.length },
+    { Metric: 'Mismatched Courses (Excluded / Requiring Review)', Value: mismatches.length },
+    { Metric: 'Unmatched Programme Names Count', Value: distinctUnmatchedPrograms.length },
+    { Metric: 'Unmatched Programme Names List', Value: distinctUnmatchedPrograms.join(', ') },
+    { Metric: 'Report Generated At', Value: new Date().toLocaleString() },
+  ];
+  const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Executive Summary');
+
+  XLSX.writeFile(wb, `Course_Master_Programme_Mismatch_Report_${new Date().toISOString().split('T')[0]}.xlsx`);
+}
+
 export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
   success: boolean;
   data: Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[];
@@ -785,6 +890,7 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
 
     const errors: string[] = [];
     const validCourses: Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[] = [];
+    const seenCourseKeys = new Set<string>();
 
     rawData.forEach((row, index) => {
       const rowNum = index + 2; // header is row 1
@@ -809,7 +915,7 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
       }
 
       const semester = String(rowObj['semester'] || rowObj['sem'] || '').trim();
-      const paperCode = String(
+      let paperCode = String(
         rowObj['coursecode'] ||
         rowObj['papercode'] ||
         rowObj['subjectcode'] ||
@@ -824,16 +930,33 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
       const subjectType = String(rowObj['subjecttype'] || rowObj['subject_type'] || rowObj['coursetype'] || rowObj['type'] || '').trim();
       const studentCountRaw = rowObj['studentcount'] ?? rowObj['student_count'] ?? rowObj['students'] ?? rowObj['count'];
       const studentCount = (studentCountRaw !== undefined && studentCountRaw !== '' && studentCountRaw !== null) ? Number(studentCountRaw) : null;
+      const srNo = parseInt(String(rowObj['id'] || rowObj['srno'] || rowObj['serialno'] || rowObj['sr_no'] || index + 1)) || (index + 1);
+
+      // If paper code is blank or placeholder (e.g. "-", "--", "---", "NA") for an Open Elective / General course with subject name, synthesize clean code
+      const isPlaceholder = !paperCode || /^[-_./\s]+$/.test(paperCode) || paperCode.toUpperCase() === 'NA' || paperCode.toUpperCase() === 'N/A';
+      if (isPlaceholder && subjectName) {
+        const progTag = programCode ? programCode.replace(/[^A-Za-z0-9]/g, '') : 'OE';
+        paperCode = `${progTag}-OE-S${semester || '1'}-${srNo}`;
+      }
 
       if (!courseName || !semester || !paperCode || !subjectName) {
         errors.push(`Row ${rowNum}: Missing mandatory fields (Program Name, Semester, Course Code, Course Name).`);
         return;
       }
 
+      // Auto-disambiguate elective basket codes within same program and semester (e.g. alternate options under IDSC 401)
+      const baseKey = `${courseName}::${semester}::${paperCode}`.toLowerCase();
+      if (seenCourseKeys.has(baseKey)) {
+        paperCode = `${paperCode}-${srNo}`;
+      }
+      seenCourseKeys.add(`${courseName}::${semester}::${paperCode}`.toLowerCase());
+
       // Grading Category validation
-      const rawCategory = String(rowObj['gradingcategory'] || rowObj['category'] || 'Non-Architecture').trim();
+      const rawCategory = String(rowObj['gradingcategory'] || rowObj['category'] || '').trim();
       let category: 'Architecture' | 'Non-Architecture' = 'Non-Architecture';
       if (rawCategory.toLowerCase().includes('arch') && !rawCategory.toLowerCase().includes('non')) {
+        category = 'Architecture';
+      } else if (rawCategory === '' && courseName.toLowerCase().includes('arch')) {
         category = 'Architecture';
       } else if (rawCategory.toLowerCase().includes('non') || rawCategory.toLowerCase().includes('eng') || rawCategory === '') {
         category = 'Non-Architecture';
@@ -850,6 +973,12 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
         for (const k of keys) {
           const v = rowObj[k];
           if (v !== undefined && v !== '' && v !== null) {
+            if (typeof v === 'string') {
+              const t = v.trim().toUpperCase();
+              if (t === 'NA' || t === 'N/A' || t === '-' || t === 'NIL') {
+                return 0;
+              }
+            }
             const n = Number(v);
             if (Number.isFinite(n)) return n;
           }
@@ -987,13 +1116,15 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
       const cas_min_marks = calc_cas_min > 0 ? calc_cas_min : calcMin(cas_max_marks, ['casminmarks', 'casmin']);
 
       // Determine active assessment heads
-      const theoryActive = (cat_max_marks + est_max) > 0;
-      const practicalActive = (cap_max_marks + esp_max) > 0;
-      const skillsActive = (cas_max_marks + ess_max) > 0;
+      let theoryActive = (cat_max_marks + est_max) > 0;
+      let practicalActive = (cap_max_marks + esp_max) > 0;
+      let skillsActive = (cas_max_marks + ess_max) > 0;
 
+      // For Audit / Non-evaluated / Project courses where all assessment marks are 0
       if (!theoryActive && !practicalActive && !skillsActive) {
-        errors.push(`Row ${rowNum}: Course must have at least one applicable assessment head (Theory, Practical, or Skills with max > 0).`);
-        return;
+        if (s > 0) skillsActive = true;
+        else if (p > 0) practicalActive = true;
+        else theoryActive = true;
       }
 
       const ia_max_marks = cat_max_marks + cap_max_marks + cas_max_marks;
@@ -1002,7 +1133,16 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
       const calculatedTotal = ia_max_marks + est_max + esp_max + ess_max;
       const calculatedTotalMin = ia_min_marks + est_min + esp_min + ess_min;
 
-      const total_marks = readNum(['totalmarks', 'totalmax', 'total'], calculatedTotal);
+      let total_marks = readNum(['totalmarks', 'totalmax', 'total'], calculatedTotal);
+      // Auto-correct Excel formula double-counting of subtotals (CAT+CAP+CAS subitems + subtotals + ESE)
+      const doubleSum = (cat1_max + cat2_max + cat3_max) + cat_max_marks +
+                        (cap1_max + cap2_max + cap3_max) + cap_max_marks +
+                        (cas1_max + cas2_max + cas3_max) + cas_max_marks +
+                        est_max + esp_max + ess_max;
+      if (total_marks === doubleSum && calculatedTotal > 0 && total_marks !== calculatedTotal) {
+        total_marks = calculatedTotal;
+      }
+
       const total_marks_min = readNum(['totalmarksmin', 'totalmin'], calculatedTotalMin);
 
       if (ia_min_marks > ia_max_marks) {
@@ -1065,7 +1205,7 @@ export function parseCourseMasterExcel(arrayBuffer: ArrayBuffer): {
       const regulationGroup = regulationGroupRaw || autoRegulationGroup;
 
       validCourses.push({
-        sr_no: parseInt(String(rowObj['srno'] || rowObj['serialno'] || index + 1)) || (index + 1),
+        sr_no: srNo,
         academic_period: academicPeriod || null,
         term: term || null,
         program_code: programCode || null,

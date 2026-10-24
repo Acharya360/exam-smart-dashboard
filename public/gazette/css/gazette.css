@@ -1,0 +1,2321 @@
+/* =====================================================================
+   SSPU TABULATION REGISTER & RESULT GAZETTE - MATRIX & A3 PRINT STYLES
+   ===================================================================== */
+
+
+    /* Screen UI Header & Toolbar */
+    .screen-header {
+      background: linear-gradient(135deg, var(--sspu-navy) 0%, var(--sspu-blue) 100%);
+      color: #ffffff;
+      padding: 14px 24px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .header-branding {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-logo-svg {
+      width: 48px;
+      height: 48px;
+      flex-shrink: 0;
+    }
+
+    .header-titles h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+
+    .header-titles p {
+      font-size: 12px;
+      color: var(--sspu-gold-light);
+      font-weight: 500;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 5px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-gold {
+      background: linear-gradient(to bottom, #d4af37, var(--sspu-gold));
+      color: #0d233a;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    .btn-gold:hover {
+      background: linear-gradient(to bottom, #e5c158, #b88e1e);
+      transform: translateY(-1px);
+    }
+
+    .btn-primary {
+      background-color: #2b6cb0;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background-color: #2c5282;
+    }
+
+    .btn-secondary {
+      background-color: rgba(255, 255, 255, 0.15);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .btn-secondary:hover {
+      background-color: rgba(255, 255, 255, 0.25);
+    }
+
+    .btn-reset {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+      padding: 7px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      border-radius: 4px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s;
+    }
+    .btn-reset:hover {
+      background-color: #fecaca;
+      color: #7f1d1d;
+      transform: translateY(-1px);
+    }
+
+    /* Filter Bar */
+    .filter-bar {
+      background: #ffffff;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      margin: 16px 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      align-items: flex-end;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-group label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: #4a5568;
+      letter-spacing: 0.3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .filter-group select,
+    .filter-group input {
+      padding: 7px 10px;
+      font-size: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      background-color: #f8fafc;
+      color: #1e293b;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .filter-group select:focus,
+    .filter-group input:focus {
+      border-color: #3182ce;
+      background-color: #ffffff;
+      box-shadow: 0 0 0 2px rgba(49, 130, 206, 0.2);
+    }
+
+    .dependent-badge {
+      font-size: 9px;
+      font-weight: normal;
+      color: #2b6cb0;
+      background: #ebf8ff;
+      padding: 1px 4px;
+      border-radius: 3px;
+      text-transform: none;
+    }
+
+    /* Course Selection Dashboard (When no course is selected) */
+    .course-selection-panel {
+      background: #ffffff;
+      padding: 28px;
+      border-radius: 8px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.06);
+      width: 100%;
+      max-width: 1100px;
+      margin: 20px auto;
+    }
+
+    .course-selection-header {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .course-selection-header h3 {
+      font-size: 18px;
+      color: var(--sspu-navy);
+      font-weight: 700;
+    }
+    .course-selection-header p {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+
+    .course-cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 14px;
+    }
+
+    .course-pick-card {
+      background: #f8fafc;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 12px 14px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .course-pick-card:hover {
+      border-color: var(--sspu-blue);
+      background: #ffffff;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(26, 54, 93, 0.12);
+    }
+    .course-pick-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--sspu-blue);
+      margin-bottom: 4px;
+    }
+    .course-pick-dept {
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 8px;
+    }
+    .course-pick-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #475569;
+      font-weight: 600;
+      border-top: 1px dotted #cbd5e1;
+      padding-top: 6px;
+    }
+
+
+    /* Stats Banner */
+    .stats-banner {
+      margin: 0 24px 16px 24px;
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .stat-card {
+      background: #ffffff;
+      padding: 10px 16px;
+      border-radius: 6px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      display: flex;
+      flex-direction: column;
+      min-width: 120px;
+      border-left: 4px solid var(--sspu-blue);
+    }
+
+    .stat-card.pass { border-left-color: #38a169; }
+    .stat-card.fail { border-left-color: #e53e3e; }
+    .stat-card.percent { border-left-color: var(--sspu-gold); }
+    .stat-card.regular { border-left-color: #3182ce; }
+    .stat-card.backlog { border-left-color: #dd6b20; }
+
+    .stat-label {
+      font-size: 11px;
+      color: #718096;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .stat-value {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a202c;
+      margin-top: 2px;
+    }
+
+    /* Gazette Viewport & Page Layout */
+    .gazette-viewport {
+      padding: 0 24px 40px 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+    }
+
+    /* A3 Physical Dimensions: 420mm x 297mm Landscape */
+    .gazette-page {
+      background: #ffffff;
+      width: 410mm;
+      min-height: 285mm;
+      padding: 10mm 12mm 10mm 12mm;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      border-radius: 3px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start !important;
+      border: 1px solid #cbd5e1;
+      box-sizing: border-box;
+    }
+
+    /* =====================================================================
+       OFFICIAL UNIVERSITY GAZETTE HEADER & STRUCTURED METADATA TABLE
+       ===================================================================== */
+    .gazette-header-block {
+      width: 100%;
+      margin-bottom: 6px;
+      border: 1.5px solid var(--sspu-navy, #0d233a);
+      background: #ffffff;
+      box-sizing: border-box;
+    }
+
+    .univ-header-top {
+      display: grid;
+      grid-template-columns: 85px 1fr 85px;
+      align-items: center;
+      padding: 6px 12px;
+      background: #ffffff;
+      border-bottom: 1.5px solid var(--sspu-navy, #0d233a);
+    }
+
+    .univ-logo-wrap {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      max-width: 85px;
+      max-height: 60px;
+    }
+
+    .univ-logo-img {
+      max-width: 80px;
+      max-height: 56px;
+      width: auto;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .univ-title-center {
+      text-align: center;
+    }
+
+    .univ-title-center .univ-title {
+      font-size: 14pt !important;
+      font-weight: 900 !important;
+      color: var(--sspu-navy, #0d233a) !important;
+      letter-spacing: 0.6px !important;
+      margin: 0 !important;
+      line-height: 1.2 !important;
+      font-family: 'Times New Roman', Georgia, serif;
+      text-transform: uppercase;
+    }
+
+    .univ-title-center .univ-sub {
+      font-size: 7.2pt !important;
+      font-weight: 700 !important;
+      color: #475569 !important;
+      letter-spacing: 0.4px !important;
+      margin-top: 2px !important;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    .univ-title-center .univ-gazette-title {
+      display: inline-block;
+      background: var(--sspu-navy, #0d233a);
+      color: #ffffff;
+      font-size: 9.2pt;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      padding: 2.5px 22px;
+      border-radius: 3px;
+      margin-top: 3px;
+      text-transform: uppercase;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .univ-seal-wrap {
+      width: 72px;
+      height: 72px;
+      flex-shrink: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* Official Watermark Seal Circle with Text "Seal" */
+    .univ-seal-watermark {
+      width: 66px;
+      height: 66px;
+      border-radius: 50%;
+      border: 1.5px dashed var(--sspu-navy, #0d233a);
+      box-shadow: 0 0 0 2px rgba(13, 35, 58, 0.12), inset 0 0 0 1.5px rgba(13, 35, 58, 0.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle, rgba(248, 250, 252, 0.98) 0%, rgba(241, 245, 249, 0.92) 100%);
+      position: relative;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    .seal-watermark-inner {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      border: 1px solid rgba(13, 35, 58, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      box-sizing: border-box;
+    }
+
+    .seal-watermark-text {
+      font-size: 8.5pt;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--sspu-navy, #0d233a);
+      opacity: 0.45;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .gazette-header-block,
+    .matrix-table-wrap,
+    .result-analysis-summary-block {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Structured Metadata Table (Centered Table Format) */
+    .gazette-meta-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.4pt;
+    }
+
+    .gazette-meta-table th.meta-lbl {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 700;
+      text-align: left;
+      padding: 3.5px 8px;
+      border: 1px solid #cbd5e1;
+      white-space: nowrap;
+      font-size: 7.2pt;
+      text-transform: uppercase;
+      letter-spacing: 0.25px;
+    }
+
+    .gazette-meta-table td.meta-val {
+      background: #ffffff;
+      color: #1e293b;
+      font-weight: 500;
+      padding: 3.5px 8px;
+      border: 1px solid #cbd5e1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 7.4pt;
+    }
+
+    .gazette-meta-table td.font-bold {
+      font-weight: 700;
+    }
+
+    .gazette-meta-table td.font-mono {
+      font-family: monospace;
+      font-weight: 700;
+    }
+
+    /* Gazette Main Table - High Density Matrix */
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    table.gazette-matrix {
+      table-layout: fixed;
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 7.2pt;
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.15;
+      border: 1.5px solid #000000;
+    }
+
+    /* Two-line comfortable row height for all student records */
+    table.gazette-matrix tbody tr {
+      height: 34px !important;
+      min-height: 34px !important;
+    }
+
+    table.gazette-matrix tbody td {
+      border: 1px solid #4a5568;
+      padding: 2px 1px !important;
+      text-align: center;
+      vertical-align: middle !important;
+      white-space: nowrap !important;
+      overflow: hidden !important;
+      text-overflow: clip !important; /* CRITICAL: Never truncate numerical marks like 188 into 1... */
+      box-sizing: border-box;
+      height: 34px !important;
+      font-size: 7.2pt;
+      font-weight: normal !important;
+      color: #000000 !important;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Subcolumn Headers vs Record Value Cells (Values kept normal weight, never heavy bold) */
+    th.subcol-tot {
+      min-width: 34px !important;
+      width: 34px !important;
+      max-width: 38px !important;
+      padding: 0px 2px !important;
+      font-size: 6.2pt !important;
+      font-weight: 700 !important;
+      line-height: 1.0 !important;
+      letter-spacing: -0.2px !important;
+      text-overflow: clip !important;
+      overflow: visible !important;
+      white-space: nowrap !important;
+    }
+    td.col-tot {
+      min-width: 34px !important;
+      width: 34px !important;
+      max-width: 38px !important;
+      padding: 0px 2px !important;
+      font-size: 7.2pt !important;
+      font-weight: normal !important;
+      color: #000000 !important;
+      font-variant-numeric: tabular-nums !important;
+      letter-spacing: -0.2px !important;
+      text-overflow: clip !important;
+      overflow: visible !important;
+      white-space: nowrap !important;
+      text-align: center !important;
+    }
+    /* Ensure Tot cells with fail-mark are never clipped */
+    table.gazette-matrix tbody td.col-tot,
+    table.gazette-matrix tbody td.col-tot.fail-mark,
+    .gazette-template-2 table.gazette-matrix tbody td.col-tot,
+    .gazette-template-2 table.gazette-matrix tbody td.col-tot.fail-mark {
+      overflow: visible !important;
+      text-overflow: clip !important;
+      min-width: 34px !important;
+      width: 34px !important;
+    }
+    /* Keep fail-mark tot cells bold but not extra-bold to prevent width overflow */
+    td.col-tot.fail-mark,
+    table.gazette-matrix tbody td.col-tot.fail-mark,
+    .gazette-template-2 table.gazette-matrix tbody td.col-tot.fail-mark {
+      font-weight: 700 !important;
+      font-size: 7pt !important;
+      letter-spacing: -0.3px !important;
+    }
+
+    th.subcol-grd {
+      min-width: 20px !important;
+      padding: 0px 0.5px !important;
+      font-size: 5.8pt !important;
+      font-weight: 700 !important;
+      line-height: 0.95 !important;
+      text-overflow: clip !important;
+      overflow: visible !important;
+      white-space: nowrap !important;
+    }
+    td.col-grd {
+      min-width: 20px !important;
+      padding: 0px 1px !important;
+      font-size: 7.2pt !important;
+      font-weight: normal !important;
+      color: #000000 !important;
+      text-overflow: clip !important;
+      overflow: visible !important;
+      white-space: nowrap !important;
+    }
+
+    th.subcol-comp {
+      min-width: 19px !important;
+      padding: 0px 0.5px !important;
+      font-size: 6pt !important;
+      font-weight: 700 !important;
+      line-height: 1.0 !important;
+      text-overflow: clip !important;
+      overflow: visible !important;
+      white-space: nowrap !important;
+    }
+    td.col-comp {
+      min-width: 19px !important;
+      padding: 0px 1px !important;
+      font-size: 7.2pt !important;
+      font-weight: normal !important;
+      color: #000000 !important;
+      font-variant-numeric: tabular-nums !important;
+      text-overflow: clip !important;
+      overflow: visible !important;
+      white-space: nowrap !important;
+    }
+
+    /* Subject Header Styling - Increased Height & Room for Codes, Titles & Credits */
+    table.gazette-matrix thead tr.subject-head-row th {
+      background-color: #f1f5f9 !important;
+      border: 1px solid #334155 !important;
+      border-bottom: 1.5px solid #0f172a !important;
+      padding: 3px 2px !important;
+      height: 68px !important;
+      min-height: 68px !important;
+      max-height: 72px !important;
+      vertical-align: middle !important;
+      text-align: center !important;
+      box-sizing: border-box !important;
+      overflow: hidden !important;
+    }
+
+    table.gazette-matrix thead th.th-subject {
+      background-color: #f8fafc !important;
+      position: relative !important;
+      box-sizing: border-box !important;
+    }
+
+    /* Narrow Subject Columns (e.g. 3 subcolumns or pruned subjects) */
+    table.gazette-matrix thead th.th-subject.th-narrow {
+      padding: 2px 1px !important;
+      min-width: 68px !important;
+    }
+
+    table.gazette-matrix thead th.th-subject.elective-th {
+      background-color: #fff1f2 !important;
+      border-color: #fca5a5 !important;
+      min-width: 115px !important;
+    }
+
+    .th-sub-name {
+      font-size: 6.8pt !important;
+      font-weight: 700 !important;
+      color: #0f172a !important;
+      line-height: 1.15 !important;
+      max-height: 28px !important;
+      overflow: hidden !important;
+      display: -webkit-box !important;
+      -webkit-line-clamp: 2 !important;
+      -webkit-box-orient: vertical !important;
+      word-break: break-word !important;
+      hyphens: auto !important;
+      text-align: center !important;
+      margin: 0 auto 2px auto !important;
+    }
+
+    th.th-subject.th-narrow .th-sub-name {
+      font-size: 5.8pt !important;
+      line-height: 1.1 !important;
+      max-height: 32px !important;
+      -webkit-line-clamp: 3 !important;
+      letter-spacing: -0.2px !important;
+      word-break: break-word !important;
+      hyphens: auto !important;
+      margin-bottom: 1px !important;
+    }
+
+    .th-sub-code {
+      font-size: 6.8pt !important;
+      font-weight: 800 !important;
+      color: #1e3a8a !important;
+      font-family: monospace, Arial, sans-serif !important;
+      letter-spacing: 0.3px !important;
+      line-height: 1.1 !important;
+      margin-bottom: 2px !important;
+      text-align: center !important;
+    }
+
+    th.th-subject.th-narrow .th-sub-code {
+      font-size: 5.8pt !important;
+      line-height: 1.05 !important;
+      letter-spacing: -0.2px !important;
+      margin-bottom: 1px !important;
+    }
+
+    .th-sub-credits {
+      font-size: 6.2pt !important;
+      font-weight: 700 !important;
+      color: #1e293b !important;
+      background: #e2e8f0 !important;
+      border-radius: 2px !important;
+      padding: 1px 4px !important;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 3px !important;
+      letter-spacing: -0.15px !important;
+      line-height: 1.15 !important;
+      white-space: nowrap !important;
+      text-align: center !important;
+      box-sizing: border-box !important;
+    }
+
+    .sub-cr-max, .sub-cr-val {
+      white-space: nowrap !important;
+    }
+
+    .sub-cr-div {
+      color: #94a3b8 !important;
+      font-weight: 400 !important;
+    }
+
+    th.th-subject.th-narrow .th-sub-credits {
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 0px !important;
+      padding: 1px 2px !important;
+      font-size: 5.4pt !important;
+      line-height: 1.05 !important;
+      letter-spacing: -0.2px !important;
+      white-space: nowrap !important;
+      background: #e2e8f0 !important;
+      width: 100% !important;
+      max-width: 95% !important;
+      margin: 0 auto !important;
+      box-sizing: border-box !important;
+    }
+
+    th.th-subject.th-narrow .th-sub-credits .sub-cr-div {
+      display: none !important;
+    }
+
+    .elective-th .th-sub-name {
+      color: #991b1b !important;
+      font-weight: 800 !important;
+      letter-spacing: -0.1px !important;
+      font-size: 6.2pt !important;
+      line-height: 1.05 !important;
+    }
+
+    .elective-th .th-sub-code {
+      color: #b91c1c !important;
+      font-size: 5.6pt !important;
+      font-weight: 700 !important;
+      letter-spacing: -0.1px !important;
+      padding: 0.5px 2px !important;
+    }
+
+    .elective-th .th-sub-credits {
+      background: #fee2e2 !important;
+      color: #991b1b !important;
+      border: 1px solid #fecaca !important;
+      font-size: 5.5pt !important;
+      padding: 0.5px 2px !important;
+    }
+
+    .elective-th .sub-cr-div {
+      color: #f87171 !important;
+    }
+
+    /* Candidate Header Block Cells */
+    table.gazette-matrix thead th.col-sr,
+    table.gazette-matrix thead th.col-roll,
+    table.gazette-matrix thead th.col-name,
+    table.gazette-matrix thead th.col-sgpa,
+    table.gazette-matrix thead th.col-cgpa,
+    table.gazette-matrix thead th.col-res {
+      vertical-align: middle !important;
+      text-align: center !important;
+      font-weight: 800 !important;
+      font-size: 7.2pt !important;
+      letter-spacing: 0.3px !important;
+      background-color: #e2e8f0 !important;
+      color: #0f172a !important;
+      border: 1px solid #334155 !important;
+    }
+
+    .subj-code-label {
+      font-size: 7.8pt;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: 0.3px;
+    }
+
+    .subj-name-label {
+      font-weight: 600;
+      font-size: 6.8pt;
+      color: #334155;
+      margin-top: 2px;
+      line-height: 1.2;
+      word-break: break-word;
+      white-space: normal !important;
+    }
+
+    .subj-cr-label {
+      font-weight: 700;
+      font-size: 6.4pt;
+      color: #1e3a5f;
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      border-radius: 2px;
+      display: inline-block;
+      padding: 0px 4px;
+      margin-top: 2px;
+    }
+
+    /* Sub-column Header Row - Clean Single-Line Fit & Stacked Support */
+    table.gazette-matrix thead tr.subcol-row th {
+      font-size: 6.2pt !important;
+      background-color: #f8fafc;
+      color: #1e293b;
+      padding: 1px 1px !important;
+      height: 24px !important;
+      min-height: 24px !important;
+      vertical-align: middle !important;
+      text-align: center !important;
+      white-space: normal !important;
+      line-height: 1.05 !important;
+      word-break: keep-all !important;
+      letter-spacing: -0.2px;
+      overflow: visible !important;
+      text-overflow: clip !important;
+      border: 1px solid #4a5568;
+      box-sizing: border-box;
+    }
+
+    /* Stacked Sub-column Headers (C-A-P format for narrow columns) */
+    table.gazette-matrix thead tr.subcol-row.style-stacked th {
+      font-size: 5.7pt !important;
+      line-height: 0.95 !important;
+      padding: 2px 0px !important;
+      white-space: normal !important;
+      word-break: break-word !important;
+      letter-spacing: 0px !important;
+    }
+
+    /* Header common styling */
+    table.gazette-matrix thead th {
+      background-color: #edf2f7;
+      color: #1a202c;
+      font-weight: 700;
+      border: 1px solid #4a5568;
+    }
+
+    /* Density scaling to fit 30 and 35 records with exact row height */
+    .viewport-density-30 table.gazette-matrix thead tr.subject-head-row th {
+      height: 46px !important;
+      min-height: 46px !important;
+      padding: 3px 2px !important;
+    }
+    .viewport-density-30 table.gazette-matrix thead tr.subcol-row th {
+      height: 20px !important;
+      min-height: 20px !important;
+      font-size: 5.9pt !important;
+      padding: 1.5px 0.5px !important;
+    }
+    .viewport-density-30 table.gazette-matrix thead tr.subcol-row.style-stacked th {
+      font-size: 5.2pt !important;
+      line-height: 0.9 !important;
+    }
+    .viewport-density-30 table.gazette-matrix tbody tr,
+    .viewport-density-30 table.gazette-matrix tbody td {
+      height: 22px !important;
+      font-size: 6.8pt !important;
+      padding: 1px 2px !important;
+    }
+
+    .viewport-density-35 table.gazette-matrix thead tr.subject-head-row th {
+      height: 42px !important;
+      min-height: 42px !important;
+      padding: 2px 1px !important;
+    }
+    .viewport-density-35 table.gazette-matrix thead tr.subcol-row th {
+      height: 18px !important;
+      min-height: 18px !important;
+      font-size: 5.5pt !important;
+      padding: 1px 0.5px !important;
+    }
+    .viewport-density-35 table.gazette-matrix thead tr.subcol-row.style-stacked th {
+      font-size: 4.8pt !important;
+      line-height: 0.88 !important;
+    }
+    .viewport-density-35 table.gazette-matrix tbody tr,
+    .viewport-density-35 table.gazette-matrix tbody td {
+      height: 19.5px !important;
+      font-size: 6.2pt !important;
+      padding: 0.5px 1px !important;
+    }
+
+    /* Template 2 (Expanded Components: CAT, CAP, EST, ESP, IA) */
+    .gazette-template-2 table.gazette-matrix thead tr.subcol-row th {
+      font-size: 6.2pt !important;
+      padding: 1px 0.5px !important;
+      letter-spacing: -0.2px !important;
+      line-height: 1.0 !important;
+    }
+    .gazette-template-2 table.gazette-matrix tbody td {
+      font-size: 7.2pt !important;
+      font-weight: normal !important;
+      color: #000000 !important;
+      padding: 0.5px 0.5px !important;
+    }
+    .gazette-template-2 th.subcol-comp {
+      min-width: 19px !important;
+      font-size: 6pt !important;
+      font-weight: 700 !important;
+      line-height: 1.0 !important;
+      padding: 0px 0.5px !important;
+    }
+    .gazette-template-2 td.col-comp {
+      min-width: 19px !important;
+      font-size: 7.2pt !important;
+      font-weight: normal !important;
+      color: #000000 !important;
+      padding: 0px 0.5px !important;
+    }
+    .gazette-template-2 th.subcol-tot {
+      min-width: 34px !important;
+      width: 34px !important;
+      max-width: 38px !important;
+      font-size: 6.2pt !important;
+      font-weight: 700 !important;
+      line-height: 1.0 !important;
+      color: #000000 !important;
+      letter-spacing: -0.2px !important;
+      padding: 0px 2px !important;
+    }
+    .gazette-template-2 td.col-tot {
+      min-width: 34px !important;
+      width: 34px !important;
+      max-width: 38px !important;
+      font-size: 7.2pt !important;
+      font-weight: normal !important;
+      color: #000000 !important;
+      letter-spacing: -0.2px !important;
+      padding: 0px 2px !important;
+      overflow: visible !important;
+      text-overflow: clip !important;
+    }
+    .gazette-template-2 th.subcol-grd {
+      min-width: 20px !important;
+      font-size: 5.8pt !important;
+      font-weight: 700 !important;
+      line-height: 0.95 !important;
+      padding: 0px 0.5px !important;
+    }
+    .gazette-template-2 td.col-grd {
+      min-width: 20px !important;
+      font-size: 7.2pt !important;
+      font-weight: normal !important;
+      color: #000000 !important;
+      padding: 0px 0.5px !important;
+    }
+
+    /* Column Sizing (PRN, Name, Elective reduced ~30% for ideal proportions) */
+    col.col-sr { width: 22px !important; }
+    col.col-roll { width: 55px !important; }
+    col.col-name { width: 80px !important; min-width: 78px !important; max-width: 84px !important; }
+
+    .col-sr { width: 22px; font-weight: bold; vertical-align: middle !important; }
+    .col-roll {
+      width: 55px !important;
+      font-weight: normal !important;
+      font-family: monospace;
+      font-size: 7pt;
+      letter-spacing: -0.2px;
+      line-height: 1.15;
+      vertical-align: middle !important;
+      text-align: center !important;
+      padding: 1px 1px !important;
+    }
+
+    /* Student Name Column - Auto-wrap long names to 2nd/3rd line down side */
+    table.gazette-matrix thead th.col-name {
+      width: 80px !important;
+      min-width: 78px !important;
+      max-width: 84px !important;
+      text-align: center !important;
+      vertical-align: middle !important;
+      font-weight: 800 !important;
+      font-size: 6.8pt !important;
+    }
+    table.gazette-matrix tbody td.col-name,
+    table.gazette-matrix tbody td.student-name-cell {
+      width: 80px !important;
+      min-width: 78px !important;
+      max-width: 84px !important;
+      text-align: left !important;
+      padding: 1px 3px !important;
+      font-weight: normal !important;
+      font-size: 6.5pt !important;
+      line-height: 1.1 !important;
+      vertical-align: middle !important;
+      white-space: normal !important;
+      word-wrap: break-word !important;
+      overflow-wrap: break-word !important;
+      word-break: break-word !important;
+      box-sizing: border-box !important;
+    }
+    table.gazette-matrix tbody td.col-name .name-display {
+      display: block !important;
+      width: 100% !important;
+      white-space: normal !important;
+      word-wrap: break-word !important;
+      overflow-wrap: break-word !important;
+      word-break: break-word !important;
+      line-height: 1.1 !important;
+      max-height: 32px !important;
+      overflow: hidden !important;
+    }
+    .col-name {
+      width: 80px !important;
+      text-align: left !important;
+      padding-left: 3px !important;
+      padding-right: 2px !important;
+      font-weight: normal !important;
+      white-space: normal !important;
+      line-height: 1.1 !important;
+      vertical-align: middle !important;
+    }
+    .col-summary { width: 42px; font-weight: bold; }
+    col.col-sgpa,
+    .col-sgpa {
+      width: 28px !important;
+      min-width: 26px !important;
+      max-width: 32px !important;
+      text-align: center !important;
+      font-weight: normal !important;
+      font-size: 7.2pt !important;
+      padding: 1px 1px !important;
+      vertical-align: middle !important;
+    }
+    col.col-cgpa,
+    .col-cgpa {
+      width: 28px !important;
+      min-width: 26px !important;
+      max-width: 32px !important;
+      text-align: center !important;
+      font-weight: normal !important;
+      font-size: 7.2pt !important;
+      padding: 1px 1px !important;
+      vertical-align: middle !important;
+    }
+    th.col-sgpa,
+    th.col-cgpa {
+      width: 28px !important;
+      min-width: 26px !important;
+      max-width: 32px !important;
+      padding: 2px 1px !important;
+      vertical-align: middle !important;
+      text-align: center !important;
+    }
+    col.col-res,
+    .col-res, .col-result {
+      width: 44px !important;
+      min-width: 42px !important;
+      max-width: 48px !important;
+      text-align: center !important;
+      font-weight: bold !important;
+      padding: 1px 1px !important;
+      vertical-align: middle !important;
+    }
+
+    /* Student Name Inline Editable */
+    .student-name-cell {
+      cursor: pointer;
+      position: relative;
+    }
+    .student-name-input {
+      width: 100%;
+      border: 1px dashed #3182ce;
+      background: #ebf8ff;
+      font-size: 7pt;
+      font-weight: 600;
+      font-family: inherit;
+      padding: 1px 3px;
+      border-radius: 2px;
+    }
+
+    /* Row hover & alternating */
+    table.gazette-matrix tbody tr:nth-child(even) {
+      background-color: #fcfcfc;
+    }
+    table.gazette-matrix tbody tr:hover {
+      background-color: #edf2f7;
+    }
+
+    /* Pass / Fail Badges */
+    .badge-pass {
+      color: #22543d;
+      font-weight: 800;
+      background-color: #c6f6d5;
+      padding: 1px 4px;
+      border-radius: 2px;
+      display: inline-block;
+      font-size: 6.8pt;
+    }
+
+    .badge-fail {
+      color: #9b2c2c;
+      font-weight: 800;
+      background-color: #fed7d7;
+      padding: 1px 4px;
+      border-radius: 2px;
+      display: inline-block;
+      font-size: 6.8pt;
+    }
+
+    /* Regular & Backlog Exam Badges */
+    .badge-regular {
+      color: #1e40af;
+      background-color: #dbeafe;
+      border: 1px solid #bfdbfe;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 6.5pt;
+      display: inline-block;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .badge-backlog {
+      color: #9a3412;
+      background-color: #ffedd5;
+      border: 1px solid #fed7aa;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 6.5pt;
+      display: inline-block;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .sub-cf-note {
+      font-size: 5.8pt;
+      color: #64748b;
+      display: block;
+      font-weight: normal;
+    }
+
+    .sub-backlog-cleared {
+      color: #15803d !important;
+      font-weight: 800;
+      background-color: #f0fdf4;
+    }
+
+    .fail-mark,
+    .grade-f,
+    .gazette-matrix td.fail-mark,
+    .gazette-matrix td.grade-f,
+    .gazette-template-2 table.gazette-matrix tbody td.fail-mark,
+    .gazette-template-2 table.gazette-matrix tbody td.grade-f,
+    .gazette-template-2 td.col-grd.grade-f,
+    .gazette-template-2 td.col-grd.fail-mark,
+    .gazette-template-2 td.col-tot.fail-mark {
+      color: #b91c1c !important;
+      font-weight: 800 !important;
+      background-color: #fee2e2 !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+    .badge-grade-f {
+      display: inline-block !important;
+      background: #fee2e2 !important;
+      color: #b91c1c !important;
+      font-weight: 900 !important;
+      border: 1px solid #f87171 !important;
+      border-radius: 3px !important;
+      padding: 0.5px 3.5px !important;
+      font-size: 7.2pt !important;
+      line-height: 1.15 !important;
+      box-sizing: border-box !important;
+      white-space: nowrap !important;
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+    }
+
+
+    /* Filter Sd/- Signature Toggle */
+    .filter-checkbox-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 8.5pt;
+      font-weight: 600;
+      color: #1e293b;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      height: 32px;
+      box-sizing: border-box;
+      margin-top: auto;
+    }
+    .filter-checkbox-label:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .filter-checkbox-label input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      cursor: pointer;
+      accent-color: #002b66;
+    }
+
+    /* Credits (Cr) Column - Compact Reduced Width */
+    col.col-credits,
+    .col-credits {
+      width: 26px !important;
+      min-width: 24px !important;
+      max-width: 32px !important;
+      text-align: center !important;
+      font-weight: normal !important;
+      font-size: 7.2pt !important;
+      letter-spacing: -0.2px;
+      padding: 1px 1px !important;
+      vertical-align: middle !important;
+    }
+    th.col-credits {
+      background: #f1f5f9;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 6.8pt !important;
+      vertical-align: middle !important;
+      text-align: center !important;
+      width: 26px !important;
+      min-width: 24px !important;
+      max-width: 32px !important;
+      padding: 1px 1px !important;
+      line-height: 1.05;
+    }
+
+    /* Vertical Header for SGPA, CGPA & Sub-columns (CAT, CAP, IA, EST, ESP, CA, ESE) */
+    .vert-hdr {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      line-height: 0.95;
+      font-size: 6.8pt;
+      font-weight: 800;
+      letter-spacing: 0;
+      margin: 0 auto;
+    }
+    .vert-hdr span {
+      display: block;
+    }
+    th.subcol-comp .vert-hdr {
+      font-size: 5.8pt !important;
+      line-height: 0.92 !important;
+      font-weight: 800 !important;
+      letter-spacing: 0 !important;
+    }
+
+    /* Elective Course Sub-column - Reduced ~30% with compact wrap */
+    col.col-elective-course {
+      width: 96px !important;
+      min-width: 94px !important;
+      max-width: 100px !important;
+    }
+    .subcol-elective-course,
+    table.gazette-matrix thead th.subcol-elective-course {
+      width: 96px !important;
+      min-width: 94px !important;
+      max-width: 100px !important;
+      font-size: 5.8pt !important;
+      font-weight: 700 !important;
+      text-align: center !important;
+      padding: 1px 1px !important;
+      white-space: normal !important;
+      line-height: 1.05 !important;
+      box-sizing: border-box !important;
+      vertical-align: middle !important;
+    }
+    .col-elective-course,
+    table.gazette-matrix tbody td.col-elective-course {
+      width: 96px !important;
+      min-width: 94px !important;
+      max-width: 100px !important;
+      font-size: 6pt !important;
+      font-weight: normal !important;
+      text-align: left !important;
+      white-space: normal !important;
+      line-height: 1.08 !important;
+      padding: 1px 2px !important;
+      vertical-align: middle !important;
+      box-sizing: border-box !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
+      word-wrap: break-word !important;
+    }
+    table.gazette-matrix tbody td.col-elective-course .elective-course-cell {
+      display: block !important;
+      width: 100% !important;
+      white-space: normal !important;
+      word-wrap: break-word !important;
+      overflow-wrap: break-word !important;
+      word-break: break-word !important;
+      line-height: 1.08 !important;
+      max-height: 32px !important;
+      overflow: hidden !important;
+    }
+    .col-elective-course b,
+    table.gazette-matrix tbody td.col-elective-course b {
+      color: #0d233a;
+      font-weight: normal !important;
+    }
+
+    /* Result Analysis Summary Section */
+    .result-analysis-summary-block {
+      margin-top: 8px;
+      margin-bottom: 6px;
+      border: 1.2px solid #002b66;
+      border-radius: 4px;
+      background: #ffffff;
+      overflow: hidden;
+      page-break-inside: avoid;
+      break-inside: avoid;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .summary-block-header {
+      background: #002b66;
+      color: #ffffff;
+      padding: 2.5px 8px;
+      font-size: 7.2pt;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .summary-block-title {
+      font-weight: 700;
+    }
+    .analysis-summary-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+      font-size: 7pt;
+    }
+    .analysis-summary-table th {
+      background: #f1f5f9;
+      color: #1e293b;
+      font-weight: 700;
+      padding: 3px 6px;
+      border: 1px solid #cbd5e1;
+      text-transform: uppercase;
+      font-size: 6.5pt;
+    }
+    .analysis-summary-table td {
+      padding: 3px 6px;
+      border: 1px solid #cbd5e1;
+      font-size: 7.2pt;
+      font-weight: 600;
+      color: #0f172a;
+    }
+    .analysis-summary-table td.stat-pass {
+      color: #047857;
+      background: #ecfdf5;
+    }
+    .analysis-summary-table td.stat-fail {
+      color: #b91c1c;
+      background: #fef2f2;
+    }
+
+    /* Page Footer & Signatures */
+    .gazette-footer {
+      margin-top: auto !important;
+      border-top: 1.5px solid #000000;
+      padding-top: 6px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .footer-note {
+      font-size: 6.2pt;
+      color: #4a5568;
+      margin-bottom: 8px;
+      text-align: left;
+      line-height: 1.25;
+    }
+
+    .legend-row {
+      font-size: 6.2pt;
+      color: #4a5568;
+      margin-bottom: 12px;
+      text-align: left;
+      line-height: 1.25;
+    }
+
+    .signatures-row {
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .signatures-two-tier {
+      display: flex !important;
+      justify-content: space-around !important;
+      gap: 60px !important;
+      padding-top: 8px !important;
+    }
+    .signatures-two-tier .sig-block {
+      min-width: 280px;
+      max-width: 380px;
+      text-align: center;
+    }
+
+    .signatures-four-tier {
+      display: grid !important;
+      grid-template-columns: repeat(4, 1fr) !important;
+      gap: 16px !important;
+      text-align: center !important;
+      padding-top: 8px !important;
+    }
+    .signatures-four-tier .sig-block {
+      text-align: center;
+    }
+
+    .sig-val-sd {
+      height: 22px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      font-size: 9.5pt;
+      font-weight: 700;
+      color: #0f172a;
+      font-family: 'Times New Roman', Times, serif;
+      letter-spacing: 0.8px;
+      margin-bottom: 2px;
+      border-bottom: 1px dashed #94a3b8;
+    }
+
+    .sig-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .sig-line {
+      width: 80%;
+      height: 22px;
+      border-bottom: 1px solid #000000;
+      margin: 0 auto 2px auto;
+    }
+
+    .sig-label {
+      font-size: 7pt;
+      line-height: 1.25;
+      color: #1e293b;
+      margin-top: 2px;
+    }
+    .sig-desig {
+      color: #475569;
+      font-size: 6.5pt;
+    }
+
+    .sig-title {
+      font-size: 7.5pt;
+      font-weight: 800;
+      color: #000000;
+      text-transform: uppercase;
+    }
+
+    .sig-sub {
+      font-size: 6.5pt;
+      color: #4a5568;
+    }
+
+    .page-num-strip {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 7.2pt;
+      color: #475569;
+      margin-top: 6px;
+      border-top: 1px dotted #94a3b8;
+      padding-top: 3px;
+    }
+
+    .footer-univ-tag {
+      font-size: 6.6pt;
+      color: #64748b;
+      font-style: italic;
+    }
+
+    .sheet-page-bottom {
+      font-size: 7.4pt;
+      font-weight: 700;
+      color: #0f172a;
+      letter-spacing: 0.25px;
+      margin-left: auto;
+    }
+    .sheet-page-bottom b {
+      color: var(--sspu-navy, #0d233a);
+      font-weight: 800;
+    }
+
+
+    /* =====================================================================
+       PRINT MEDIA QUERY - STRICT A3 LANDSCAPE FORMATTING
+       ===================================================================== */
+    @media print {
+      @page {
+        size: A3 landscape;
+        margin: 6mm 8mm 6mm 8mm;
+      }
+
+      html, body {
+        width: 100%;
+        height: auto;
+        margin: 0 !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* Force hide ALL screen UI: filters, headers, sidebars, stats banners, buttons, footers */
+      .no-print,
+      #navbarContainer,
+      #navbarPlaceholder,
+      .app-navbar,
+      .screen-header,
+      .filter-bar,
+      .stats-banner,
+      .gazette-nav-bar,
+      .app-footer,
+      .floating-nav-container,
+      .floating-back-btn,
+      .floating-modules-btn,
+      .app-sidebar,
+      .sidebar-backdrop,
+      .toast-container,
+      .modal-overlay,
+      body > header,
+      body > nav,
+      body > aside,
+      body > footer {
+        display: none !important;
+      }
+
+      body > *:not(#gazetteViewport) {
+        display: none !important;
+      }
+
+      .gazette-viewport {
+        padding: 0 !important;
+        margin: 0 !important;
+        gap: 0 !important;
+        display: block !important;
+        width: 100% !important;
+      }
+
+      .gazette-page {
+        width: 100% !important;
+        height: 284mm !important;
+        min-height: 284mm !important;
+        max-height: 284mm !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+        outline: none !important;
+        border-radius: 0 !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+      }
+
+      table.gazette-matrix {
+        font-size: 6.8pt !important;
+        border-collapse: collapse !important;
+      }
+
+      table.gazette-matrix th,
+      table.gazette-matrix td {
+        border: 1px solid #000000 !important;
+        padding: 1.5px 2px !important;
+      }
+
+      .gazette-template-2 table.gazette-matrix thead tr.subcol-row th {
+        font-size: 5.8pt !important;
+        padding: 0.5px 0.5px !important;
+        letter-spacing: -0.2px !important;
+      }
+      .gazette-template-2 table.gazette-matrix tbody td {
+        font-size: 7.2pt !important;
+        font-weight: normal !important;
+        color: #000000 !important;
+        padding: 0.5px 0.5px !important;
+      }
+      .gazette-template-2 th.subcol-comp {
+        min-width: 19px !important;
+        font-size: 5.8pt !important;
+        font-weight: 700 !important;
+        padding: 0.5px 0.5px !important;
+      }
+      .gazette-template-2 td.col-comp {
+        min-width: 19px !important;
+        font-size: 7pt !important;
+        font-weight: normal !important;
+        color: #000000 !important;
+        padding: 0.5px 0.5px !important;
+      }
+      .gazette-template-2 th.subcol-tot {
+        min-width: 34px !important;
+        width: 34px !important;
+        max-width: 38px !important;
+        font-size: 6pt !important;
+        font-weight: 700 !important;
+        padding: 0px 2px !important;
+      }
+      .gazette-template-2 td.col-tot {
+        min-width: 34px !important;
+        width: 34px !important;
+        max-width: 38px !important;
+        font-size: 7.2pt !important;
+        font-weight: normal !important;
+        color: #000000 !important;
+        padding: 0px 2px !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+      }
+      .gazette-template-2 th.subcol-grd {
+        min-width: 20px !important;
+        font-size: 5.5pt !important;
+        font-weight: 700 !important;
+        line-height: 0.95 !important;
+      }
+      .gazette-template-2 td.col-grd {
+        min-width: 20px !important;
+        font-size: 7pt !important;
+        font-weight: normal !important;
+        color: #000000 !important;
+      }
+
+      .fail-mark,
+      .grade-f,
+      .gazette-matrix td.fail-mark,
+      .gazette-matrix td.grade-f,
+      .gazette-template-2 table.gazette-matrix tbody td.fail-mark,
+      .gazette-template-2 table.gazette-matrix tbody td.grade-f,
+      .gazette-template-2 td.col-grd.grade-f,
+      .gazette-template-2 td.col-grd.fail-mark,
+      .gazette-template-2 td.col-tot.fail-mark {
+        color: #b91c1c !important;
+        font-weight: 800 !important;
+        background-color: #fee2e2 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      /* Prevent clipping on Tot fail cells in print */
+      td.col-tot.fail-mark,
+      table.gazette-matrix tbody td.col-tot.fail-mark,
+      .gazette-template-2 table.gazette-matrix tbody td.col-tot.fail-mark,
+      .gazette-template-2 td.col-tot.fail-mark {
+        font-weight: 700 !important;
+        font-size: 7pt !important;
+        letter-spacing: -0.3px !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        min-width: 34px !important;
+        width: 34px !important;
+      }
+
+      .badge-grade-f {
+        display: inline-block !important;
+        background: #fee2e2 !important;
+        color: #b91c1c !important;
+        font-weight: 900 !important;
+        border: 1px solid #f87171 !important;
+        border-radius: 3px !important;
+        padding: 0.5px 3.5px !important;
+        font-size: 7pt !important;
+        line-height: 1.15 !important;
+        box-sizing: border-box !important;
+        white-space: nowrap !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .student-name-input {
+        border: none !important;
+        background: transparent !important;
+        padding: 0 !important;
+      }
+
+      .univ-title-block .gazette-heading {
+        background: #000000 !important;
+        color: #ffffff !important;
+      }
+
+      .matrix-table-wrap {
+        width: 100% !important;
+        overflow: visible !important;
+      }
+
+      col.col-roll {
+        width: 55px !important;
+      }
+
+      col.col-name {
+        width: 80px !important;
+        min-width: 78px !important;
+        max-width: 84px !important;
+      }
+
+      col.col-elective-course,
+      .subcol-elective-course,
+      .col-elective-course {
+        width: 96px !important;
+        min-width: 94px !important;
+        max-width: 100px !important;
+      }
+
+      col.col-credits,
+      .col-credits {
+        width: 26px !important;
+        min-width: 24px !important;
+      }
+
+      col.col-sgpa,
+      .col-sgpa,
+      th.col-sgpa {
+        width: 28px !important;
+        min-width: 26px !important;
+      }
+
+      col.col-cgpa,
+      .col-cgpa,
+      th.col-cgpa {
+        width: 28px !important;
+        min-width: 26px !important;
+      }
+
+      col.col-res,
+      .col-res {
+        width: 44px !important;
+        min-width: 42px !important;
+      }
+
+      table.gazette-matrix tbody td.col-name,
+      table.gazette-matrix tbody td.col-name .name-display,
+      table.gazette-matrix tbody td.col-elective-course,
+      table.gazette-matrix tbody td.col-elective-course .elective-course-cell,
+      table.gazette-matrix thead th.col-name,
+      table.gazette-matrix thead th.subcol-elective-course {
+        white-space: normal !important;
+        word-wrap: break-word !important;
+        overflow-wrap: break-word !important;
+        word-break: break-word !important;
+        line-height: 1.1 !important;
+      }
+
+      table.gazette-matrix thead th.th-subject.elective-th {
+        min-width: 115px !important;
+      }
+
+      th.subcol-comp .vert-hdr {
+        font-size: 5.5pt !important;
+        line-height: 0.9 !important;
+        font-weight: 800 !important;
+      }
+
+      .univ-seal-watermark {
+        border: 1.5px dashed rgba(0, 0, 0, 0.4) !important;
+        box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.25) !important;
+        background: transparent !important;
+      }
+
+      .seal-watermark-inner {
+        border-color: rgba(0, 0, 0, 0.3) !important;
+      }
+
+      .seal-watermark-text {
+        color: #000000 !important;
+        opacity: 0.4 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+    }
+  
+
+    /* Gazette Pagination Navigation Bar */
+    .gazette-nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #e2e8f0;
+      margin: 0 24px 14px 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .gazette-nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gazette-nav-info {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--sspu-navy);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .gazette-nav-select {
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid #cbd5e1;
+      font-size: 12px;
+      background: #f8fafc;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .gazette-nav-select:focus {
+      border-color: #3182ce;
+      background: #ffffff;
+    }
+
+    /* Elevated Filter Bar */
+    .filter-bar {
+      background: #ffffff !important;
+      padding: 14px 20px !important;
+      border-radius: 12px !important;
+      box-shadow: 0 4px 20px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+      border: 1px solid #e2e8f0 !important;
+      margin: 12px 24px 14px 24px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 10px !important;
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      width: 100%;
+    }
+
+    .filter-row-primary {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      width: 100%;
+      flex-wrap: wrap;
+    }
+
+    .filter-row-secondary {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding-top: 10px;
+      border-top: 1px solid #f1f5f9;
+      flex-wrap: wrap;
+    }
+
+    .filter-controls-subgroup {
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .filter-group.flex-1 { flex: 1 1 140px; min-width: 130px; }
+    .filter-group.flex-15 { flex: 1.5 1 200px; min-width: 170px; }
+
+    .filter-group label {
+      font-size: 10px !important;
+      font-weight: 700 !important;
+      text-transform: uppercase !important;
+      color: #475569 !important;
+      letter-spacing: 0.5px !important;
+      margin-bottom: 2px !important;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      white-space: nowrap;
+    }
+
+    .dependent-badge {
+      font-size: 8.5px !important;
+      background: #eff6ff !important;
+      color: #2563eb !important;
+      border: 1px solid #bfdbfe !important;
+      padding: 1px 5px !important;
+      border-radius: 10px !important;
+      font-weight: 800 !important;
+      text-transform: uppercase;
+      margin-left: 4px;
+    }
+
+    .filter-group select {
+      height: 36px !important;
+      padding: 6px 32px 6px 12px !important;
+      border: 1.5px solid #cbd5e1 !important;
+      border-radius: 8px !important;
+      font-size: 12.5px !important;
+      font-weight: 600 !important;
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%232563eb'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.3' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 10px center !important;
+      background-size: 14px 14px !important;
+      -webkit-appearance: none !important;
+      -moz-appearance: none !important;
+      appearance: none !important;
+      cursor: pointer !important;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      outline: none !important;
+      width: 100%;
+      box-sizing: border-box !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .filter-group select:hover {
+      border-color: #94a3b8 !important;
+      background-color: #f8fafc !important;
+    }
+
+    .filter-group select:focus {
+      border-color: #2563eb !important;
+      background-color: #ffffff !important;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18) !important;
+    }
+
+    .filter-group input {
+      height: 36px !important;
+      padding: 6px 12px !important;
+      border: 1.5px solid #cbd5e1 !important;
+      border-radius: 8px !important;
+      font-size: 12.5px !important;
+      font-weight: 600 !important;
+      color: #0f172a !important;
+      background-color: #ffffff !important;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      outline: none !important;
+      width: 100%;
+      box-sizing: border-box !important;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+    }
+
+    .filter-group input:hover {
+      border-color: #94a3b8 !important;
+    }
+
+    .filter-group input:focus {
+      border-color: #2563eb !important;
+      background-color: #ffffff !important;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18) !important;
+    }
+
+    .filter-group-checkbox {
+      display: flex;
+      align-items: center;
+      height: 35px;
+      padding: 0 6px;
+    }
+
+    /* Compact, sleek, single-line Reset button */
+    .btn-reset-compact,
+    .btn-reset {
+      height: 35px !important;
+      background-color: #fff1f2 !important;
+      color: #be123c !important;
+      border: 1.5px solid #fecdd3 !important;
+      padding: 0 14px !important;
+      font-size: 11.5px !important;
+      font-weight: 700 !important;
+      border-radius: 7px !important;
+      cursor: pointer;
+      display: inline-flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 6px !important;
+      transition: all 0.2s ease !important;
+      white-space: nowrap !important;
+      box-sizing: border-box !important;
+      text-decoration: none;
+    }
+    .btn-reset-compact:hover,
+    .btn-reset:hover {
+      background-color: #ffe4e6 !important;
+      color: #9f1239 !important;
+      border-color: #fca5a5 !important;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 6px rgba(225, 29, 72, 0.15) !important;
+    }
+
+    /* Auto-Prune Indicator Pill */
+    .filter-prune-pill {
+      height: 35px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 0 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #065f46;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 6px;
+      cursor: help;
+      user-select: none;
+      white-space: nowrap;
+    }
+
+    /* Compact Space-Saving KPI Strip inside Filter Bar (Low Height, Non-Duplicated) */
+    .filter-kpi-strip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      margin-left: auto;
+    }
+
+    .filter-kpi-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 2px 8px;
+      height: 28px;
+      box-sizing: border-box;
+      user-select: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .filter-kpi-badge:hover {
+      background: #f1f5f9;
+      border-color: #94a3b8;
+    }
+    .filter-kpi-badge .kpi-icon {
+      font-size: 11px;
+      line-height: 1;
+    }
+    .filter-kpi-badge .kpi-val {
+      font-size: 11.5px;
+      font-weight: 800;
+      color: #0f172a;
+      font-variant-numeric: tabular-nums;
+    }
+    .filter-kpi-badge .kpi-lbl {
+      font-size: 7.8pt;
+      font-weight: 600;
+      color: #475569;
+      text-transform: capitalize;
+    }
+
+    /* Distinctive Compact Badges */
+    .filter-kpi-badge.highlight {
+      background: #eff6ff;
+      border-color: #93c5fd;
+    }
+    .filter-kpi-badge.highlight .kpi-val {
+      color: #1d4ed8;
+    }
+    .filter-kpi-badge.highlight .kpi-lbl {
+      color: #1e40af;
+    }
+
+    .filter-kpi-badge.kpi-pass-badge {
+      background: #f0fdf4;
+      border-color: #86efac;
+    }
+    .filter-kpi-badge.kpi-pass-badge .kpi-icon-pass {
+      color: #16a34a;
+      font-weight: 900;
+      font-size: 11px;
+    }
+    .filter-kpi-badge.kpi-pass-badge .kpi-val {
+      color: #15803d;
+    }
+    .filter-kpi-badge.kpi-pass-badge .kpi-lbl {
+      color: #166534;
+    }
+
+    .filter-kpi-badge.kpi-fail-badge {
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+    .filter-kpi-badge.kpi-fail-badge .kpi-icon-fail {
+      color: #dc2626;
+      font-weight: 900;
+      font-size: 11px;
+    }
+    .filter-kpi-badge.kpi-fail-badge .kpi-val {
+      color: #b91c1c;
+    }
+    .filter-kpi-badge.kpi-fail-badge .kpi-lbl {
+      color: #991b1b;
+    }
+
+    /* Completely Remove Large Legacy Stats Banner */
+    .stats-banner {
+      display: none !important;
+    }
+
+    .stat-card {
+      flex: 1;
+      min-width: 105px;
+      background: #ffffff !important;
+      border-radius: 10px !important;
+      border: 1px solid #e2e8f0 !important;
+      padding: 8px 12px !important;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04) !important;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      transition: all 0.2s ease !important;
+      border-left: 4px solid #3b82f6 !important;
+    }
+    .stat-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.08) !important;
+    }
+    .stat-card.rows { border-left-color: #6366f1 !important; }
+    .stat-card.programs { border-left-color: #8b5cf6 !important; }
+    .stat-card.examsummary { border-left-color: #0891b2 !important; }
+    .stat-card.cohort { border-left-color: #3b82f6 !important; }
+    .stat-card.regular { border-left-color: #2563eb !important; }
+    .stat-card.backlog { border-left-color: #d97706 !important; }
+    .stat-card.pass { border-left-color: #16a34a !important; }
+    .stat-card.fail { border-left-color: #dc2626 !important; }
+    .stat-card.percent { border-left-color: #ca8a04 !important; }
+
+    .stat-label {
+      font-size: 9.5px !important;
+      font-weight: 800 !important;
+      color: #64748b !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+    }
+    .stat-value {
+      font-size: 17px !important;
+      font-weight: 800 !important;
+      color: #0f172a !important;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-sublabel {
+      font-size: 8.5px !important;
+      font-weight: 600 !important;
+      color: #94a3b8 !important;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+
+    /* Gazette Navigation Controller */
+    .gazette-nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #ffffff !important;
+      padding: 10px 20px !important;
+      border-radius: 10px !important;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05) !important;
+      border: 1px solid #e2e8f0 !important;
+      margin: 0 24px 14px 24px !important;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .gazette-nav-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .gazette-nav-info {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .gazette-nav-select {
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1.5px solid #cbd5e1;
+      font-size: 12px;
+      background: #f8fafc;
+      font-weight: 700;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .gazette-nav-select:focus {
+      border-color: #2563eb;
+      background: #ffffff;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    /* Matrix Table Hover & Visual Polish */
+    .gazette-matrix tr:hover td {
+      background-color: #f0f7ff !important;
+    }
+    .gazette-matrix .badge-pass,
+    .badge-pass {
+      background: #dcfce7 !important;
+      color: #15803d !important;
+      border: 1px solid #86efac !important;
+      border-radius: 3px !important;
+      padding: 1.5px 5px !important;
+      font-weight: 800 !important;
+      font-size: 6.8pt !important;
+      display: inline-block !important;
+      line-height: 1.15 !important;
+      letter-spacing: 0.3px !important;
+      box-sizing: border-box !important;
+      white-space: nowrap !important;
+    }
+    .gazette-matrix .badge-fail,
+    .badge-fail {
+      background: #fee2e2 !important;
+      color: #b91c1c !important;
+      border: 1px solid #fca5a5 !important;
+      border-radius: 3px !important;
+      padding: 1.5px 5px !important;
+      font-weight: 800 !important;
+      font-size: 6.8pt !important;
+      display: inline-block !important;
+      line-height: 1.15 !important;
+      letter-spacing: 0.3px !important;
+      box-sizing: border-box !important;
+      white-space: nowrap !important;
+    }
+
+    /* Course Selection Dashboard Cards */
+    .course-card {
+      background: #ffffff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px 22px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      cursor: pointer;
+      position: relative;
+    }
+    .course-card:hover {
+      border-color: #2563eb;
+      transform: translateY(-3px);
+      box-shadow: 0 12px 24px rgba(37, 99, 235, 0.12);
+    }
+    .course-card h4 {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--sspu-navy);
+      margin-bottom: 6px;
+    }
+    .course-card p {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 14px;
+    }
+    .badge-select {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 800;
+      color: #2563eb;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 20px;
+      padding: 4px 12px;
+    }
+
+  </style>
+  </style>
+  <!-- Dynamic Print Page Size Style (A4 Portrait for Cards, A3 Landscape for Matrix) -->
+  <style id="printPageSizeStyle">
+    @page { size: A3 landscape; margin: 6mm 8mm 6mm 8mm; }

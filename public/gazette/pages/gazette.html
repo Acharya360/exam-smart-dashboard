@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSPU - Result Gazette & Tabulation Register (A3)</title>
+  
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/gazette.css">
+
+  <!-- SheetJS Library -->
+  <script src="../xlsx.full.min.js"></script>
+  <script>
+    if (typeof XLSX === 'undefined') {
+      document.write('<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"><\/script>');
+    }
+  </script>
+
+  <!-- Embedded Master Dataset -->
+  <script src="../SSPU_Master_Data_Compact.js"></script>
+
+  <!-- Modular Scripts -->
+  <script src="../js/data-store.js"></script>
+  <script src="../js/common.js"></script>
+  <script src="../js/gazette.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar Placeholder -->
+  <div id="navbarPlaceholder"></div>
+
+  <!-- Screen Header & Actions -->
+  <header class="screen-header no-print">
+    <div class="header-left">
+      <h1 class="portal-title">Official Result Gazette Generator</h1>
+      <p class="portal-sub">State Private University Tabulation Register • Strict A3 Landscape Compliance • 26px Uniform Rows</p>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn btn-secondary" onclick="commonUI.goBack()" title="Return to Dashboard">
+        <span>←</span> Dashboard
+      </button>
+
+      <button class="btn btn-primary" onclick="gazetteApp.handlePrintAction()" title="Print A3 Landscape Tabulation Register">
+        <span>🖨️</span> Print Gazette (A3)
+      </button>
+
+      <button class="btn btn-secondary" onclick="gazetteApp.exportToExcel()" title="Export filtered cohort to Excel spreadsheet">
+        <span>📥</span> Export Cohort (.xlsx)
+      </button>
+
+      <button class="btn btn-outline" onclick="gazetteApp.resetAllFilters()" title="Reset all dropdowns">
+        <span>🔄</span> Reset
+      </button>
+    </div>
+  </header>
+
+  <!-- Elevated Dependent Filter Bar -->
+  <section class="filter-bar no-print">
+    <!-- ROW 1: PRIMARY DATA FILTERS -->
+    <div class="filter-row filter-row-primary">
+      <div class="filter-group flex-1">
+        <label for="filterPeriod">Academic Period</label>
+        <select id="filterPeriod" onchange="gazetteApp.onPeriodChange()">
+          <option value="2024-2025" selected>2024-2025</option>
+          <option value="2023-2024">2023-2024</option>
+          <option value="2022-2023">2022-2023</option>
+          <option value="2021-2022">2021-2022</option>
+          <option value="">-- All Periods --</option>
+        </select>
+      </div>
+
+      <div class="filter-group flex-1">
+        <label for="filterDept">
+          School / Department
+          <span class="dependent-badge" id="badgeDept" style="display:none;">Filtered</span>
+        </label>
+        <select id="filterDept" onchange="gazetteApp.onDeptChange()">
+          <option value="">-- All Departments --</option>
+        </select>
+      </div>
+
+      <div class="filter-group flex-15">
+        <label for="filterCourse">Programme / Course</label>
+        <select id="filterCourse" onchange="gazetteApp.onCourseChange()">
+          <option value="">-- Choose Programme --</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="width: 120px; flex-shrink: 0;">
+        <label for="filterTerm">
+          Term
+          <span class="dependent-badge" id="badgeTerm" style="display:none;">Filtered</span>
+        </label>
+        <select id="filterTerm" onchange="gazetteApp.onTermChange()">
+          <option value="">-- All Terms --</option>
+          <option value="Term I">Term I</option>
+          <option value="Term II">Term II</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="width: 125px; flex-shrink: 0;">
+        <label for="filterSem">
+          Semester
+          <span class="dependent-badge" id="badgeSem" style="display:none;">Filtered</span>
+        </label>
+        <select id="filterSem" onchange="gazetteApp.onSemChange()"></select>
+      </div>
+
+      <div class="filter-group" style="width: 140px; flex-shrink: 0;">
+        <label for="filterExamType">Exam Type</label>
+        <select id="filterExamType" onchange="gazetteApp.applyFiltersAndRender()">
+          <option value="ALL">Both</option>
+          <option value="REGULAR">Regular</option>
+          <option value="BACKLOG">Backlog</option>
+        </select>
+      </div>
+
+      <div class="filter-group flex-1">
+        <label for="searchQuery">Search Student</label>
+        <input type="text" id="searchQuery" placeholder="Search PRN or Name..." oninput="gazetteApp.applyFiltersAndRender()">
+      </div>
+    </div>
+
+    <!-- ROW 2: DISPLAY CONTROLS, COMPACT RESET & PERSISTENT KPI BADGES -->
+    <div class="filter-row filter-row-secondary">
+      <div class="filter-controls-subgroup">
+        <div class="filter-group" style="width: 220px;">
+          <label for="gazetteTemplate">Gazette Template</label>
+          <select id="gazetteTemplate" onchange="gazetteApp.onTemplateChange()">
+            <option value="template1" selected>Template 1 (Combined CA / ESE)</option>
+            <option value="template2">Template 2 (Separate CAT, CAP, EST, ESP)</option>
+          </select>
+        </div>
+
+        <div class="filter-group" style="width: 175px;">
+          <label for="studentsPerPage">Records Per Page</label>
+          <select id="studentsPerPage" onchange="gazetteApp.applyFiltersAndRender()">
+            <option value="25" selected>25 per sheet (Standard)</option>
+            <option value="30">30 per sheet (Compact)</option>
+            <option value="35">35 per sheet (Dense)</option>
+            <option value="ALL">All records (Continuous)</option>
+          </select>
+        </div>
+
+        <label class="filter-checkbox-label" title="Toggle digital 'Sd/-' or blank lines for manual signatures">
+          <input type="checkbox" id="toggleSdSign" checked onchange="gazetteApp.onSdSignToggle()">
+          <span class="checkbox-text"><b>Sd/-</b> Signatures</span>
+        </label>
+
+        <button class="btn btn-reset-compact" onclick="gazetteApp.resetAllFilters()" title="Reset all dropdowns">
+          <span>🔄</span> Reset Filters
+        </button>
+
+        <div class="filter-prune-pill" title="Dynamic Optimization: Unused / all-NULL component and grade columns are automatically omitted to optimize table density for A3 landscape print.">
+          <span style="color:#10b981; font-weight:800;">✓</span> Auto-Pruned NULL Columns
+        </div>
+      </div>
+
+      <!-- COMPACT KPI SUMMARY STRIP (Clean, Non-Duplicated, Low Height) -->
+      <div class="filter-kpi-strip" id="filterKpiStrip">
+        <div class="filter-kpi-badge" title="Total subject records matching active filters" id="kpiRowsBadge">
+          <span class="kpi-icon">📄</span>
+          <strong class="kpi-val" id="kpiRows">140,799</strong>
+          <span class="kpi-lbl" id="kpiRowsLbl">Records</span>
+        </div>
+        <div class="filter-kpi-badge highlight" title="Candidates in the current filtered examination cohort" id="kpiCohortBadge">
+          <span class="kpi-icon">👥</span>
+          <strong class="kpi-val" id="kpiFilteredRecords">0</strong>
+          <span class="kpi-lbl">Cohort</span>
+        </div>
+        <div class="filter-kpi-badge kpi-pass-badge" title="Students who passed all subjects" id="kpiPassBadge">
+          <span class="kpi-icon kpi-icon-pass">✓</span>
+          <strong class="kpi-val" id="kpiPass">0</strong>
+          <span class="kpi-lbl">Passed</span>
+        </div>
+        <div class="filter-kpi-badge kpi-fail-badge" title="Students with backlogs / need re-appear" id="kpiFailBadge">
+          <span class="kpi-icon kpi-icon-fail">✗</span>
+          <strong class="kpi-val" id="kpiFail">0</strong>
+          <span class="kpi-lbl">Failed</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gazette Pagination Navigation Bar -->
+  <section class="gazette-nav-bar no-print" id="gazetteNavBar" style="display:none;">
+    <div class="nav-control-group">
+      <button class="nav-page-btn" id="btnPrevPage" onclick="gazetteApp.changeGazettePage(-1)" title="Previous Gazette Page">&larr; Previous Sheet</button>
+      
+      <div class="page-indicator">
+        Sheet <span class="page-num-highlight" id="currentPageNumber">1</span> of <span id="totalPagesCount">1</span>
+      </div>
+
+      <button class="nav-page-btn" id="btnNextPage" onclick="gazetteApp.changeGazettePage(1)" title="Next Gazette Page">Next Sheet &rarr;</button>
+    </div>
+
+    <div class="nav-info-group">
+      <span class="record-range-text" id="pageRecordRange">Loading records...</span>
+    </div>
+
+    <div class="nav-quick-actions">
+      <span style="font-size:11px; color:#64748b; font-weight:600;">Jump:</span>
+      <input type="number" id="jumpPageInput" min="1" max="1" value="1" style="width:50px; padding:3px 6px; font-size:12px; border:1px solid #cbd5e0; border-radius:4px; text-align:center;" onchange="gazetteApp.jumpToGazettePage(this.value)">
+
+      <button class="btn-toggle-continuous" id="btnToggleContinuous" onclick="gazetteApp.toggleContinuousPages()" title="Toggle between single sheet navigation and continuous scroll">
+        📜 Continuous Pages
+      </button>
+    </div>
+  </section>
+
+  <!-- Gazette Viewport (A3 Page Output) -->
+  <main class="gazette-viewport" id="gazetteViewport">
+    <div style="background:var(--sspu-card-bg); border:1px solid var(--sspu-border); border-radius:12px; padding:60px 20px; text-align:center; max-width:600px; margin:40px auto; box-shadow:var(--shadow-sm);">
+      <div style="font-size:36px; margin-bottom:12px;">⏳</div>
+      <h3 style="font-size:18px; font-weight:700; margin-bottom:6px;">Initializing Gazette Engine...</h3>
+      <p style="font-size:13px; color:#64748b;">Loading master dataset and preparing tabulation matrix.</p>
+    </div>
+  </main>
+
+  <footer class="app-footer no-print">
+    Symbiosis Skills & Professional University, Pune • Controller of Examinations • Official Tabulation Register (A3)
+  </footer>
+
+  <script>
+    function bootstrapGazette() {
+      gazetteApp.initGazettePage();
+    }
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', bootstrapGazette);
+    } else {
+      bootstrapGazette();
+    }
+  </script>
+</body>
+</html>

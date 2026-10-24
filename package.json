@@ -1,14 +1,15 @@
 {
-  "name": "react-example",
+  "name": "sspu-examination-portal",
   "private": true,
-  "version": "0.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --port=3000 --host=0.0.0.0",
     "server": "node server.js",
+    "start": "node server.js",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist",
+    "clean": "node -e \"const fs=require('fs'); fs.rmSync('dist', { recursive: true, force: true });\"",
     "lint": "tsc --noEmit",
     "migrate": "node scripts/migrate.mjs",
     "migrate:dry-run": "node scripts/migrate.mjs --dry-run",

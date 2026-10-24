@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SSPU - Master Examination & Gazette Management System</title>
+  
+  <link rel="stylesheet" href="css/common.css">
+  <link rel="stylesheet" href="css/dashboard.css">
+
+  <!-- SheetJS Library -->
+  <script src="xlsx.full.min.js"></script>
+
+  <!-- Embedded Master Dataset -->
+  <script src="SSPU_Master_Data_Compact.js"></script>
+
+  <!-- Modular Scripts -->
+  <script src="js/data-store.js"></script>
+  <script src="js/common.js"></script>
+</head>
+<body>
+
+  <!-- Navigation Bar Placeholder -->
+  <div id="navbarPlaceholder"></div>
+
+  <main class="app-container">
+    <!-- Executive Hero Banner -->
+    <div class="dashboard-hero anim-fade-in">
+      <div class="dashboard-hero-content">
+        <div class="hero-pill-badge">
+          <span class="pulse-indicator-dot"></span>
+          <span>Official University Engine • Controller of Examinations</span>
+        </div>
+        <h1 class="dashboard-hero-title">Master Examination &amp; Result Gazette System</h1>
+        <p class="dashboard-hero-desc">State Private University Tabulation Register, High-Density A3 Print Engine, Student Grade Cards, and Examination Spreadsheet Management for Symbiosis Skills &amp; Professional University.</p>
+        
+        <div class="hero-action-strip">
+          <a href="pages/gazette.html" class="btn-hero-gold">
+            <span>📊</span> Launch Result Gazette (A3) &rarr;
+          </a>
+          <a href="pages/data-hub.html" class="btn-hero-glass">
+            <span>📂</span> Excel Import &amp; Data Hub
+          </a>
+          <a href="pages/master-records.html" class="btn-hero-glass">
+            <span>🏛️</span> Master Records &amp; Governance
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live KPI Metrics Strip -->
+    <div class="metrics-grid anim-slide-up">
+      <div class="metric-card" style="--card-accent:#2563eb;">
+        <div class="metric-icon-wrap" style="background:rgba(37, 99, 235, 0.1); color:#2563eb;">
+          <span>📋</span>
+        </div>
+        <div class="metric-info">
+          <div class="metric-val" id="dashTotalRecords">140,799</div>
+          <div class="metric-label">Exam Records Active</div>
+          <span class="metric-subtag">Canonical 56-Col Rows</span>
+        </div>
+      </div>
+
+      <div class="metric-card" style="--card-accent:#0891b2;">
+        <div class="metric-icon-wrap" style="background:rgba(8, 145, 178, 0.1); color:#0891b2;">
+          <span>🎓</span>
+        </div>
+        <div class="metric-info">
+          <div class="metric-val" id="dashTotalProgrammes">26</div>
+          <div class="metric-label">Academic Programmes</div>
+          <span class="metric-subtag">Across 12 Schools &amp; Depts</span>
+        </div>
+      </div>
+
+      <div class="metric-card" style="--card-accent:#16a34a;">
+        <div class="metric-icon-wrap" style="background:rgba(22, 163, 74, 0.1); color:#16a34a;">
+          <span>🏆</span>
+        </div>
+        <div class="metric-info">
+          <div class="metric-val" id="dashPassRate">78.6%</div>
+          <div class="metric-label">Overall Pass Rate</div>
+          <span class="metric-subtag">Statutory Assessment Pass</span>
+        </div>
+      </div>
+
+      <div class="metric-card" style="--card-accent:#d97706;">
+        <div class="metric-icon-wrap" style="background:rgba(217, 119, 6, 0.1); color:#d97706;">
+          <span>👥</span>
+        </div>
+        <div class="metric-info">
+          <div class="metric-val" id="dashTotalStudents">—</div>
+          <div class="metric-label">Candidate PRNs</div>
+          <span class="metric-subtag">Enrolled Student Register</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Cohort Launcher Card (Executive Cockpit) -->
+    <div class="quick-launcher-card anim-slide-up">
+      <div class="launcher-header-row">
+        <div>
+          <div class="quick-launcher-title">
+            <span>🚀</span> Instant Cohort Quick Launcher
+            <span class="badge badge-pass" style="font-size:10.5px; padding:2px 8px; font-weight:700;">Cockpit Mode</span>
+          </div>
+          <p class="quick-launcher-desc">Select an academic cohort below to instantly open the formatted Gazette Tabulation Register or Student Grade Cards.</p>
+        </div>
+      </div>
+
+      <div class="launcher-form">
+        <div class="launcher-group">
+          <label for="launchPeriod">Academic Period</label>
+          <select id="launchPeriod" onchange="dashApp.onPeriodChange()">
+            <option value="2024-2025" selected>2024-2025</option>
+            <option value="2023-2024">2023-2024</option>
+            <option value="2022-2023">2022-2023</option>
+            <option value="2021-2022">2021-2022</option>
+            <option value="">-- All Periods --</option>
+          </select>
+        </div>
+
+        <div class="launcher-group">
+          <label for="launchDept">School / Department</label>
+          <select id="launchDept" onchange="dashApp.onDeptChange()">
+            <option value="">-- All Departments --</option>
+          </select>
+        </div>
+
+        <div class="launcher-group">
+          <label for="launchCourse">Programme / Course</label>
+          <select id="launchCourse" onchange="dashApp.onCourseChange()">
+            <option value="">-- Choose Programme --</option>
+          </select>
+        </div>
+
+        <div class="launcher-group">
+          <label for="launchSem">Semester</label>
+          <select id="launchSem">
+          </select>
+        </div>
+
+        <div class="launcher-group">
+          <label for="launchExamType">Exam Type</label>
+          <select id="launchExamType">
+            <option value="ALL">Both (Regular &amp; Backlog)</option>
+            <option value="REGULAR">Regular</option>
+            <option value="BACKLOG">Backlog</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="launcher-actions-bar">
+        <button class="btn btn-primary" onclick="dashApp.launchModule('gazette')">
+          <span>📊</span> Generate Result Gazette (A3) &rarr;
+        </button>
+        <button class="btn btn-secondary" onclick="dashApp.launchModule('cards')">
+          <span>🪪</span> Generate Grade Cards (A4)
+        </button>
+        <button class="btn btn-outline" onclick="dashApp.launchModule('analytics')">
+          <span>📈</span> View Cohort Analytics
+        </button>
+      </div>
+    </div>
+
+    <!-- Modular Architecture Section -->
+    <h2 class="modules-section-title">
+      <span>📦</span> Integrated System Modules
+    </h2>
+
+    <div class="modules-grid">
+      <!-- Module 1: Gazette -->
+      <a href="pages/gazette.html" class="module-card" style="--module-accent:#2563eb;">
+        <div>
+          <div class="module-card-top">
+            <div class="module-card-icon" style="background:rgba(37, 99, 235, 0.1); color:#2563eb;">📊</div>
+            <div>
+              <div class="module-card-title">Result Gazette (A3 Matrix)</div>
+              <span class="module-card-badge" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe;">Official Register</span>
+            </div>
+          </div>
+          <p class="module-card-desc">Generate official A3 landscape Tabulation Registers with locked 26px uniform row heights, 28px clipped Tot marks, multi-line subheaders, and running signatures.</p>
+        </div>
+        <div class="module-card-footer">
+          <span>Launch Module</span>
+          <span>&rarr;</span>
+        </div>
+      </a>
+
+      <!-- Module 2: Grade Cards -->
+      <a href="pages/grade-cards.html" class="module-card" style="--module-accent:#16a34a;">
+        <div>
+          <div class="module-card-top">
+            <div class="module-card-icon" style="background:rgba(22, 163, 74, 0.1); color:#16a34a;">🪪</div>
+            <div>
+              <div class="module-card-title">Student Grade Cards (A4)</div>
+              <span class="module-card-badge" style="background:#f0fdf4; color:#15803d; border:1px solid #bbf7d0;">Individual Cards</span>
+            </div>
+          </div>
+          <p class="module-card-desc">Comprehensive semester grade statements for individual students with CA, IA, ESE breakdown, credits earned, SGPA, CGPA, and official A4 portrait print format.</p>
+        </div>
+        <div class="module-card-footer">
+          <span>Launch Module</span>
+          <span>&rarr;</span>
+        </div>
+      </a>
+
+      <!-- Module 3: Excel Data Hub -->
+      <a href="pages/data-hub.html" class="module-card" style="--module-accent:#d97706;">
+        <div>
+          <div class="module-card-top">
+            <div class="module-card-icon" style="background:rgba(217, 119, 6, 0.1); color:#d97706;">📂</div>
+            <div>
+              <div class="module-card-title">Excel Upload &amp; Data Hub</div>
+              <span class="module-card-badge" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;">Data Center</span>
+            </div>
+          </div>
+          <p class="module-card-desc">Upload examination spreadsheets, append newly conducted exam sessions, download standardized 56-column blank and sample templates, and manage database memory.</p>
+        </div>
+        <div class="module-card-footer">
+          <span>Launch Module</span>
+          <span>&rarr;</span>
+        </div>
+      </a>
+
+      <!-- Module 4: Student Names -->
+      <a href="pages/student-names.html" class="module-card" style="--module-accent:#8b5cf6;">
+        <div>
+          <div class="module-card-top">
+            <div class="module-card-icon" style="background:rgba(139, 92, 246, 0.1); color:#8b5cf6;">👥</div>
+            <div>
+              <div class="module-card-title">Student Names Directory</div>
+              <span class="module-card-badge" style="background:#f5f3ff; color:#6d28d9; border:1px solid #ddd6fe;">PRN Directory</span>
+            </div>
+          </div>
+          <p class="module-card-desc">Match candidate full names to university PRNs via Excel/CSV spreadsheet upload, official template download, smart TSV bulk paste, inline click-to-edit, and directory exports.</p>
+        </div>
+        <div class="module-card-footer">
+          <span>Launch Module</span>
+          <span>&rarr;</span>
+        </div>
+      </a>
+
+      <!-- Module 5: Analytics -->
+      <a href="pages/analytics.html" class="module-card" style="--module-accent:#0891b2;">
+        <div>
+          <div class="module-card-top">
+            <div class="module-card-icon" style="background:rgba(8, 145, 178, 0.1); color:#0891b2;">📈</div>
+            <div>
+              <div class="module-card-title">Performance Analytics</div>
+              <span class="module-card-badge" style="background:#ecfeff; color:#0e7490; border:1px solid #a5f3fc;">Executive KPI</span>
+            </div>
+          </div>
+          <p class="module-card-desc">School-wise passing percentages, programme performance comparisons, backlog distribution ratios, and total candidate breakdowns across all active periods.</p>
+        </div>
+        <div class="module-card-footer">
+          <span>Launch Module</span>
+          <span>&rarr;</span>
+        </div>
+      </a>
+
+      <!-- Module 6: Master Records & Governance -->
+      <a href="pages/master-records.html" class="module-card" style="--module-accent:#ea580c;">
+        <div>
+          <div class="module-card-top">
+            <div class="module-card-icon" style="background:rgba(234, 88, 12, 0.1); color:#ea580c;">🏛️</div>
+            <div>
+              <div class="module-card-title">Master Records &amp; Governance</div>
+              <span class="module-card-badge" style="background:#fff7ed; color:#c2410c; border:1px solid #fed7aa;">Audit Ready</span>
+            </div>
+          </div>
+          <p class="module-card-desc">Standardized university examination record taxonomy, statutory retention schedules, departmental RACI matrix, live data integrity audits, and official gazette release dossiers.</p>
+        </div>
+        <div class="module-card-footer">
+          <span>Launch Module</span>
+          <span>&rarr;</span>
+        </div>
+      </a>
+    </div>
+  </main>
+
+  <footer class="app-footer no-print">
+    Symbiosis Skills &amp; Professional University, Kiwale, Pune • State Private University • Master Examination Portal
+  </footer>
+
+  <script>
+    const dashApp = {
+      async init() {
+        commonUI.renderNavbar('dashboard');
+        const initResult = await dataStore.init();
+        commonUI.updateNavStatus(initResult.count);
+
+        // Update Dashboard KPIs
+        const stats = dataStore.getSummaryStats();
+        const totRecEl = document.getElementById('dashTotalRecords');
+        const totProgEl = document.getElementById('dashTotalProgrammes');
+        const passRateEl = document.getElementById('dashPassRate');
+        const totStudEl = document.getElementById('dashTotalStudents');
+
+        if (totRecEl) totRecEl.innerText = stats.totalRecords.toLocaleString();
+        if (totProgEl) totProgEl.innerText = stats.totalProgrammes;
+        if (passRateEl) passRateEl.innerText = `${stats.passPercentage}%`;
+        if (totStudEl) totStudEl.innerText = stats.uniqueStudents ? stats.uniqueStudents.toLocaleString() : '—';
+
+        // Populate Quick Launcher: descending academic years, default to 2024-2025
+        const pEl = document.getElementById('launchPeriod');
+        if (pEl) {
+          let periods = dataStore.getFilteredDistinctValues('AcademicPeriod');
+          if (!periods || periods.length === 0) {
+            periods = ['2024-2025', '2023-2024', '2022-2023', '2021-2022'];
+          } else {
+            periods = Array.from(new Set(periods)).sort().reverse();
+          }
+          const currentP = pEl.value;
+          pEl.innerHTML = '';
+          periods.forEach(p => pEl.innerHTML += `<option value="${commonUI.escapeHtml(p)}">${commonUI.escapeHtml(p)}</option>`);
+          pEl.innerHTML += `<option value="">-- All Periods --</option>`;
+          if (currentP && (periods.includes(currentP) || currentP === '')) {
+            pEl.value = currentP;
+          } else {
+            pEl.value = periods[0] || '2024-2025';
+          }
+        }
+
+        dashApp.syncLauncher();
+      },
+
+      syncLauncher() {
+        const period = document.getElementById('launchPeriod')?.value || '';
+        const deptEl = document.getElementById('launchDept');
+        const courseEl = document.getElementById('launchCourse');
+        const semEl = document.getElementById('launchSem');
+
+        const prevDept = deptEl ? deptEl.value : '';
+        const prevCourse = courseEl ? courseEl.value : '';
+        const prevSem = semEl ? semEl.value : '';
+
+        // 1. School / Departments
+        if (deptEl) {
+          const depts = dataStore.getFilteredDistinctValues('DepartmentCode', { AcademicPeriod: period });
+          deptEl.innerHTML = '<option value="">-- All Departments --</option>';
+          depts.forEach(d => deptEl.innerHTML += `<option value="${commonUI.escapeHtml(d)}">${commonUI.escapeHtml(d)}</option>`);
+          deptEl.value = depts.includes(prevDept) ? prevDept : '';
+        }
+
+        // 2. Programmes / Courses
+        const activeDept = deptEl ? deptEl.value : '';
+        if (courseEl) {
+          const courses = dataStore.getFilteredDistinctValues('CM_Course_Name', {
+            AcademicPeriod: period,
+            DepartmentCode: activeDept
+          });
+          courseEl.innerHTML = '<option value="">-- Choose Programme --</option>';
+          courses.forEach(c => courseEl.innerHTML += `<option value="${commonUI.escapeHtml(c)}">${commonUI.escapeHtml(c)}</option>`);
+          if (prevCourse && courses.includes(prevCourse)) {
+            courseEl.value = prevCourse;
+          } else if (courses.length > 0) {
+            courseEl.value = courses[0];
+          }
+        }
+
+        // Auto-match department if a course is active
+        const activeCourse = courseEl ? courseEl.value : '';
+        const courseToDeptMap = dataStore.getCourseToDeptMap();
+        if (activeCourse && courseToDeptMap[activeCourse] && deptEl && !deptEl.value) {
+          deptEl.value = courseToDeptMap[activeCourse];
+        }
+
+        // 3. Semesters
+        if (semEl) {
+          if (!activeCourse) {
+            semEl.innerHTML = '<option value="">-- Select Programme First --</option>';
+            semEl.disabled = true;
+          } else {
+            semEl.disabled = false;
+            const sems = dataStore.getFilteredDistinctValues('Semester', {
+              AcademicPeriod: period,
+              CM_Course_Name: activeCourse
+            });
+            semEl.innerHTML = '';
+            sems.forEach(s => semEl.innerHTML += `<option value="${commonUI.escapeHtml(s)}">Semester ${commonUI.escapeHtml(s)}</option>`);
+            if (sems.includes(prevSem)) {
+              semEl.value = prevSem;
+            } else if (sems.length > 0) {
+              semEl.value = sems[0];
+            }
+          }
+        }
+      },
+
+      onPeriodChange() {
+        dashApp.syncLauncher();
+      },
+
+      onDeptChange() {
+        dashApp.syncLauncher();
+      },
+
+      onCourseChange() {
+        dashApp.syncLauncher();
+      },
+
+      launchModule(target) {
+        const period = document.getElementById('launchPeriod')?.value || '';
+        const dept = document.getElementById('launchDept')?.value || '';
+        const course = document.getElementById('launchCourse')?.value || '';
+        const sem = document.getElementById('launchSem')?.value || '';
+        const examType = document.getElementById('launchExamType')?.value || 'ALL';
+
+        const params = new URLSearchParams({ period, dept, course, sem, examType });
+
+        if (target === 'gazette') {
+          window.location.href = `pages/gazette.html?${params.toString()}`;
+        } else if (target === 'cards') {
+          window.location.href = `pages/grade-cards.html?${params.toString()}`;
+        } else if (target === 'analytics') {
+          window.location.href = `pages/analytics.html`;
+        }
+      }
+    };
+
+    // Auto-update dashboard if dataset is uploaded or reset in another module/tab
+    window.addEventListener('sspu-data-updated', () => {
+      dashApp.init();
+    });
+
+    // Reliable bootstrap preventing DOMContentLoaded race conditions
+    function bootstrapDashboard() {
+      dashApp.init();
+    }
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', bootstrapDashboard);
+    } else {
+      bootstrapDashboard();
+    }
+  </script>
+</body>
+</html>

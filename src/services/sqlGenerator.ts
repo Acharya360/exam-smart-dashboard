@@ -3,6 +3,10 @@ export const SUPABASE_SQL_MIGRATION = `
 -- EXAM DEPARTMENT TRACK DASHBOARD & TASK MANAGEMENT SYSTEM
 -- PostgreSQL Schema & Supabase Row-Level Security (RLS) Migration
 -- ============================================================================
+-- !! DESTRUCTIVE SCRIPT !! Running this DROPS the existing profiles, programs,
+-- exam_schedules and exam_tasks tables (CASCADE) and all their data. It is intended
+-- ONLY for a fresh setup or a full reset. Back up production data before running.
+-- ============================================================================
 
 -- ============================================================================
 -- 0. CLEANUP EXISTING TYPES AND TABLES (Idempotent Setup)

@@ -190,8 +190,13 @@ export interface CourseMaster {
 }
 
 export interface CourseMasterRow {
+  ID?: number | string;
+  id?: number | string;
   'Sr. No.'?: number | string;
+  'Sr.No.'?: number | string;
+  SrNo?: number | string;
   AcademicPeriod?: string;
+  'Academic Period'?: string;
   Term?: string;
   'Program Code'?: string;
   'Program Name'?: string;

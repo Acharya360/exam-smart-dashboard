@@ -37,6 +37,9 @@ export async function localRequest<T>(path: string, method = 'GET', body?: unkno
     if (response.ok) {
       return {} as T;
     }
+    if (response.status === 502 || response.status === 503) {
+      throw new Error(`Local API server on port 5000 is not reachable (HTTP ${response.status}). Ensure 'npm run server' is active or switch to Supabase Cloud mode.`);
+    }
     throw new Error(`Server returned HTTP ${response.status} with empty response.`);
   }
 
@@ -102,7 +105,16 @@ export class LocalDBService {
     return tasks;
   }
   getCourseMaster() { return localRequest<CourseMaster[]>('/course-master'); }
-  async upsertCourseMaster(courses:Omit<CourseMaster,'id'|'created_at'|'updated_at'>[]) { try { const old=await this.getCourseMaster(); await localRequest('/course-master/bulk','POST',{courses}); const updated=courses.filter(c=>old.some(o=>o.paper_code===c.paper_code&&o.cm_course_name===c.cm_course_name)).length;return {inserted:courses.length-updated,updated}; } catch(e){return {inserted:0,updated:0,error:message(e)};} }
+  async upsertCourseMaster(courses: Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[], clearExisting?: boolean) {
+    try {
+      const old = await this.getCourseMaster();
+      await localRequest('/course-master/bulk', 'POST', { courses, clearExisting: !!clearExisting });
+      const updated = clearExisting ? 0 : courses.filter(c => old.some(o => o.paper_code === c.paper_code && o.cm_course_name === c.cm_course_name)).length;
+      return { inserted: clearExisting ? courses.length : courses.length - updated, updated };
+    } catch (e) {
+      return { inserted: 0, updated: 0, error: message(e) };
+    }
+  }
   async deleteCourseMasterRecord(id:string) { await localRequest(`/course-master/${encodeURIComponent(id)}`,'DELETE'); }
   async deleteCourseMasterRecords(ids:string[]) { try {await localRequest('/course-master/bulk-delete','POST',{ids});}catch{for(const id of ids) await this.deleteCourseMasterRecord(id);} }
   async getStudentMarks(filters?:{paper_code?:string;cm_course_name?:string;assessment_type?:string;academic_year?:string;prn?:string;page?:number;pageSize?:number}) {

@@ -1,11 +1,13 @@
 # AI Agent Operating Guidelines (AGENTS.md)
 
 ## 1. Project Context
-Welcome to **Acharya360 Exam Smart Dashboard (ExamTrack)**, an enterprise University ERP examination operations and workflow tracking application.
+Welcome to **SSPU Examination Portal**, an integrated University ERP examination platform combining the Acharya360 Exam Smart Dashboard with the SSPU Result Gazette & Tabulation Register Engine.
 
 - **Stack**: React 19, Vite, TypeScript, Tailwind CSS v4 (`@tailwindcss/vite`), Lucide React, SheetJS (`xlsx`), Motion, Canvas Confetti.
-- **Backend / Database**: Supabase PostgreSQL with strict Row-Level Security (RLS) policies (`schema.sql`), managed via `src/services/db.ts` (`SupabaseDBService`) and `src/services/supabaseClient.ts`.
+- **Gazette Engine**: Vanilla HTML/CSS/JS static pages under `public/gazette/` — A3 Tabulation Register, A4 Grade Cards, Analytics, Student Names, Excel Data Hub, Master Records.
+- **Backend / Database**: SQL Server (local mode via Express API) + Supabase PostgreSQL (cloud mode) with strict Row-Level Security (RLS) policies (`schema.sql`), managed via `src/services/db.ts` and `src/services/supabaseClient.ts`.
 - **AI Integrations**: Google GenAI SDK (`@google/genai`) for intelligent examination assistant features.
+- **Documentation**: All architecture, security, flow, UI, database, API, deployment, and migration docs are in the `.al/` directory.
 
 ---
 
