@@ -179,7 +179,7 @@ if %ERRORLEVEL% equ 0 (
         if defined PID (
             tasklist /FI "PID eq !PID!" /NH 2>nul | findstr /I "node.exe" >nul 2>nul
             if !ERRORLEVEL! equ 0 (
-                echo [INFO] Auto-freeing occupied port %PORT% (closing previous Node process !PID!)...
+                echo [INFO] Auto-freeing occupied port %PORT% - closing previous Node process !PID!...
                 taskkill /F /PID !PID! >nul 2>&1
                 timeout /t 1 /nobreak >nul
             )
@@ -294,8 +294,8 @@ echo.
 netstat -ano | findstr /R /C:":5000 " >nul 2>nul
 if %ERRORLEVEL% neq 0 (
     echo [INFO] Starting SSPU_Exam API backend server on port 5000...
-    start "Acharya360 SSPU_Exam API" /min cmd /c "set PORT=5000& set API_PORT=5000& node server.js"
-    timeout /t 2 /nobreak >nul
+    start "Acharya360 SSPU_Exam API" /min cmd /k "set PORT=5000& set API_PORT=5000& node server.js"
+    ping 127.0.0.1 -n 3 >nul
     echo [%TIMESTAMP%] INFO: Backend API started >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 ) else (
     echo [INFO] SSPU_Exam API backend server is active on port 5000.
@@ -305,6 +305,11 @@ set "VITE_DB_MODE=local"
 echo [INFO] Launching Vite development server on port %PORT%...
 call :open_chrome_url "http://localhost:%PORT%/?db=local"
 call npm.cmd run dev -- --port %PORT%
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo [WARN] Dev server stopped or encountered an issue. Exit code: %ERRORLEVEL%
+    pause
+)
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
@@ -332,6 +337,11 @@ set "VITE_DB_MODE=supabase"
 echo [INFO] Launching Vite development server with Supabase connection on port %PORT%...
 call :open_chrome_url "http://localhost:%PORT%/?db=supabase"
 call npm.cmd run dev -- --port %PORT%
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo [WARN] Dev server stopped or encountered an issue. Exit code: %ERRORLEVEL%
+    pause
+)
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
@@ -380,9 +390,9 @@ if exist ".env" (
 )
 echo Current URL : !CURR_URL!
 if defined CURR_KEY (
-    echo Current Key : !CURR_KEY:~0,15!... (hidden)
+    echo Current Key : !CURR_KEY:~0,15!... [hidden]
 ) else (
-    echo Current Key : (Not set)
+    echo Current Key : [Not set]
 )
 echo.
 
@@ -875,15 +885,27 @@ goto :finish_action
 
 :open_chrome_url
 set "TARGET_URL=%~1"
-start "" cmd /c "timeout /t 3 /nobreak >nul & if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%") else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%") else (start "" "%TARGET_URL%")"
+set "CHROME_BIN="
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" set "CHROME_BIN=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+if not defined CHROME_BIN if exist "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" set "CHROME_BIN=C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+if not defined CHROME_BIN if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" set "CHROME_BIN=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+
+if defined CHROME_BIN (
+    start "" cmd /c "ping -n 3 127.0.0.1 >nul & start \"\" \"!CHROME_BIN!\" \"%TARGET_URL%\""
+) else (
+    start "" cmd /c "ping -n 3 127.0.0.1 >nul & start \"\" \"%TARGET_URL%\""
+)
 goto :eof
 
 :open_chrome_now
 set "TARGET_URL=%~1"
-if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (
-    start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%"
-) else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (
-    start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%"
+set "CHROME_BIN="
+if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" set "CHROME_BIN=%ProgramFiles%\Google\Chrome\Application\chrome.exe"
+if not defined CHROME_BIN if exist "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" set "CHROME_BIN=C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"
+if not defined CHROME_BIN if exist "%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe" set "CHROME_BIN=%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"
+
+if defined CHROME_BIN (
+    start "" "!CHROME_BIN!" "%TARGET_URL%"
 ) else (
     start "" "%TARGET_URL%"
 )
