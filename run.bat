@@ -12,6 +12,8 @@ cd /d "%~dp0"
 
 :: 2. Configuration & Defaults
 set "DEFAULT_PORT=3000"
+set "VITE_PORT=3000"
+set "API_PORT=5000"
 set "PORT=%DEFAULT_PORT%"
 set "ENV_FILE=.env"
 set "ENV_EXAMPLE=.env.example"
@@ -134,7 +136,7 @@ echo [4/4] Verifying dependencies...
 if not exist "node_modules\" (
     echo       - [WARN] node_modules not detected. Installing dependencies...
     echo [%TIMESTAMP%] INFO: Running initial npm install >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
-    call npm install
+    call npm.cmd install
     if !ERRORLEVEL! neq 0 (
         echo [ERROR] npm install failed. Please check the logs above.
         echo [%TIMESTAMP%] ERROR: npm install failed >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
@@ -167,30 +169,22 @@ if not "%EXTRA_ARG%"=="dev" if not "%EXTRA_ARG%"=="" if not "%EXTRA_ARG%"=="loca
     set "PORT=%EXTRA_ARG%"
     goto :eof
 )
-set "CHECK_PORT=%PORT%"
-:check_port_loop
-netstat -ano | findstr /R /C:":%CHECK_PORT% " >nul 2>nul
+set "PORT=%DEFAULT_PORT%"
+
+:: Auto-free port 3000 if occupied by a stale node.exe process to guarantee port 3000 is always available
+netstat -ano | findstr /R /C:":%PORT% " >nul 2>nul
 if %ERRORLEVEL% equ 0 (
-    echo [WARN] Port %CHECK_PORT% is in use. Attempting to identify the process...
-    for /f "tokens=5" %%p in ('netstat -ano ^| findstr /R /C:":%CHECK_PORT% "') do (
+    for /f "tokens=5" %%p in ('netstat -ano ^| findstr /R /C:":%PORT% "') do (
         set "PID=%%p"
-    )
-    if defined PID (
-        tasklist /FI "PID eq !PID!" /NH 2>nul | findstr /I "node.exe" >nul 2>nul
-        if !ERRORLEVEL! equ 0 (
-            echo [INFO] Node.js process !PID! is using port %CHECK_PORT%. This may be a previous instance.
-            echo [%TIMESTAMP%] WARN: Port %CHECK_PORT% occupied by node PID !PID! >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
-        ) else (
-            echo [INFO] Non-node process !PID! is using port %CHECK_PORT%.
+        if defined PID (
+            tasklist /FI "PID eq !PID!" /NH 2>nul | findstr /I "node.exe" >nul 2>nul
+            if !ERRORLEVEL! equ 0 (
+                echo [INFO] Auto-freeing occupied port %PORT% (closing previous Node process !PID!)...
+                taskkill /F /PID !PID! >nul 2>&1
+                timeout /t 1 /nobreak >nul
+            )
         )
     )
-    set /a CHECK_PORT+=1
-    goto :check_port_loop
-)
-set "PORT=%CHECK_PORT%"
-if not "%PORT%"=="%DEFAULT_PORT%" (
-    echo [INFO] Port %DEFAULT_PORT% occupied. Dynamically assigned free port: %PORT%
-    echo [%TIMESTAMP%] INFO: Assigned dynamic port %PORT% >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 )
 goto :eof
 
@@ -198,9 +192,7 @@ goto :eof
 :: Helper: Pause & Loop
 :: ----------------------------------------------------------------------------
 :finish_action
-if not "%CMD_ARG%"=="" (
-        exit /b 0
-)
+if not "%CMD_ARG%"=="" exit /b 0
 echo.
 echo [%TIMESTAMP%] Session ended >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 pause
@@ -217,7 +209,7 @@ echo  RUN MODES (DEVELOPMENT and CLOUD):
 echo    [1] Start Local Dev with LOCAL DATABASE (SQL Server localhost\SQLEXPRESS)
 echo    [2] Start Local Dev with SUPABASE CLOUD DATABASE
 echo    [3] Open LIVE VERCEL Deployment in Chrome (Cloud + Supabase)
-echo    [C] Open Google Chrome to Local Dev (http://localhost:%PORT%)
+echo    [C] Open Google Chrome to Local App (http://localhost:3000)
 echo    [4] Start Standalone Local SQL Server API Only (Port 5000)
 echo.
 echo  BUILD and CODE QUALITY:
@@ -246,8 +238,9 @@ echo    [9] Clean Build Artifacts and Cache
 echo    [R] Fresh Reinstall (clean node_modules and npm install)
 echo    [0] Exit
 echo ----------------------------------------------------------------------------
-set "CHOICE=1"
+set "CHOICE="
 set /p "CHOICE=Enter choice [1-7, B, P, L, K, T, S, M, X, V, W, 9, R, C, 0] (Default is 1): "
+if "%CHOICE%"=="" set "CHOICE=1"
 set "CHOICE=%CHOICE: =%"
 
 if "%CHOICE%"=="1" goto :action_dev_local
@@ -297,21 +290,15 @@ echo ---------------------------------------------------------------------------
 echo [%TIMESTAMP%] Local dev (Local DB) started on port %PORT% >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 echo.
 
+:: Ensure port 5000 runs server.js cleanly with explicit API_PORT=5000
 netstat -ano | findstr /R /C:":5000 " >nul 2>nul
 if %ERRORLEVEL% neq 0 (
     echo [INFO] Starting SSPU_Exam API backend server on port 5000...
-    start "Acharya360 SSPU_Exam API" /min cmd /c "node server.js"
+    start "Acharya360 SSPU_Exam API" /min cmd /c "set PORT=5000& set API_PORT=5000& node server.js"
     timeout /t 2 /nobreak >nul
     echo [%TIMESTAMP%] INFO: Backend API started >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
 ) else (
     echo [INFO] SSPU_Exam API backend server is active on port 5000.
-    for /f "tokens=5" %%p in ('netstat -ano ^| findstr /R /C:":5000 "') do set "API_PID=%%p"
-    if defined API_PID (
-        tasklist /FI "PID eq !API_PID!" /NH 2>nul | findstr /I "node.exe" >nul 2>nul
-        if !ERRORLEVEL! equ 0 (
-            echo       (Active instance verified under Node.js PID !API_PID!)
-        )
-    )
 )
 
 set "VITE_DB_MODE=local"
@@ -321,7 +308,7 @@ call npm.cmd run dev -- --port %PORT%
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
-:: Action 2: Local Mode with Supabase Cloud Database
+:: Action 2: Local Mode with Supabase Cloud Database (Fully Automatic)
 :: ----------------------------------------------------------------------------
 :action_dev_supabase
 call :resolve_port
@@ -334,24 +321,12 @@ echo [%TIMESTAMP%] Local dev (Supabase DB) started on port %PORT% >> "%LOG_DIR%\
 echo.
 
 set "ACTIVE_SB_URL="
-set "ACTIVE_SB_KEY="
 if exist ".env" (
     for /f "usebackq tokens=1,2 delims==" %%a in (".env") do (
         if "%%a"=="VITE_SUPABASE_URL" set "ACTIVE_SB_URL=%%b"
-        if "%%a"=="VITE_SUPABASE_ANON_KEY" set "ACTIVE_SB_KEY=%%b"
     )
 )
-
-echo [INFO] Configured Supabase URL : !ACTIVE_SB_URL!
-if "!ACTIVE_SB_KEY!"=="" (
-    echo [WARN] VITE_SUPABASE_ANON_KEY is missing in .env!
-    set /p CFG_NOW="Would you like to configure your Supabase Cloud credentials now? (y/N): "
-    if /i "!CFG_NOW!"=="y" call :action_config_supabase
-) else if "!ACTIVE_SB_KEY!"=="placeholder-key" (
-    echo [WARN] VITE_SUPABASE_ANON_KEY is set to 'placeholder-key'.
-    set /p CFG_NOW="Would you like to enter your actual Supabase Anon Key now? (y/N): "
-    if /i "!CFG_NOW!"=="y" call :action_config_supabase
-)
+echo [INFO] Target Supabase Cloud : !ACTIVE_SB_URL!
 
 set "VITE_DB_MODE=supabase"
 echo [INFO] Launching Vite development server with Supabase connection on port %PORT%...
@@ -360,7 +335,7 @@ call npm.cmd run dev -- --port %PORT%
 goto :finish_action
 
 :: ----------------------------------------------------------------------------
-:: Action 3: Open Vercel Deployed Cloud App in Chrome
+:: Action 3: Open Vercel Deployed Cloud App in Chrome (Fully Automatic)
 :: ----------------------------------------------------------------------------
 :action_open_vercel
 echo ----------------------------------------------------------------------------
@@ -369,32 +344,9 @@ echo  Production URL : %DEFAULT_VERCEL_URL%
 echo  Cloud Database : Supabase PostgreSQL (Cloud)
 echo ----------------------------------------------------------------------------
 echo.
-echo What would you like to do?
-echo   [1] Open Live Production App in Google Chrome
-echo   [2] Open Specific Preview Deployment URL
-echo   [3] Deploy / Redeploy to Vercel Production (--prod)
-echo   [4] Return to Main Menu
-echo.
-set "VCHOICE=1"
-set /p "VCHOICE=Enter choice [1-4] (Default is 1): "
-set "VCHOICE=%VCHOICE: =%"
-
-if "%VCHOICE%"=="1" (
-    echo [INFO] Opening %DEFAULT_VERCEL_URL% in Google Chrome...
-    call :open_chrome_now "%DEFAULT_VERCEL_URL%"
-    goto :finish_action
-)
-if "%VCHOICE%"=="2" (
-    set "PREV_URL="
-    set /p "PREV_URL=Enter Vercel Preview URL: "
-    if not "!PREV_URL!"=="" (
-        echo [INFO] Opening !PREV_URL! in Google Chrome...
-        call :open_chrome_now "!PREV_URL!"
-    )
-    goto :finish_action
-)
-if "%VCHOICE%"=="3" goto :deploy_prod
-goto :menu
+echo [INFO] Opening %DEFAULT_VERCEL_URL% in Google Chrome...
+call :open_chrome_now "%DEFAULT_VERCEL_URL%"
+goto :finish_action
 
 :: ----------------------------------------------------------------------------
 :: Action 4: Start Server Only (Port 5000)
@@ -404,6 +356,8 @@ echo ---------------------------------------------------------------------------
 echo  Starting SSPU_Exam API Server (Node Express) on Port 5000...
 echo ----------------------------------------------------------------------------
 echo [%TIMESTAMP%] Standalone API server started >> "%LOG_DIR%\deploy_%DATE:/=-%.log"
+set "PORT=5000"
+set "API_PORT=5000"
 node server.js
 goto :finish_action
 
@@ -560,6 +514,7 @@ goto :finish_action
 :: Action: Preview Production Build
 :: ----------------------------------------------------------------------------
 :action_preview
+call :resolve_port
 echo ----------------------------------------------------------------------------
 echo  Previewing Production Build from /dist...
 echo ----------------------------------------------------------------------------
@@ -909,13 +864,18 @@ goto :finish_action
 :: ----------------------------------------------------------------------------
 :action_open_chrome
 call :resolve_port
+netstat -ano | findstr /R /C:":%PORT% " >nul 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo [INFO] Dev server is not active on port %PORT%. Starting automatically...
+    goto :action_dev_local
+)
 echo [INFO] Opening Google Chrome to http://localhost:%PORT%...
 call :open_chrome_now "http://localhost:%PORT%"
 goto :finish_action
 
 :open_chrome_url
 set "TARGET_URL=%~1"
-start "" cmd /c "timeout /t 2 /nobreak >nul & if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%") else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%") else (start "" "%TARGET_URL%")"
+start "" cmd /c "timeout /t 3 /nobreak >nul & if exist "%ProgramFiles%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%") else if exist "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" (start "" "%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe" "%TARGET_URL%") else (start "" "%TARGET_URL%")"
 goto :eof
 
 :open_chrome_now

@@ -12,7 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.API_PORT || 5000;
 const sessions = new Map();
 const safeProfile = ({ password, ...user }) => user;
 async function requireSession(req, res, next) {
@@ -38,6 +38,17 @@ app.use((req, res, next) => {
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   if (req.method === 'OPTIONS') return res.sendStatus(200);
   next();
+});
+
+// Root API Welcome / Status
+app.get('/', (req, res) => {
+  res.json({
+    app: 'Acharya360 ExamTrack API',
+    status: 'online',
+    port: PORT,
+    database: 'SSPU_Exam',
+    health: '/api/health'
+  });
 });
 
 // ============================================================================
