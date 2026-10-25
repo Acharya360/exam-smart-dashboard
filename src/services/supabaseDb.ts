@@ -16,6 +16,10 @@ import type {
   TimetableSession,
   FacultyCourseAllocation,
   PerformanceAnalyticsSummary,
+  Classroom,
+  SeatingPlan,
+  SeatingAllocation,
+  SeatingPlanWithAllocations,
 } from '../types';
 
 export class SupabaseDBService {
@@ -490,6 +494,35 @@ export class SupabaseDBService {
     if (error) throw error;
   }
 
+  async updateCourseMasterRecord(id: string, updates: Partial<CourseMaster>): Promise<CourseMaster> {
+    const { data, error } = await supabase
+      .from('course_master')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data as CourseMaster;
+  }
+
+  async createCourseMasterRecord(course: Partial<CourseMaster>): Promise<CourseMaster> {
+    const { data, error } = await supabase
+      .from('course_master')
+      .insert({
+        ...course,
+        id: course.id || crypto.randomUUID(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as CourseMaster;
+  }
+
   async deleteCourseMasterRecords(ids: string[]): Promise<{ deleted: number; error?: string }> {
     try {
       const { data, error } = await supabase.from('course_master').delete().in('id', ids).select();
@@ -850,5 +883,161 @@ export class SupabaseDBService {
         marksCount: marksRes.total,
       },
     };
+  }
+
+  // ============================================================================
+  // Classroom Master & Seating Plan Engine
+  // ============================================================================
+
+  async getClassrooms(): Promise<Classroom[]> {
+    const { data, error } = await supabase
+      .from('classrooms')
+      .select('*')
+      .order('building_name', { ascending: true })
+      .order('floor', { ascending: true })
+      .order('room_number', { ascending: true });
+
+    if (error || !data) {
+      // Fallback to local API endpoint
+      try {
+        const res = await fetch('/api/classrooms');
+        if (res.ok) return await res.json();
+      } catch {}
+      return [];
+    }
+    return data as Classroom[];
+  }
+
+  async createClassroom(classroom: Partial<Classroom>): Promise<Classroom> {
+    const { data, error } = await supabase
+      .from('classrooms')
+      .insert([classroom])
+      .select()
+      .single();
+
+    if (error || !data) {
+      const res = await fetch('/api/classrooms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(classroom),
+      });
+      if (!res.ok) throw new Error(error?.message || 'Failed to create classroom');
+      return await res.json();
+    }
+    return data as Classroom;
+  }
+
+  async updateClassroom(id: string, updates: Partial<Classroom>): Promise<Classroom> {
+    const { data, error } = await supabase
+      .from('classrooms')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error || !data) {
+      const res = await fetch(`/api/classrooms/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error(error?.message || 'Failed to update classroom');
+      return await res.json();
+    }
+    return data as Classroom;
+  }
+
+  async deleteClassroom(id: string): Promise<{ success: boolean; message?: string }> {
+    const { error } = await supabase.from('classrooms').delete().eq('id', id);
+    if (error) {
+      const res = await fetch(`/api/classrooms/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      return await res.json();
+    }
+    return { success: true };
+  }
+
+  async deleteClassrooms(ids: string[]): Promise<{ success: boolean; count: number; skipped?: number; message?: string }> {
+    try {
+      const res = await fetch('/api/classrooms/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+      });
+      if (res.ok) return await res.json();
+    } catch {}
+    const { error } = await supabase.from('classrooms').delete().in('id', ids);
+    if (error) throw new Error(error.message);
+    return { success: true, count: ids.length };
+  }
+
+  async bulkUploadClassrooms(classrooms: Partial<Classroom>[], clearExisting = false): Promise<{ success: boolean; inserted: number; updated: number; total: number }> {
+    const res = await fetch('/api/classrooms/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classrooms, clearExisting }),
+    });
+    if (!res.ok) throw new Error('Bulk classroom upload failed');
+    return await res.json();
+  }
+
+  async getSeatingPlans(): Promise<SeatingPlan[]> {
+    const res = await fetch('/api/seating-plans');
+    if (res.ok) return await res.json();
+    return [];
+  }
+
+  async getSeatingPlan(id: string): Promise<SeatingPlanWithAllocations> {
+    const res = await fetch(`/api/seating-plans/${encodeURIComponent(id)}`);
+    if (!res.ok) throw new Error('Seating plan not found');
+    return await res.json();
+  }
+
+  async generateSeatingPlan(payload: {
+    examDate: string;
+    slotName?: string;
+    sessionTime?: string;
+    title?: string;
+    selectedRoomIds?: string[];
+    interleaveMode?: string;
+    customStudents?: any[];
+  }): Promise<{ success: boolean; planId: string; totalAllocated: number; roomsUsedCount: number; message: string }> {
+    const res = await fetch('/api/seating-plans/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Failed to generate seating plan' }));
+      throw new Error(err.error || 'Failed to generate seating plan');
+    }
+    return await res.json();
+  }
+
+  async deleteSeatingPlan(id: string): Promise<{ success: boolean; message?: string }> {
+    const res = await fetch(`/api/seating-plans/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed to delete seating plan');
+    return await res.json();
+  }
+
+  async syncSeatingPlanTasks(id: string): Promise<{ success: boolean; updatedTasksCount: number; message: string }> {
+    const res = await fetch(`/api/seating-plans/${encodeURIComponent(id)}/sync-tasks`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to synchronize tasks');
+    return await res.json();
+  }
+
+  async updateSeatAttendance(id: string, attendance_status: string, booklet_number?: string): Promise<{ success: boolean }> {
+    const res = await fetch(`/api/seating-allocations/${encodeURIComponent(id)}/attendance`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ attendance_status, booklet_number }),
+    });
+    if (!res.ok) throw new Error('Failed to update seat attendance');
+    return await res.json();
+  }
+
+  async getSeatingExamSessions(): Promise<{ exam_date: string; am_pm: string; exam_time: string; papers_count: number; estimated_students: number }[]> {
+    const res = await fetch('/api/seating-plans/exam-sessions');
+    if (res.ok) return await res.json();
+    return [];
   }
 }

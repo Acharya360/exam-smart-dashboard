@@ -13,6 +13,8 @@ import {
   FileText,
   ArrowRight,
   Sparkles,
+  Armchair,
+  DoorOpen,
 } from 'lucide-react';
 import { db } from '../../services/db';
 import type { ExamSchedule, ExamTask, Program, ExaminationData, FacultyCourseAllocation } from '../../types';
@@ -194,11 +196,11 @@ export function CommandCenter({
             </p>
           </div>
           <span className="text-[11px] font-semibold text-violet-700 bg-violet-100 px-3 py-1 rounded-full border border-violet-200 self-start md:self-auto shrink-0">
-            7 Connected Operational Nodes
+            9 Connected Operational Nodes
           </span>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 sm:gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-2 sm:gap-2.5">
           <button
             onClick={() => onNavigate('courseMaster')}
             className="rounded-xl border border-zinc-200/80 bg-white p-2.5 sm:p-3 text-left hover:border-violet-400 hover:shadow-xs transition-all group min-w-0"
@@ -210,6 +212,18 @@ export function CommandCenter({
             <div className="font-bold text-xs text-zinc-900 group-hover:text-violet-700 truncate">Course Master</div>
             <div className="text-[11px] text-zinc-500 mt-0.5 truncate">{programs.length} Programs</div>
           </button>
+          <button
+            onClick={() => onNavigate('classroomMaster')}
+            className="rounded-xl border border-zinc-200/80 bg-white p-2.5 sm:p-3 text-left hover:border-violet-400 hover:shadow-xs transition-all group min-w-0"
+          >
+            <div className="flex items-center justify-between text-zinc-400 group-hover:text-violet-600 mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Venues</span>
+              <DoorOpen size={14} className="shrink-0" />
+            </div>
+            <div className="font-bold text-xs text-zinc-900 group-hover:text-violet-700 truncate">Classrooms</div>
+            <div className="text-[11px] text-zinc-500 mt-0.5 truncate">Exam Halls & Blocks</div>
+          </button>
+
 
           <button
             onClick={() => onNavigate('facultyAllocation')}
@@ -234,6 +248,18 @@ export function CommandCenter({
             <div className="font-bold text-xs text-zinc-900 group-hover:text-violet-700 truncate">Timetable</div>
             <div className="text-[11px] text-zinc-500 mt-0.5 truncate">{filtered.length} Scheduled Papers</div>
           </button>
+          <button
+            onClick={() => onNavigate('seatingMaster')}
+            className="rounded-xl border border-zinc-200/80 bg-white p-2.5 sm:p-3 text-left hover:border-violet-400 hover:shadow-xs transition-all group min-w-0"
+          >
+            <div className="flex items-center justify-between text-zinc-400 group-hover:text-violet-600 mb-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Seating</span>
+              <Armchair size={14} className="shrink-0" />
+            </div>
+            <div className="font-bold text-xs text-zinc-900 group-hover:text-violet-700 truncate">Seating Master</div>
+            <div className="text-[11px] text-zinc-500 mt-0.5 truncate">Desk Slips & Interleaving</div>
+          </button>
+
 
           <button
             onClick={() => onNavigate('tasks')}

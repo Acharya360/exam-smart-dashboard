@@ -58,7 +58,8 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
     return validateCoursesAgainstPrograms(courses, registeredPrograms);
   }, [courses, registeredPrograms]);
 
-  const { matchedCourses, mismatchedCourses, distinctUnmatchedPrograms, hasMismatches } = programValidation;
+  const { matchedCourses, mismatchedCourses, distinctUnmatchedPrograms, hasMismatches } =
+    programValidation;
 
   if (!isOpen) return null;
 
@@ -99,252 +100,315 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-6xl max-h-[92vh] flex flex-col overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-slate-50 via-indigo-50/30 to-slate-50 flex items-center justify-between">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-[96vw] xl:max-w-7xl h-[94vh] max-h-[94vh] flex flex-col overflow-hidden">
+        {/* ========================================================================= */}
+        {/* TOP HEADER WITH PROMINENT UPLOAD BUTTONS & ACTIONS                        */}
+        {/* ========================================================================= */}
+        <div className="px-5 py-3.5 border-b border-slate-200 bg-white flex flex-wrap items-center justify-between gap-3 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-700 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-600/20 shrink-0">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                Course Master & LTPS Import Preview
-                <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-indigo-100 text-indigo-700">
-                  {courses.length} Courses
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-base font-bold text-slate-900">
+                  Course Master & LTPS Import Preview
+                </h2>
+                <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                  {courses.length} Courses Parsed
                 </span>
                 {hasMismatches && (
-                  <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                    {mismatchedCourses.length} Programme Mismatch(es)
+                  <span className="text-xs px-2.5 py-0.5 rounded-full font-bold bg-amber-50 text-amber-800 border border-amber-300">
+                    {mismatchedCourses.length} Programme Mismatches
                   </span>
                 )}
-              </h2>
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Verify LTPS structures, grading categories, and assessment marking schemes before saving to the database
+                Review verified LTPS structures, credits, and marking schemes before committing to the database.
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Top Action Buttons (Unmissable Save / Import buttons) */}
+          <div className="flex items-center gap-2 flex-wrap">
             {hasMismatches && (
               <button
                 type="button"
                 onClick={() => downloadCourseMismatchReport(programValidation, registeredPrograms)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition-colors shadow-2xs"
-                title="Download report of courses whose program names do not match the Programs Directory"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 transition-colors shadow-2xs cursor-pointer"
+                title="Download Excel report of courses whose program names do not match the Programs Directory"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                Mismatch Report ({mismatchedCourses.length})
+                <FileSpreadsheet className="w-3.5 h-3.5 text-amber-700" />
+                <span className="hidden sm:inline">Mismatch Report</span> ({mismatchedCourses.length})
               </button>
             )}
+
             {validation && onDownloadReport && (
               <button
+                type="button"
                 onClick={onDownloadReport}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs"
+                className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition-colors shadow-2xs cursor-pointer"
                 title="Download the full validation report"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600" />
-                Validation Report
+                <span className="hidden sm:inline">Validation Report</span>
               </button>
             )}
+
+            {/* TOP PRIMARY UPLOAD ACTIONS */}
+            {hasMismatches ? (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onConfirm(matchedCourses, importMode === 'replace')}
+                  disabled={isSaving || matchedCourses.length === 0}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  title={`Import only the ${matchedCourses.length} courses matching registered programs`}
+                >
+                  <UploadCloud className="w-4 h-4" />
+                  <span>{isSaving ? 'Importing...' : `Import Matched (${matchedCourses.length})`}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onConfirm(courses, importMode === 'replace')}
+                  disabled={isSaving || courses.length === 0}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  title="Import all courses including 30 mismatched programmes"
+                >
+                  <span>Import All ({courses.length})</span>
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onConfirm(courses, importMode === 'replace')}
+                disabled={isSaving || courses.length === 0}
+                className={`inline-flex items-center gap-2 px-5 py-2 text-xs font-bold rounded-xl text-white shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer ${
+                  importMode === 'replace'
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/25'
+                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/25'
+                }`}
+              >
+                <UploadCloud className="w-4 h-4" />
+                <span>
+                  {isSaving
+                    ? 'Saving to Database...'
+                    : importMode === 'replace'
+                    ? `Clear & Replace All (${courses.length})`
+                    : `Confirm & Save (${courses.length})`}
+                </span>
+              </button>
+            )}
+
             <button
               onClick={onClose}
               disabled={isSaving}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors ml-1 cursor-pointer"
+              title="Close Preview"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Import Strategy Selection: Add & Update (Keep Old) vs Clear Current Records & Replace All */}
-        <div className="px-6 py-3 bg-slate-50 border-b border-slate-200">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                <Layers className="w-4 h-4 text-indigo-600" />
-                <span>Import Strategy & Synchronization Mode</span>
-              </span>
-              <p className="text-[11px] text-slate-500 mt-0.5">
-                Choose whether to merge with existing course records or clear all current courses before importing.
-              </p>
-            </div>
-            <div className="inline-flex p-1 bg-white border border-slate-200 rounded-xl shadow-2xs shrink-0">
+        {/* ========================================================================= */}
+        {/* CLEAR STATUS BANNER: CLARIFIES PREVIEW VS SAVED STATE                     */}
+        {/* ========================================================================= */}
+        <div className="px-5 py-2 bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border-b border-amber-200/80 flex items-center justify-between text-xs text-amber-950 shrink-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
+            </span>
+            <span className="font-bold uppercase tracking-wider text-[10px] bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-md border border-amber-300">
+              NOT YET SAVED
+            </span>
+            <span className="font-medium text-slate-700">
+              File parsed successfully. Review data below and click{' '}
+              <strong className="text-emerald-700 font-bold">
+                {hasMismatches ? `"Import Matched (${matchedCourses.length})"` : '"Confirm & Save"'}
+              </strong>{' '}
+              to commit these courses to the database.
+            </span>
+          </div>
+          <div className="text-[11px] font-bold text-slate-500 hidden md:block">
+            Step 2 of 2: Review & Synchronize
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* CONTROLS BAR: IMPORT STRATEGY & COMPACT KPI CHIPS                         */}
+        {/* ========================================================================= */}
+        <div className="px-5 py-2.5 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 shrink-0 text-xs">
+          {/* Synchronization Mode Toggle */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-bold text-slate-700 flex items-center gap-1.5 text-xs">
+              <Layers className="w-4 h-4 text-indigo-600" />
+              <span>Import Strategy:</span>
+            </span>
+
+            <div className="inline-flex p-0.5 bg-white border border-slate-300 rounded-lg shadow-2xs">
               <button
                 type="button"
                 onClick={() => setImportMode('merge')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
                   importMode === 'merge'
                     ? 'bg-indigo-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
                 <PlusCircle className="w-3.5 h-3.5" />
-                <span>Update If Exist & Add New (Merge)</span>
+                <span>Update Existing & Add New (Merge)</span>
               </button>
               <button
                 type="button"
                 onClick={() => setImportMode('replace')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 ${
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-all flex items-center gap-1.5 cursor-pointer ${
                   importMode === 'replace'
                     ? 'bg-rose-600 text-white shadow-xs'
                     : 'text-slate-600 hover:text-rose-700 hover:bg-rose-50'
                 }`}
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                <span>Clear Current Records & Replace All</span>
+                <span>Clear Current & Replace All</span>
               </button>
             </div>
+
+            <span className="text-[11px] text-slate-500 hidden lg:inline">
+              {importMode === 'merge' ? (
+                <span className="text-emerald-700 font-medium">
+                  ✓ Preserves other database records; updates matching and adds new.
+                </span>
+              ) : (
+                <span className="text-rose-600 font-medium">
+                  ⚠️ Deletes existing course master records before uploading.
+                </span>
+              )}
+            </span>
           </div>
 
-          {importMode === 'replace' ? (
-            <div className="mt-2.5 p-2.5 bg-rose-50 border border-rose-200 rounded-lg flex items-start gap-2 text-rose-900 text-[11px]">
-              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold">Clear Current Records Mode Active:</span> All current courses in the database will be cleared before importing. Only the uploaded courses will be saved in the database.
-              </div>
-            </div>
-          ) : (
-            <div className="mt-2.5 p-2 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-2 text-emerald-900 text-[11px]">
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-              <span>
-                <span className="font-bold">Merge Mode Active:</span> Existing courses with matching paper code and programme will be updated, and new courses will be appended. All other current courses are preserved.
-              </span>
-            </div>
-          )}
+          {/* Compact KPI Stats */}
+          <div className="flex items-center gap-2 flex-wrap text-xs">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-semibold text-slate-700 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+              <span>New: <strong>{newCount}</strong></span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-semibold text-slate-700 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+              <span>Update: <strong>{updateCount}</strong></span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-semibold text-slate-700 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+              <span>Non-Arch (40%): <strong>{nonArchCount}</strong></span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-semibold text-slate-700 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+              <span>Arch (45%): <strong>{archCount}</strong></span>
+            </span>
+          </div>
         </div>
 
-        {/* Programme Mismatch Alert Banner (if any) */}
+        {/* ========================================================================= */}
+        {/* COMPACT PROGRAMME MISMATCH BANNER (IF MISMATCHES EXIST)                   */}
+        {/* ========================================================================= */}
         {hasMismatches && (
-          <div className="px-6 py-3 bg-amber-50/90 border-b border-amber-200 text-xs">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-amber-900 font-bold">
-                  <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>
-                    Programme Name Mismatch ({mismatchedCourses.length} course(s) across {distinctUnmatchedPrograms.length} programme title(s))
-                  </span>
-                </div>
-                <p className="text-amber-800 text-[11px] leading-relaxed">
-                  These courses belong to program names not registered in the{' '}
-                  <span className="font-semibold underline">Programs Directory (http://localhost:3000/programs)</span>.
-                  You can download the Mismatch Report, upload only the {matchedCourses.length} matched courses, or upload all.
-                </p>
-                <div className="flex flex-wrap items-center gap-2 pt-1">
-                  {distinctUnmatchedPrograms.map((p, idx) => (
-                    <div
+          <div className="px-5 py-2.5 bg-amber-50/95 border-b border-amber-200 text-xs shrink-0">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+              <div className="flex items-start sm:items-center gap-2 flex-wrap">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded font-bold bg-amber-200/80 text-amber-950 border border-amber-300">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-700" />
+                  <span>{mismatchedCourses.length} Courses</span>
+                </span>
+                <span className="text-amber-900 font-semibold text-[11px]">
+                  belong to {distinctUnmatchedPrograms.length} programme title(s) not in registered Programs:
+                </span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {distinctUnmatchedPrograms.slice(0, 4).map((p, idx) => (
+                    <span
                       key={idx}
-                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium bg-amber-100 text-amber-950 border border-amber-300"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white text-amber-950 border border-amber-300 text-[10px] font-medium"
                     >
-                      <span className="font-bold">{p.programName}</span>
-                      <span className="text-[10px] text-amber-800">({p.count} courses)</span>
-                      {p.suggestedProgram && (
-                        <span className="text-[10px] text-indigo-700 font-semibold bg-white/90 px-1.5 py-0.5 rounded border border-indigo-200">
-                          Suggested: {p.suggestedProgram.program_name}
-                        </span>
-                      )}
-                    </div>
+                      <strong>{p.programName}</strong> ({p.count})
+                    </span>
                   ))}
+                  {distinctUnmatchedPrograms.length > 4 && (
+                    <span className="text-[10px] text-amber-800 font-bold">
+                      +{distinctUnmatchedPrograms.length - 4} more
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <button
-                type="button"
-                onClick={() => downloadCourseMismatchReport(programValidation, registeredPrograms)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-amber-600 text-white hover:bg-amber-700 shadow-2xs shrink-0 transition-colors"
-              >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
-                <span>Download Mismatch Report</span>
-              </button>
+              {/* Direct In-Alert Action Buttons */}
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onConfirm(matchedCourses, importMode === 'replace')}
+                  disabled={isSaving || matchedCourses.length === 0}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white shadow-2xs transition-colors cursor-pointer"
+                  title="Upload the 1,404 matched courses and exclude the 30 mismatched courses"
+                >
+                  <UploadCloud className="w-3.5 h-3.5" />
+                  <span>Upload Matched Only ({matchedCourses.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadCourseMismatchReport(programValidation, registeredPrograms)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-white text-amber-900 border border-amber-300 hover:bg-amber-100/70 transition-colors cursor-pointer"
+                  title="Download Excel report with suggested program mappings"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-amber-700" />
+                  <span>Download Report</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
 
-        {/* Validation summary bar */}
-        {validation && (validation.summary.invalidRows > 0 || validation.summary.duplicateRows > 0 || validation.summary.warningRows > 0) && (
-          <div className="px-6 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center gap-x-5 gap-y-1 text-[11px] font-medium">
-            <span className="text-slate-500 uppercase tracking-wide font-bold">Data Validation</span>
-            <span className="text-emerald-700">{validation.summary.validRows} clean</span>
-            {validation.summary.warningRows > 0 && <span className="text-amber-700">{validation.summary.warningRows} warnings</span>}
-            {validation.summary.duplicateRows > 0 && <span className="text-rose-700">{validation.summary.duplicateRows} duplicates (excluded)</span>}
-            {validation.summary.invalidRows > 0 && <span className="text-rose-700">{validation.summary.invalidRows} invalid (excluded)</span>}
-          </div>
-        )}
-
-        {/* Errors & Warnings Bar (if any) */}
+        {/* Validation Errors Notice (if any) */}
         {errors.length > 0 && (
-          <div className="px-6 py-3 bg-rose-50/90 border-b border-rose-200 text-xs">
-            <div className="flex items-center gap-2 text-rose-800 font-bold mb-1">
+          <div className="px-5 py-2 bg-rose-50 border-b border-rose-200 text-xs shrink-0 flex items-center justify-between gap-3 text-rose-800">
+            <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
-              File Validation Notices ({errors.length})
+              <span className="font-bold">Notice:</span>
+              <span>{errors.slice(0, 2).join(' | ')}</span>
+              {errors.length > 2 && <span className="font-semibold">+{errors.length - 2} more</span>}
             </div>
-            <ul className="list-disc pl-5 text-rose-700 space-y-0.5 max-h-24 overflow-y-auto">
-              {errors.map((err, i) => (
-                <li key={i}>{err}</li>
-              ))}
-            </ul>
+            {onDownloadReport && (
+              <button
+                onClick={onDownloadReport}
+                className="text-rose-700 hover:text-rose-900 underline font-semibold text-[11px] shrink-0"
+              >
+                View Full Log
+              </button>
+            )}
           </div>
         )}
 
-        {/* Quick KPI stats */}
-        <div className="px-6 py-3 bg-slate-50/50 border-b border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-          <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-3 shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-slate-900">{newCount}</div>
-              <div className="text-[10px] text-slate-500 font-medium">New Courses</div>
-            </div>
-          </div>
-          <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-3 shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
-              <CheckCircle2 className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-slate-900">{updateCount}</div>
-              <div className="text-[10px] text-slate-500 font-medium">Existing (Will Update)</div>
-            </div>
-          </div>
-          <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-3 shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
-              <Layers className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-slate-900">{nonArchCount}</div>
-              <div className="text-[10px] text-slate-500 font-medium">Non-Architecture (40% Cutoff)</div>
-            </div>
-          </div>
-          <div className="bg-white p-2.5 rounded-xl border border-slate-200 flex items-center gap-3 shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <Award className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="text-sm font-bold text-slate-900">{archCount}</div>
-              <div className="text-[10px] text-slate-500 font-medium">Architecture (45% Cutoff)</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filter bar & View Mode */}
-        <div className="px-6 py-2.5 border-b border-slate-200 flex items-center justify-between gap-4 flex-wrap bg-slate-50/50">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="relative w-64">
+        {/* ========================================================================= */}
+        {/* FILTER & SEARCH BAR                                                       */}
+        {/* ========================================================================= */}
+        <div className="px-5 py-2 border-b border-slate-200 flex items-center justify-between gap-3 flex-wrap bg-white shrink-0 text-xs">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <div className="relative w-56 sm:w-64">
               <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Search program, course name, code..."
+                placeholder="Search subject, code, program..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-white"
+                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 bg-slate-50 focus:bg-white"
               />
             </div>
 
-            {/* Programme Mismatch Filter Tabs */}
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs shadow-2xs">
+            {/* Filter Tabs */}
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs shadow-2xs">
               <button
                 type="button"
                 onClick={() => setProgramFilter('ALL')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
+                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
                   programFilter === 'ALL'
                     ? 'bg-slate-900 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -355,35 +419,37 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
               <button
                 type="button"
                 onClick={() => setProgramFilter('MATCHED')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
+                className={`px-2.5 py-1 rounded-md font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
                   programFilter === 'MATCHED'
                     ? 'bg-emerald-600 text-white shadow-2xs'
                     : 'text-emerald-700 hover:text-emerald-900'
                 }`}
               >
-                Matched ({matchedCourses.length})
+                <CheckCircle2 className="w-3 h-3" />
+                <span>Matched ({matchedCourses.length})</span>
               </button>
               {hasMismatches && (
                 <button
                   type="button"
                   onClick={() => setProgramFilter('MISMATCHED')}
-                  className={`px-2.5 py-1 rounded-md font-semibold transition-colors flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-md font-semibold transition-colors flex items-center gap-1 cursor-pointer ${
                     programFilter === 'MISMATCHED'
-                      ? 'bg-rose-600 text-white shadow-2xs'
-                      : 'text-rose-700 hover:text-rose-900'
+                      ? 'bg-amber-600 text-white shadow-2xs'
+                      : 'text-amber-700 hover:text-amber-900'
                   }`}
                 >
+                  <AlertTriangle className="w-3 h-3" />
                   <span>Mismatches ({mismatchedCourses.length})</span>
                 </button>
               )}
             </div>
 
             {/* View Mode Toggle */}
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5 text-xs shadow-2xs">
+            <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-xs shadow-2xs">
               <button
                 type="button"
                 onClick={() => setPreviewMode('standard')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors ${
+                className={`px-2.5 py-1 rounded-md font-semibold transition-colors cursor-pointer ${
                   previewMode === 'standard'
                     ? 'bg-indigo-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -394,7 +460,7 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
               <button
                 type="button"
                 onClick={() => setPreviewMode('detailed')}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-colors flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 rounded-md font-semibold transition-colors flex items-center gap-1.5 cursor-pointer ${
                   previewMode === 'detailed'
                     ? 'bg-indigo-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:text-slate-900'
@@ -402,17 +468,22 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                 title="Excel 1:1 view with all 31 template columns"
               >
                 <span>Detailed (31 Cols)</span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 font-bold">1:1</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-100 text-indigo-800 font-bold">
+                  1:1
+                </span>
               </button>
             </div>
           </div>
+
           <div className="text-[11px] text-slate-500 font-medium">
-            Showing {filtered.length} of {courses.length} courses
+            Showing <strong>{filtered.length}</strong> of {courses.length} courses
           </div>
         </div>
 
-        {/* Table */}
-        <div className="flex-1 overflow-auto">
+        {/* ========================================================================= */}
+        {/* TABLE CONTAINER: SCROLLABLE WITH FIXED HEADER & MIN-H-0                   */}
+        {/* ========================================================================= */}
+        <div className="flex-1 min-h-0 overflow-auto bg-slate-50/30">
           <table className="w-full text-left text-xs border-collapse">
             <thead className="bg-slate-100 text-slate-700 sticky top-0 z-10 border-b border-slate-200 font-semibold shadow-2xs">
               {previewMode === 'standard' ? (
@@ -425,215 +496,255 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                   <th className="px-2 py-2.5 text-center whitespace-nowrap">Type</th>
                   <th className="px-2 py-2.5 text-center whitespace-nowrap">Sem</th>
                   <th className="px-2 py-2.5 text-center whitespace-nowrap">Students</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap" title="L_Cr - T_Cr - P_Cr - S_Cr">L-T-P-S</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap" title="Total Credits">Total Cr.</th>
+                  <th className="px-2 py-2.5 text-center whitespace-nowrap" title="L_Cr - T_Cr - P_Cr - S_Cr">
+                    L-T-P-S
+                  </th>
+                  <th className="px-2 py-2.5 text-center whitespace-nowrap" title="Total Credits">
+                    Total Cr.
+                  </th>
                   <th className="px-3 py-2.5 text-center whitespace-nowrap">Grading Category</th>
-                  <th className="px-3 py-2.5 text-center whitespace-nowrap">Heads</th>
-                  <th className="px-3 py-2.5 text-center whitespace-nowrap">Internal (IA)</th>
-                  <th className="px-3 py-2.5 text-center whitespace-nowrap" title="End Semester Exam: EST (Theory) / ESP (Practical) / ESS (Skills)">ESE (EST/ESP/ESS)</th>
-                  <th className="px-3 py-2.5 text-center whitespace-nowrap">Total Marks</th>
-                  <th className="px-3 py-2.5 text-center whitespace-nowrap">Sync Action</th>
+                  <th className="px-3 py-2.5 text-center whitespace-nowrap">Scheme Heads</th>
+                  <th className="px-3 py-2.5 text-center whitespace-nowrap">IA Max / Min</th>
+                  <th className="px-3 py-2.5 text-center whitespace-nowrap">ESE (EST/ESP/ESS)</th>
+                  <th className="px-3 py-2.5 text-center whitespace-nowrap">Total Max / Min</th>
+                  <th className="px-3 py-2.5 text-center whitespace-nowrap">Action</th>
                 </tr>
               ) : (
                 <tr>
-                  <th className="px-2 py-2.5 w-10 text-center whitespace-nowrap">ID</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">Period</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">Term</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">Prog Code</th>
-                  <th className="px-3 py-2.5 min-w-[200px]">Program Name & Status</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">Regulation Group</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">Sem</th>
-                  <th className="px-2 py-2.5 font-mono whitespace-nowrap">Course Code</th>
-                  <th className="px-3 py-2.5 min-w-[180px]">Course Name</th>
-                  <th className="px-1.5 py-2.5 text-center whitespace-nowrap">L_Cr</th>
-                  <th className="px-1.5 py-2.5 text-center whitespace-nowrap">T_Cr</th>
-                  <th className="px-1.5 py-2.5 text-center whitespace-nowrap">P_Cr</th>
-                  <th className="px-1.5 py-2.5 text-center whitespace-nowrap">S_Cr</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap bg-indigo-50 text-indigo-900 font-bold">Total Credits</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap border-l border-slate-200">Grading Category</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAT1</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAT2</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAT3</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap bg-blue-50 text-blue-900 font-bold">CAT Max</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAP1</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAP2</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAP3</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap bg-emerald-50 text-emerald-900 font-bold">CAP Max</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAS1</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAS2</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">CAS3</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap bg-amber-50 text-amber-900 font-bold">CAS Max</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">EST Max</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">ESP Max</th>
-                  <th className="px-2 py-2.5 text-center whitespace-nowrap">ESS Max</th>
-                  <th className="px-2.5 py-2.5 text-center whitespace-nowrap bg-purple-50 text-purple-900 font-bold border-l border-slate-200">Total Marks</th>
-                  <th className="px-3 py-2.5 text-center whitespace-nowrap border-l border-slate-200">Sync Action</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">#</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700 whitespace-nowrap">AcademicPeriod</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700 whitespace-nowrap">Term</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700 whitespace-nowrap">Program Code</th>
+                  <th className="px-3 py-2.5 font-bold text-slate-700 min-w-[180px]">Program Name & Status</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700 whitespace-nowrap">Regulation Group</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700 whitespace-nowrap">Subject Type</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">Sem</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700 whitespace-nowrap">Course Code</th>
+                  <th className="px-3 py-2.5 font-bold text-slate-700 min-w-[180px]">Course Name (Subject Title)</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">Students</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">L</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">T</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">P</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">S</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-indigo-700 bg-indigo-50/80">Credits</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700 whitespace-nowrap border-r border-slate-200">Category</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAT1</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAT2</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAT3</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-blue-900 bg-blue-50/80 border-r border-blue-100">CAT Max</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAP1</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAP2</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAP3</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-emerald-900 bg-emerald-50/80 border-r border-emerald-100">CAP Max</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAS1</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAS2</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">CAS3</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-amber-900 bg-amber-50/80 border-r border-amber-100">CAS Max</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">EST</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">ESP</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">ESS</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-900 bg-slate-200/60 border-l border-slate-200">Total Marks</th>
+                  <th className="px-2 py-2.5 text-center font-bold text-slate-700">Action</th>
                 </tr>
               )}
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 bg-white">
               {filtered.map((c, idx) => {
                 const existing = isExisting(c);
                 const isArch = c.grading_category === 'Architecture';
-                const matchResult = findMatchingProgram(c, registeredPrograms);
-                const isMatched = !!matchResult.program;
+                const match = findMatchingProgram(c, registeredPrograms);
+                const isMatched = !!match.program;
 
-                const thActive = ((c.cat1_max || 0) + (c.cat2_max || 0) + (c.cat3_max || 0) + (c.est_max_marks || 0) + (c.cat_max_marks || 0)) > 0;
-                const prActive = ((c.cap1_max || 0) + (c.cap2_max || 0) + (c.cap3_max || 0) + (c.esp_max_marks || 0) + (c.cap_max_marks || 0)) > 0;
-                const skActive = ((c.cas1_max || 0) + (c.cas2_max || 0) + (c.cas3_max || 0) + (c.ess_max_marks || 0) + (c.cas_max_marks || 0)) > 0;
+                const thActive =
+                  (c.cat1_max || 0) +
+                    (c.cat2_max || 0) +
+                    (c.cat3_max || 0) +
+                    (c.est_max_marks || 0) +
+                    (c.cat_max_marks || 0) >
+                  0;
+                const prActive =
+                  (c.cap1_max || 0) +
+                    (c.cap2_max || 0) +
+                    (c.cap3_max || 0) +
+                    (c.esp_max_marks || 0) +
+                    (c.cap_max_marks || 0) >
+                  0;
+                const skActive =
+                  (c.cas1_max || 0) +
+                    (c.cas2_max || 0) +
+                    (c.cas3_max || 0) +
+                    (c.ess_max_marks || 0) +
+                    (c.cas_max_marks || 0) >
+                  0;
 
-                if (previewMode === 'detailed') {
-                  return (
-                    <tr
-                      key={idx}
-                      className={`hover:bg-indigo-50/20 transition-colors text-[11px] ${
-                        !isMatched ? 'bg-amber-50/40' : ''
-                      }`}
-                    >
-                      <td className="px-2 py-2 text-center text-slate-500 font-mono font-medium">
-                        {c.sr_no || idx + 1}
-                      </td>
-                      <td className="px-2 py-2 text-center whitespace-nowrap text-slate-600">
-                        {c.academic_period || '—'}
-                      </td>
-                      <td className="px-2 py-2 text-center whitespace-nowrap text-slate-600">
-                        {c.term || '—'}
-                      </td>
-                      <td className="px-2 py-2 text-center font-mono font-semibold text-slate-700 whitespace-nowrap">
-                        {c.program_code || '—'}
-                      </td>
-                      <td className="px-3 py-2 font-medium text-slate-900 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span>{c.cm_course_name}</span>
-                          {!isMatched && (
-                            <span
-                              className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"
-                              title="Unmatched Programme: Not found in Programs Directory"
-                            >
-                              <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
-                              Unmatched
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="px-2 py-2 text-center font-mono text-[10px] text-slate-600 whitespace-nowrap">
-                        {c.regulation_group || '—'}
-                      </td>
-                      <td className="px-2 py-2 text-center font-bold text-slate-800">
-                        {c.semester}
-                      </td>
-                      <td className="px-2 py-2 font-mono font-bold text-indigo-700 whitespace-nowrap">
-                        {c.paper_code}
-                      </td>
-                      <td className="px-3 py-2 text-slate-900 font-medium whitespace-nowrap">
-                        {c.sm_subject_name}
-                      </td>
-                      <td className="px-1.5 py-2 text-center font-mono text-slate-600">{c.l}</td>
-                      <td className="px-1.5 py-2 text-center font-mono text-slate-600">{c.t}</td>
-                      <td className="px-1.5 py-2 text-center font-mono text-slate-600">{c.p}</td>
-                      <td className="px-1.5 py-2 text-center font-mono text-slate-600">{c.s}</td>
-                      <td className="px-2 py-2 text-center font-bold text-indigo-700 bg-indigo-50/40">{c.total_credits}</td>
-                      <td className="px-2 py-2 text-center whitespace-nowrap border-l border-slate-200">
-                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          isArch ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {c.grading_category || 'Non-Architecture'}
-                        </span>
-                      </td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cat1_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cat2_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cat3_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono font-bold text-blue-800 bg-blue-50/50">{c.cat_max_marks || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cap1_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cap2_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cap3_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono font-bold text-emerald-800 bg-emerald-50/50">{c.cap_max_marks || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cas1_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cas2_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-600">{c.cas3_max || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono font-bold text-amber-800 bg-amber-50/50">{c.cas_max_marks || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-700">{c.est_max_marks || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-700">{c.esp_max_marks || 0}</td>
-                      <td className="px-2 py-2 text-center font-mono text-slate-700">{c.ess_max_marks || 0}</td>
-                      <td className="px-2.5 py-2 text-center font-mono font-extrabold text-purple-900 bg-purple-50/50 border-l border-slate-200">
-                        {c.total_marks}
-                      </td>
-                      <td className="px-3 py-2 text-center border-l border-slate-200 whitespace-nowrap">
-                        {existing ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
-                            Update
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
-                            New
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                }
-
-                return (
+                return previewMode === 'detailed' ? (
                   <tr
                     key={idx}
-                    className={`hover:bg-indigo-50/20 transition-colors ${
-                      !isMatched ? 'bg-amber-50/40' : ''
+                    className={`hover:bg-indigo-50/40 transition-colors ${
+                      !isMatched ? 'bg-amber-50/30' : ''
                     }`}
                   >
-                    <td className="px-3 py-2 text-center text-slate-400 font-mono text-[11px]">
-                      {c.sr_no || idx + 1}
+                    <td className="px-2 py-2 text-center text-slate-400 font-mono text-[11px]">
+                      {idx + 1}
                     </td>
-                    <td className="px-2 py-2 text-center text-slate-600 whitespace-nowrap text-[11px]">
-                      <div>{c.academic_period || '—'}</div>
-                      {c.term && <div className="text-[10px] text-slate-400 font-medium">{c.term}</div>}
+                    <td className="px-2 py-2 text-center text-slate-600 font-mono text-[11px] whitespace-nowrap">
+                      {c.academic_period || '—'}
                     </td>
-                    <td className="px-3 py-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-semibold text-slate-900">{c.cm_course_name}</span>
-                        {!isMatched && (
-                          <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300"
-                            title="Unmatched Programme: Not found in Programs Directory"
-                          >
-                            <AlertTriangle className="w-2.5 h-2.5 text-amber-600" />
-                            Unmatched
-                          </span>
-                        )}
-                      </div>
-                      {c.program_code && (
-                        <div className="text-[10px] text-slate-500 font-mono font-medium">{c.program_code}</div>
+                    <td className="px-2 py-2 text-center text-slate-600 text-[11px] whitespace-nowrap">
+                      {c.term || '—'}
+                    </td>
+                    <td className="px-2 py-2 text-center font-mono text-[11px] text-slate-700 whitespace-nowrap">
+                      {c.program_code || '—'}
+                    </td>
+                    <td className="px-3 py-2 min-w-[180px]">
+                      <div className="font-semibold text-slate-900 text-xs">{c.cm_course_name}</div>
+                      {!isMatched ? (
+                        <div className="text-[10px] text-amber-700 font-semibold mt-0.5 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3 shrink-0" />
+                          <span>Programme not registered</span>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-emerald-700 font-medium mt-0.5 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 shrink-0" />
+                          <span>Verified ({match.program?.program_code})</span>
+                        </div>
                       )}
+                    </td>
+                    <td className="px-2 py-2 text-center font-mono text-[10px] text-slate-600 whitespace-nowrap">
+                      {c.regulation_group || '—'}
+                    </td>
+                    <td className="px-2 py-2 text-center text-slate-600 text-[11px] whitespace-nowrap">
+                      {c.subject_type || '—'}
+                    </td>
+                    <td className="px-2 py-2 text-center font-bold text-slate-700 text-xs">{c.semester}</td>
+                    <td className="px-2 py-2 text-center font-mono font-bold text-slate-900 text-xs whitespace-nowrap">
+                      {c.paper_code}
+                    </td>
+                    <td className="px-3 py-2 min-w-[180px] font-medium text-slate-800 text-xs">
+                      {c.sm_subject_name}
+                    </td>
+                    <td className="px-2 py-2 text-center font-mono text-slate-600 text-xs">
+                      {c.student_count !== null && c.student_count !== undefined ? c.student_count : '—'}
+                    </td>
+                    <td className="px-2 py-2 text-center font-mono text-slate-600">{c.l}</td>
+                    <td className="px-2 py-2 text-center font-mono text-slate-600">{c.t}</td>
+                    <td className="px-2 py-2 text-center font-mono text-slate-600">{c.p}</td>
+                    <td className="px-2 py-2 text-center font-mono text-slate-600">{c.s}</td>
+                    <td className="px-2 py-2 text-center font-mono font-bold text-indigo-700 bg-indigo-50/40">
+                      {c.total_credits}
+                    </td>
+                    <td className="px-2 py-2 text-center border-r border-slate-200 whitespace-nowrap">
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                          isArch ? 'bg-purple-100 text-purple-700' : 'bg-indigo-100 text-indigo-700'
+                        }`}
+                      >
+                        {c.grading_category || 'Non-Architecture'}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cat1_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cat2_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cat3_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center font-bold text-blue-900 bg-blue-50/50 border-r border-blue-100">
+                      {c.cat_max_marks ?? ((c.cat1_max || 0) + (c.cat2_max || 0) + (c.cat3_max || 0))}
+                    </td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cap1_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cap2_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cap3_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center font-bold text-emerald-900 bg-emerald-50/50 border-r border-emerald-100">
+                      {c.cap_max_marks ?? ((c.cap1_max || 0) + (c.cap2_max || 0) + (c.cap3_max || 0))}
+                    </td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cas1_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cas2_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center text-slate-600">{c.cas3_max || 0}</td>
+                    <td className="px-2 py-2 font-mono text-center font-bold text-amber-900 bg-amber-50/50 border-r border-amber-100">
+                      {c.cas_max_marks ?? ((c.cas1_max || 0) + (c.cas2_max || 0) + (c.cas3_max || 0))}
+                    </td>
+                    <td className="px-2 py-2 font-mono text-center font-semibold text-blue-700">
+                      {c.est_max_marks || 0}
+                    </td>
+                    <td className="px-2 py-2 font-mono text-center font-semibold text-emerald-700">
+                      {c.esp_max_marks || 0}
+                    </td>
+                    <td className="px-2 py-2 font-mono text-center font-semibold text-amber-700">
+                      {c.ess_max_marks || 0}
+                    </td>
+                    <td className="px-2 py-2 font-mono text-center font-bold text-slate-900 bg-slate-50 border-l border-slate-200">
+                      {c.total_marks}
+                    </td>
+                    <td className="px-2 py-2 text-center whitespace-nowrap">
+                      {existing ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                          Update
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                          New
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  <tr
+                    key={idx}
+                    className={`hover:bg-indigo-50/40 transition-colors ${
+                      !isMatched ? 'bg-amber-50/30' : ''
+                    }`}
+                  >
+                    <td className="px-3 py-2 text-center text-slate-400 font-mono text-xs">{idx + 1}</td>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
+                      <div className="font-medium text-slate-700 text-xs">{c.academic_period || '—'}</div>
+                      {c.term && <div className="text-[10px] text-slate-400 font-semibold">{c.term}</div>}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700 font-bold text-[11px]">
+                        <span className="font-semibold text-slate-900 text-xs">{c.cm_course_name}</span>
+                        {c.program_code && (
+                          <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            {c.program_code}
+                          </span>
+                        )}
+                      </div>
+                      {!isMatched ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-700 font-bold mt-0.5">
+                          <AlertTriangle className="w-3 h-3 text-amber-600" />
+                          <span>Programme not registered</span>
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-[10px] text-emerald-700 font-semibold mt-0.5">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>Verified ({match.program?.program_code})</span>
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200 text-slate-800 font-bold text-xs">
                           {c.paper_code}
                         </span>
-                        <span className="font-medium text-slate-900">{c.sm_subject_name}</span>
+                        <span className="font-medium text-slate-800 text-xs">{c.sm_subject_name}</span>
                       </div>
                     </td>
-                    <td className="px-2 py-2 text-center whitespace-nowrap">
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       {c.regulation_group ? (
-                        <span className="font-mono text-[10px] bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 text-slate-700" title={c.regulation_group}>
+                        <span className="inline-block px-2 py-0.5 rounded text-[10px] font-mono bg-slate-50 text-slate-700 border border-slate-200">
                           {c.regulation_group}
                         </span>
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-                    <td className="px-2 py-2 text-center text-[11px] text-slate-600 whitespace-nowrap">
-                      {c.subject_type || '—'}
+                    <td className="px-2 py-2 text-center">
+                      <span className="text-xs text-slate-600">{c.subject_type || '—'}</span>
                     </td>
-                    <td className="px-2 py-2 text-center font-bold text-slate-700 text-[11px]">
-                      {c.semester}
-                    </td>
-                    <td className="px-2 py-2 text-center font-mono font-semibold text-slate-700 text-[11px]">
+                    <td className="px-2 py-2 text-center font-bold text-slate-700 text-xs">{c.semester}</td>
+                    <td className="px-2 py-2 text-center font-mono text-slate-600 text-xs">
                       {c.student_count !== null && c.student_count !== undefined ? c.student_count : '—'}
                     </td>
-                    <td className="px-2 py-2 text-center font-mono tracking-wider text-slate-600 text-[11px] whitespace-nowrap">
+                    <td className="px-2 py-2 text-center text-slate-500 font-mono tracking-widest whitespace-nowrap text-xs">
                       {c.l}-{c.t}-{c.p}-{c.s}
                     </td>
-                    <td className="px-2 py-2 text-center font-bold text-indigo-700 bg-indigo-50/40">
+                    <td className="px-2 py-2 text-center font-bold text-indigo-700 bg-indigo-50/50 text-xs">
                       {c.total_credits}
                     </td>
                     <td className="px-3 py-2 text-center whitespace-nowrap">
@@ -645,39 +756,38 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
                         }`}
                       >
                         {c.grading_category || 'Non-Architecture'}
-                        <span className="text-[9px] font-semibold opacity-80">({isArch ? '45%' : '40%'})</span>
+                        <span className="text-[9px] font-semibold opacity-80">
+                          ({isArch ? '45%' : '40%'})
+                        </span>
                       </span>
                     </td>
                     <td className="px-3 py-2 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1 flex-wrap">
                         {thActive && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200" title={`CAT1: ${c.cat1_max}, CAT2: ${c.cat2_max}, CAT3: ${c.cat3_max}, EST: ${c.est_max_marks}`}>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
                             Theory
                           </span>
                         )}
                         {prActive && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200" title={`CAP1: ${c.cap1_max}, CAP2: ${c.cap2_max}, CAP3: ${c.cap3_max}, ESP: ${c.esp_max_marks}`}>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                             Practical
                           </span>
                         )}
                         {skActive && (
-                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200" title={`CAS1: ${c.cas1_max}, CAS2: ${c.cas2_max}, CAS3: ${c.cas3_max}, ESS: ${c.ess_max_marks}`}>
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
                             Skills
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-center whitespace-nowrap" title={`CAT Max: ${c.cat_max_marks || 0}, CAP Max: ${c.cap_max_marks || 0}, CAS Max: ${c.cas_max_marks || 0}`}>
+                    <td className="px-3 py-2 text-center whitespace-nowrap">
                       <div>
                         <span className="font-bold text-slate-800">{c.ia_max_marks}</span>
                         <span className="text-[10px] text-slate-400 mx-1">/</span>
                         <span className="text-emerald-700 font-semibold">{c.ia_min_marks}</span>
                       </div>
-                      <div className="text-[9px] text-slate-500 font-mono tracking-tight mt-0.5">
-                        CAT:{c.cat_max_marks || 0} · CAP:{c.cap_max_marks || 0} · CAS:{c.cas_max_marks || 0}
-                      </div>
                     </td>
-                    <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600 whitespace-nowrap" title={`EST: ${c.est_max_marks || 0} (Min: ${c.est_min_marks || 0}), ESP: ${c.esp_max_marks || 0} (Min: ${c.esp_min_marks || 0}), ESS: ${c.ess_max_marks || 0} (Min: ${c.ess_min_marks || 0})`}>
+                    <td className="px-3 py-2 text-center font-mono text-[11px] text-slate-600 whitespace-nowrap">
                       {c.est_max_marks || 0} / {c.esp_max_marks || 0} / {c.ess_max_marks || 0}
                     </td>
                     <td className="px-3 py-2 text-center whitespace-nowrap">
@@ -702,69 +812,81 @@ export const CourseMasterPreviewModal: React.FC<CourseMasterPreviewModalProps> =
           </table>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-xs text-slate-600">
+        {/* ========================================================================= */}
+        {/* PERMANENT STICKY BOTTOM ACTION BAR (NEVER CUT OFF)                         */}
+        {/* ========================================================================= */}
+        <div className="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 shadow-lg z-20">
+          <div className="text-xs text-slate-600 flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0"></span>
             {hasMismatches ? (
               <div>
-                <span className="font-bold text-emerald-700">{matchedCourses.length}</span> matched course(s) ready to import.{' '}
-                <span className="font-bold text-amber-700">{mismatchedCourses.length}</span> course(s) have programme mismatches.
+                <strong className="text-emerald-700 font-bold">{matchedCourses.length}</strong> clean courses ready for database import.{' '}
+                <span className="text-amber-800 font-semibold">({mismatchedCourses.length} programme mismatches)</span>
               </div>
             ) : (
               <div>
-                <span className="font-semibold text-slate-800">{courses.length}</span> course(s) ready for atomic database synchronization.
+                <strong className="text-slate-900 font-bold">{courses.length}</strong> course(s) ready for database import.
               </div>
             )}
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <button
               onClick={onClose}
               disabled={isSaving}
-              className="px-4 py-2 text-xs font-semibold rounded-lg text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 transition-colors shadow-2xs"
+              className="px-4 py-2 text-xs font-semibold rounded-xl text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 transition-colors shadow-2xs cursor-pointer"
             >
               Cancel
             </button>
 
             {hasMismatches ? (
               <>
-                {/* Primary Recommended Option: Upload Only Matched Courses */}
+                {/* Secondary Option: Upload All */}
                 <button
+                  type="button"
+                  onClick={() => onConfirm(courses, importMode === 'replace')}
+                  disabled={isSaving || courses.length === 0}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-50 transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50 shadow-2xs cursor-pointer"
+                  title="Upload all 1,434 courses including mismatched programmes"
+                >
+                  <span>Upload All ({courses.length})</span>
+                </button>
+
+                {/* Primary Recommended Option: Upload Matched Courses */}
+                <button
+                  type="button"
                   onClick={() => onConfirm(matchedCourses, importMode === 'replace')}
                   disabled={isSaving || matchedCourses.length === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition-colors shadow-xs disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/30 transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                   title={`Upload only the ${matchedCourses.length} courses whose program names match registered programmes`}
                 >
                   <UploadCloud className="w-4 h-4" />
-                  {isSaving ? 'Importing Matched...' : `Upload Matched Courses (${matchedCourses.length})`}
-                </button>
-
-                {/* Secondary Option: Upload All (including mismatches) */}
-                <button
-                  onClick={() => onConfirm(courses, importMode === 'replace')}
-                  disabled={isSaving || courses.length === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-xs disabled:opacity-50"
-                  title="Upload all courses including mismatched programmes"
-                >
-                  <span>Upload All ({courses.length})</span>
+                  <span>
+                    {isSaving
+                      ? 'Importing Courses...'
+                      : `Upload Matched Courses (${matchedCourses.length})`}
+                  </span>
                 </button>
               </>
             ) : (
               <button
+                type="button"
                 onClick={() => onConfirm(courses, importMode === 'replace')}
                 disabled={isSaving || courses.length === 0}
-                className={`flex items-center gap-2 px-5 py-2 text-xs font-bold rounded-lg text-white transition-colors shadow-xs disabled:opacity-50 ${
+                className={`inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold rounded-xl text-white shadow-md transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 cursor-pointer ${
                   importMode === 'replace'
-                    ? 'bg-rose-600 hover:bg-rose-700'
-                    : 'bg-indigo-600 hover:bg-indigo-700'
+                    ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/30'
+                    : 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-600/30'
                 }`}
               >
                 <UploadCloud className="w-4 h-4" />
-                {isSaving
-                  ? 'Saving & Configuring Schemes...'
-                  : importMode === 'replace'
-                  ? `Clear & Replace All (${courses.length} Courses)`
-                  : `Confirm & Import (${courses.length} Courses)`}
+                <span>
+                  {isSaving
+                    ? 'Saving to Database...'
+                    : importMode === 'replace'
+                    ? `Clear & Replace All (${courses.length} Courses)`
+                    : `Confirm & Save to Database (${courses.length} Courses)`}
+                </span>
               </button>
             )}
           </div>

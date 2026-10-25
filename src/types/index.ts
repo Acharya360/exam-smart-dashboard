@@ -512,6 +512,34 @@ export interface ExaminationData {
   audit: { id: number; action: string; actor: string; created_at: string; detail: string }[];
 }
 
+export interface StudentImportRow {
+  prn: string;
+  student_name: string;
+  program_code: string;
+  semester: string;
+  academic_year: string;
+  exam_year: string;
+  paper_codes: string;
+  course_name?: string;
+}
+
+export interface StudentUploadMismatch {
+  row: number;
+  prn: string;
+  studentName: string;
+  program: string;
+  reason: string;
+}
+
+export interface StudentUploadResult {
+  success: boolean;
+  studentsImported: number;
+  registrationsCreated: number;
+  duplicatesSkipped: number;
+  coursesProvisioned: number;
+  mismatches: StudentUploadMismatch[];
+}
+
 // ============================================================================
 // User Management (Create User Payload)
 // ============================================================================
@@ -681,5 +709,85 @@ export interface PerformanceAnalyticsSummary {
   faculty: FacultyCourseAllocation[];
   marksCount: number;
 }
+
+// ============================================================================
+// Classroom Master & Seating Plan Engine
+// ============================================================================
+
+export interface Classroom {
+  id: string;
+  room_number: string;
+  building_name: string;
+  floor?: string;
+  room_type: string;
+  total_capacity: number;
+  exam_capacity: number;
+  rows_count: number;
+  columns_count: number;
+  has_cctv: boolean;
+  has_ac: boolean;
+  is_accessible: boolean;
+  is_active: boolean;
+  invigilator_count?: number;
+  notes?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SeatingPlan {
+  id: string;
+  exam_date: string;
+  slot_name: string;
+  session_time?: string;
+  title: string;
+  total_students: number;
+  total_rooms: number;
+  status: 'DRAFT' | 'CONFIRMED' | 'PUBLISHED';
+  created_by?: string;
+  created_at?: string;
+  updated_at?: string;
+  actual_rooms_count?: number;
+  actual_seats_count?: number;
+}
+
+export interface SeatingAllocation {
+  id: string;
+  plan_id: string;
+  classroom_id: string;
+  room_number: string;
+  building_name: string;
+  seat_number: string;
+  row_index: number;
+  col_index: number;
+  prn: string;
+  student_name: string;
+  program_code?: string;
+  program_name?: string;
+  semester?: string;
+  paper_code: string;
+  subject_name: string;
+  exam_date: string;
+  slot_name: string;
+  booklet_number?: string;
+  attendance_status: 'PRESENT' | 'ABSENT' | 'DEBARRED';
+  created_at?: string;
+  rows_count?: number;
+  columns_count?: number;
+  room_type?: string;
+  floor?: string;
+}
+
+export interface SeatingPlanRoomSummary {
+  classroom: Classroom;
+  allocations: SeatingAllocation[];
+  studentCount: number;
+  papers: { paper_code: string; subject_name: string; count: number }[];
+}
+
+export interface SeatingPlanWithAllocations extends SeatingPlan {
+  allocations: SeatingAllocation[];
+  rooms: SeatingPlanRoomSummary[];
+}
+
 
 

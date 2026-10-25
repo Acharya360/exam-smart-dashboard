@@ -15,6 +15,10 @@ import type {
   TimetableSession,
   FacultyCourseAllocation,
   PerformanceAnalyticsSummary,
+  Classroom,
+  SeatingPlan,
+  SeatingAllocation,
+  SeatingPlanWithAllocations,
 } from '../types';
 
 export async function localRequest<T>(path: string, method = 'GET', body?: unknown): Promise<T> {
@@ -105,6 +109,12 @@ export class LocalDBService {
     return tasks;
   }
   getCourseMaster() { return localRequest<CourseMaster[]>('/course-master'); }
+  async updateCourseMasterRecord(id: string, updates: Partial<CourseMaster>) {
+    return localRequest<CourseMaster>(`/course-master/${encodeURIComponent(id)}`, 'PUT', updates);
+  }
+  async createCourseMasterRecord(course: Partial<CourseMaster>) {
+    return localRequest<CourseMaster>('/course-master', 'POST', course);
+  }
   async upsertCourseMaster(courses: Omit<CourseMaster, 'id' | 'created_at' | 'updated_at'>[], clearExisting?: boolean) {
     try {
       const old = await this.getCourseMaster();
@@ -222,6 +232,70 @@ export class LocalDBService {
 
   async getPerformanceAnalyticsSummary() {
     return localRequest<{ success: boolean; data: PerformanceAnalyticsSummary }>('/performance-reports/summary');
+  }
+
+  // ============================================================================
+  // Classroom Master & Seating Plan Engine
+  // ============================================================================
+
+  async getClassrooms(): Promise<Classroom[]> {
+    return localRequest<Classroom[]>('/classrooms');
+  }
+
+  async createClassroom(classroom: Partial<Classroom>): Promise<Classroom> {
+    return localRequest<Classroom>('/classrooms', 'POST', classroom);
+  }
+
+  async updateClassroom(id: string, updates: Partial<Classroom>): Promise<Classroom> {
+    return localRequest<Classroom>(`/classrooms/${encodeURIComponent(id)}`, 'PUT', updates);
+  }
+
+  async deleteClassroom(id: string): Promise<{ success: boolean; message?: string }> {
+    return localRequest<{ success: boolean; message?: string }>(`/classrooms/${encodeURIComponent(id)}`, 'DELETE');
+  }
+
+  async deleteClassrooms(ids: string[]): Promise<{ success: boolean; count: number; skipped?: number; message?: string }> {
+    return localRequest<{ success: boolean; count: number; skipped?: number; message?: string }>('/classrooms/bulk-delete', 'POST', { ids });
+  }
+
+  async bulkUploadClassrooms(classrooms: Partial<Classroom>[], clearExisting = false): Promise<{ success: boolean; inserted: number; updated: number; total: number }> {
+    return localRequest<{ success: boolean; inserted: number; updated: number; total: number }>('/classrooms/bulk', 'POST', { classrooms, clearExisting });
+  }
+
+  async getSeatingPlans(): Promise<SeatingPlan[]> {
+    return localRequest<SeatingPlan[]>('/seating-plans');
+  }
+
+  async getSeatingPlan(id: string): Promise<SeatingPlanWithAllocations> {
+    return localRequest<SeatingPlanWithAllocations>(`/seating-plans/${encodeURIComponent(id)}`);
+  }
+
+  async generateSeatingPlan(payload: {
+    examDate: string;
+    slotName?: string;
+    sessionTime?: string;
+    title?: string;
+    selectedRoomIds?: string[];
+    interleaveMode?: string;
+    customStudents?: any[];
+  }): Promise<{ success: boolean; planId: string; totalAllocated: number; roomsUsedCount: number; message: string }> {
+    return localRequest<{ success: boolean; planId: string; totalAllocated: number; roomsUsedCount: number; message: string }>('/seating-plans/generate', 'POST', payload);
+  }
+
+  async deleteSeatingPlan(id: string): Promise<{ success: boolean; message?: string }> {
+    return localRequest<{ success: boolean; message?: string }>(`/seating-plans/${encodeURIComponent(id)}`, 'DELETE');
+  }
+
+  async syncSeatingPlanTasks(id: string): Promise<{ success: boolean; updatedTasksCount: number; message: string }> {
+    return localRequest<{ success: boolean; updatedTasksCount: number; message: string }>(`/seating-plans/${encodeURIComponent(id)}/sync-tasks`, 'POST');
+  }
+
+  async updateSeatAttendance(id: string, attendance_status: string, booklet_number?: string): Promise<{ success: boolean }> {
+    return localRequest<{ success: boolean }>(`/seating-allocations/${encodeURIComponent(id)}/attendance`, 'PATCH', { attendance_status, booklet_number });
+  }
+
+  async getSeatingExamSessions(): Promise<{ exam_date: string; am_pm: string; exam_time: string; papers_count: number; estimated_students: number }[]> {
+    return localRequest<{ exam_date: string; am_pm: string; exam_time: string; papers_count: number; estimated_students: number }[]>('/seating-plans/exam-sessions');
   }
 }
 

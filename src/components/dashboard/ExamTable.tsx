@@ -22,6 +22,7 @@ import {
   X,
   GraduationCap,
   BarChart3,
+  Armchair,
 } from 'lucide-react';
 
 interface ExamTableProps {
@@ -37,6 +38,7 @@ interface ExamTableProps {
   onNavigateToFaculty?: (paperCode: string) => void;
   onNavigateToMarks?: (paperCode: string) => void;
   onNavigateToReports?: (paperCode: string) => void;
+  onNavigateToSeating?: (date: string, paperCode?: string) => void;
 }
 
 function parseDateStrToTime(dateStr: string): number {
@@ -71,6 +73,7 @@ export const ExamTable: React.FC<ExamTableProps> = ({
   onNavigateToFaculty,
   onNavigateToMarks,
   onNavigateToReports,
+  onNavigateToSeating,
 }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [importBanner, setImportBanner] = useState<
@@ -686,6 +689,17 @@ export const ExamTable: React.FC<ExamTableProps> = ({
                             >
                               <GraduationCap className="w-3 h-3" />
                               <span>Faculty</span>
+                            </button>
+                          )}
+
+                          {onNavigateToSeating && (
+                            <button
+                              onClick={() => onNavigateToSeating(schedule.exam_date, schedule.paper_code)}
+                              className="px-2 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-xs font-medium transition-colors flex items-center gap-1 border border-indigo-200"
+                              title="Generate or view hall seating plan for this date"
+                            >
+                              <Armchair className="w-3 h-3" />
+                              <span>Seating</span>
                             </button>
                           )}
                           {onNavigateToMarks && (

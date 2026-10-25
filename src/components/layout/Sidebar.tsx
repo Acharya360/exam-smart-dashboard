@@ -30,6 +30,8 @@ import {
   UserCheck,
   UploadCloud,
   Table,
+  Armchair,
+  DoorOpen,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { VIEW_TO_PATH } from '../../utils/routes';
@@ -70,6 +72,7 @@ const groups: NavGroupDef[] = [
     items: [
       { id: 'programs', label: 'Programme & Member Mapping', icon: Building2 },
       { id: 'courseMaster', label: 'Course Master', icon: BookOpen },
+      { id: 'classroomMaster', label: 'Classroom Master', icon: DoorOpen },
       { id: 'facultyAllocation', label: 'Faculty Allocation & Duties', icon: GraduationCap },
     ],
   },
@@ -78,6 +81,7 @@ const groups: NavGroupDef[] = [
     items: [
       { id: 'timetable', label: 'Examination Timetable', icon: CalendarDays },
       { id: 'timetableGenerator', label: 'Timetable Generator (EMS)', icon: Sparkles },
+      { id: 'seatingMaster', label: 'Seating Master & Hall Plans', icon: Armchair },
       { id: 'tasks', label: 'Tasks & Workflow', icon: ListChecks },
     ],
   },

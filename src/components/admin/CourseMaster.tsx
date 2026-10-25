@@ -4,6 +4,7 @@ import { db } from '../../services/db';
 import { CourseMaster, Program } from '../../types';
 import { parseCourseMasterExcel, downloadCourseMasterTemplate, exportCourseMasterToExcel } from '../../services/excelParser';
 import { CourseMasterPreviewModal } from './CourseMasterPreviewModal';
+import { CourseEditModal } from './CourseEditModal';
 import {
   validateParsedEntities,
   generateImportErrorReport,
@@ -34,6 +35,8 @@ import {
   Users,
   Grid3X3,
   List,
+  Pencil,
+  Plus,
 } from 'lucide-react';
 
 type CourseSortKey =
@@ -111,6 +114,9 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
 
   // Scheme detail inspection modal
   const [inspectedCourse, setInspectedCourse] = useState<CourseMaster | null>(null);
+
+  // Edit / Add Course Modal
+  const [editingCourse, setEditingCourse] = useState<CourseMaster | null | 'new'>(null);
 
   const fetchCourses = async () => {
     const data = await db.getCourseMaster();
@@ -378,6 +384,14 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
               Export ({courses.length})
+            </button>
+            <button
+              onClick={() => setEditingCourse('new')}
+              className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-lg hover:bg-indigo-100 transition-colors shadow-xs border border-indigo-200"
+              title="Add a new course master record"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Add Course
             </button>
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -782,6 +796,15 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                     )}
                     <td className="px-2 py-3 text-center border-l border-slate-100 whitespace-nowrap">
                       <div className="flex items-center justify-center gap-1">
+                        {isSuperAdmin && (
+                          <button
+                            onClick={() => setEditingCourse(c)}
+                            className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                            title="Edit Course Configuration"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {onNavigateToFaculty && (
                           <button
                             onClick={() => onNavigateToFaculty(c.paper_code)}
@@ -1028,6 +1051,19 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
                     Analytics
                   </button>
                 )}
+                {isSuperAdmin && (
+                  <button
+                    onClick={() => {
+                      const toEdit = inspectedCourse;
+                      setInspectedCourse(null);
+                      setEditingCourse(toEdit);
+                    }}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                    Edit Configuration
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => setInspectedCourse(null)}
@@ -1039,6 +1075,22 @@ export const CourseMasterUI: React.FC<CourseMasterUIProps> = ({
           </div>
         </div>
       )}
+
+      {/* Course Edit / Add Modal */}
+      <CourseEditModal
+        isOpen={editingCourse !== null}
+        onClose={() => setEditingCourse(null)}
+        course={editingCourse}
+        onSaved={(savedCourse) => {
+          setUploadSuccess(
+            editingCourse === 'new'
+              ? `Course "${savedCourse.sm_subject_name}" (${savedCourse.paper_code}) created successfully!`
+              : `Course "${savedCourse.sm_subject_name}" (${savedCourse.paper_code}) updated successfully!`
+          );
+          fetchCourses();
+        }}
+        registeredPrograms={registeredPrograms}
+      />
     </div>
   );
 };

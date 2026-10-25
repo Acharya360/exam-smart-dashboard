@@ -26,6 +26,8 @@ const TimetableGenerator = lazy(() => import('./components/timetable/TimetableGe
 const FacultyCourseAllocation = lazy(() => import('./components/faculty/FacultyCourseAllocation').then(m => ({ default: m.FacultyCourseAllocation })));
 const ExamPerformanceDashboard = lazy(() => import('./components/reports/ExamPerformanceDashboard').then(m => ({ default: m.ExamPerformanceDashboard })));
 const ExcelUploader = lazy(() => import('./components/upload/ExcelUploader').then(m => ({ default: m.ExcelUploader })));
+const ClassroomMaster = lazy(() => import('./components/admin/ClassroomMaster').then(m => ({ default: m.ClassroomMaster })));
+const SeatingMaster = lazy(() => import('./components/admin/SeatingMaster').then(m => ({ default: m.SeatingMaster })));
 
 // The Sidebar hides Super-Admin-only links, but the active view is driven by the
 // URL hash, so a coordinator could otherwise navigate directly (e.g. #users).
@@ -130,6 +132,12 @@ function MainApp() {
         semester: params.sem || undefined,
       });
       setCurrentView(view);
+
+      if (view === 'passwords') {
+        setIsPasswordModalOpen(true);
+      } else if (view === 'profile') {
+        handleOpenProfileModal('profile');
+      }
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -418,6 +426,7 @@ function MainApp() {
                 onNavigateToFaculty={(code) => handleNavigate('facultyAllocation', { subject: code })}
                 onNavigateToMarks={(code) => handleNavigate('studentMarks', { paper: code })}
                 onNavigateToReports={(code) => handleNavigate('performanceReports', { subject: code })}
+                onNavigateToSeating={(date, paper) => handleNavigate('seatingMaster', { date, paper: paper || '' })}
               />
             </div>
           )}
@@ -425,7 +434,14 @@ function MainApp() {
           {/* VIEW: TIMETABLE GENERATOR (EMS ENGINE) */}
           {currentView === 'timetableGenerator' && (
             <Suspense fallback={<div className="flex items-center justify-center h-64 text-violet-600 font-medium">Loading timetable engine…</div>}>
-              <TimetableGenerator />
+              <TimetableGenerator onNavigate={handleNavigate} />
+            </Suspense>
+          )}
+
+          {/* VIEW: SEATING MASTER & HALL PLANS */}
+          {currentView === 'seatingMaster' && (
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-indigo-600 font-medium">Loading seating master…</div>}>
+              <SeatingMaster onNavigate={handleNavigate} />
             </Suspense>
           )}
 
@@ -441,6 +457,7 @@ function MainApp() {
               onAddTask={handleAddTask}
               focusedScheduleId={focusedScheduleId}
               onClearScheduleFocus={() => setFocusedScheduleId(null)}
+              onNavigate={handleNavigate}
             />
           )}
 
@@ -469,6 +486,13 @@ function MainApp() {
               onNavigateToTimetable={(code) => handleNavigate('timetable', { subject: code })}
               onNavigateToReports={(code) => handleNavigate('performanceReports', { subject: code })}
             />
+          )}
+
+          {/* VIEW: CLASSROOM MASTER */}
+          {currentView === 'classroomMaster' && (
+            <Suspense fallback={<div className="flex items-center justify-center h-64 text-indigo-600 font-medium">Loading classroom master…</div>}>
+              <ClassroomMaster onNavigate={handleNavigate} />
+            </Suspense>
           )}
 
           {/* VIEW: FACULTY COURSE ALLOCATION */}

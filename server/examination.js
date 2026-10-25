@@ -62,83 +62,220 @@ export function registerExamination(app, executeSql, requireSession) {
   });
   app.post('/api/examination/students/bulk', admin, async (req,res) => {
     try {
-      const students = req.body.students;
-      if (!Array.isArray(students) || !students.length || students.length > 5000) {
-        return res.status(400).json({ error: 'Upload between 1 and 5,000 student rows at a time.' });
+      const { students, clearExisting = false, skipInvalid = true } = req.body;
+      if (!Array.isArray(students) || !students.length || students.length > 60000) {
+        return res.status(400).json({ error: 'Upload between 1 and 60,000 student rows at a time.' });
       }
-      const programs = (await executeSql('SELECT * FROM dbo.programs')).data;
-      const courses = (await executeSql('SELECT * FROM dbo.course_master')).data;
+
+      if (clearExisting) {
+        await executeSql('DELETE FROM dbo.exam_registrations; DELETE FROM dbo.exam_students;', {}, 'execute');
+      }
+
+      const programs = (await executeSql('SELECT id, program_code, program_name, school_name FROM dbo.programs')).data;
+      const courses = (await executeSql('SELECT id, program_code, cm_course_name, semester, paper_code, sm_subject_name FROM dbo.course_master')).data;
       const existingRegs = (await executeSql('SELECT prn,cm_course_name,semester,paper_code,academic_year,exam_year FROM dbo.exam_registrations')).data;
-      const regKey = r => JSON.stringify([r.prn, r.cm_course_name, r.semester, r.paper_code, r.academic_year, r.exam_year]);
+
+      const clean = s => String(s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const str = v => (v === null || v === undefined ? '' : String(v).trim());
+      const regKey = r => JSON.stringify([str(r.prn), str(r.cm_course_name), str(r.semester), str(r.paper_code).toUpperCase(), str(r.academic_year), str(r.exam_year)]);
       const seen = new Set(existingRegs.map(regKey));
 
-      // Validate every row against programs + course_master before writing anything
-      const plan = [];
+      const findProgram = pCode => {
+        const target = clean(pCode);
+        return programs.find(p => clean(p.program_name) === target || clean(p.program_code) === target);
+      };
+
+      const newCoursesToInsert = [];
+      const getOrProvisionCourse = (program, sem, paper, courseName) => {
+        const normPaper = clean(paper);
+        const sameProg = c => clean(c.program_code) === clean(program.program_code) || clean(c.cm_course_name) === clean(program.program_name);
+        const matches = courses.filter(c => sameProg(c) && clean(c.paper_code) === normPaper);
+        if (matches.length > 0) {
+          const wantSem = canonicalSemester(sem);
+          return matches.find(c => canonicalSemester(c.semester) === wantSem) || matches[0];
+        }
+        // Auto-provision if not found
+        const courseId = `cm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        const subjectName = (courseName && courseName.trim()) ? courseName.trim() : paper;
+        const newC = {
+          id: courseId,
+          program_code: program.program_code,
+          cm_course_name: program.program_name,
+          semester: String(sem).trim(),
+          paper_code: paper,
+          sm_subject_name: subjectName,
+          program_id: program.id
+        };
+        courses.push(newC);
+        newCoursesToInsert.push(newC);
+        return newC;
+      };
+
       const seenInUpload = new Set();
+      const mismatches = [];
+      const validRegistrations = [];
+      const uniqueStudentsMap = new Map();
+      let duplicatesSkipped = 0;
+
       for (const [index, s] of students.entries()) {
         const rowNo = index + 1;
-        const str = v => (v === null || v === undefined ? '' : String(v).trim());
-        const prn = str(s.prn), name = str(s.student_name), semester = str(s.semester);
-        const academicYear = str(s.academic_year), examYear = str(s.exam_year);
-        if (!prn) return res.status(400).json({ error: `Row ${rowNo}: PRN is required.` });
-        if (!name) return res.status(400).json({ error: `Row ${rowNo}: Student name is required.` });
-        if (!semester) return res.status(400).json({ error: `Row ${rowNo}: Semester is required.` });
-        if (!academicYear || !examYear) return res.status(400).json({ error: `Row ${rowNo}: Academic year and exam session are required.` });
-        const program = programs.find(p => p.program_code.toUpperCase() === str(s.program_code).toUpperCase());
-        if (!program) return res.status(400).json({ error: `Row ${rowNo}: Program code "${str(s.program_code)}" does not exist in the programme registry.` });
+        const prn = str(s.prn);
+        const name = str(s.student_name);
+        const semester = str(s.semester);
+        const academicYear = str(s.academic_year);
+        const examYear = str(s.exam_year);
+        const progStr = str(s.program_code);
+        const courseName = str(s.course_name);
+
+        if (!prn || !name || !semester || !academicYear || !examYear || !progStr) {
+          const reason = !prn ? 'PRN is required' : !name ? 'Student name is required' : !semester ? 'Semester is required' : !progStr ? 'Program is required' : 'Academic year / Exam year is required';
+          if (!skipInvalid) return res.status(400).json({ error: `Row ${rowNo}: ${reason}.` });
+          mismatches.push({ row: rowNo, prn, studentName: name, program: progStr, reason });
+          continue;
+        }
+
+        const program = findProgram(progStr);
+        if (!program) {
+          const reason = `Program "${progStr}" not found in programme registry`;
+          if (!skipInvalid) return res.status(400).json({ error: `Row ${rowNo}: ${reason}.` });
+          mismatches.push({ row: rowNo, prn, studentName: name, program: progStr, reason });
+          continue;
+        }
+
         let papers = s.paper_codes;
         if (typeof papers === 'string') papers = papers.split(/[,;]/);
-        if (!Array.isArray(papers) || !papers.length) return res.status(400).json({ error: `Row ${rowNo}: At least one mapped paper code is required.` });
-        const registrations = [];
-        const sameProg = c => (c.program_code || '').toUpperCase() === program.program_code.toUpperCase();
-        const normCode = v => String(v).toUpperCase().replace(/\s+/g, '');
+        if (!Array.isArray(papers) || !papers.length) {
+          if (!skipInvalid) return res.status(400).json({ error: `Row ${rowNo}: At least one paper code is required.` });
+          mismatches.push({ row: rowNo, prn, studentName: name, program: progStr, reason: 'No paper code provided' });
+          continue;
+        }
+
+        if (!uniqueStudentsMap.has(prn)) {
+          uniqueStudentsMap.set(prn, name);
+        }
+
         for (const raw of papers) {
           const paper = str(raw).toUpperCase();
           if (!paper) continue;
-          let matches = courses.filter(c => sameProg(c) && (c.paper_code || '').toUpperCase() === paper);
-          // Course Master codes are inconsistently spaced ("BW101" vs "BW 108"); fall back to space-insensitive match.
-          if (!matches.length) matches = courses.filter(c => sameProg(c) && normCode(c.paper_code || '') === normCode(paper));
-          if (!matches.length) return res.status(400).json({ error: `Row ${rowNo}: Paper code "${paper}" is not mapped to ${program.program_name} in Course Master.` });
-          // Semester text arrives as "3", "Sem 3" or "III" while Course Master stores an
-          // integer; compare canonically so a paper offered in several semesters cannot be
-          // silently linked to the wrong one (which would apply the wrong scheme).
-          const wantSem = canonicalSemester(semester);
-          const course = matches.find(c => canonicalSemester(c.semester) === wantSem)
-            || (matches.length === 1 ? matches[0] : null);
-          if (!course) return res.status(400).json({ error: `Row ${rowNo}: Paper "${paper}" has no semester-${wantSem} course in Course Master for ${program.program_name} (mapped semesters: ${matches.map(m => m.semester).join(', ')}).` });
+          const course = getOrProvisionCourse(program, semester, paper, courseName);
           const cmName = course.cm_course_name || program.program_name;
           const key = regKey({ prn, cm_course_name: cmName, semester, paper_code: course.paper_code, academic_year: academicYear, exam_year: examYear });
-          if (seenInUpload.has(key)) return res.status(400).json({ error: `Row ${rowNo}: Duplicate registration for ${prn} / ${course.paper_code} within the uploaded file.` });
+
+          if (seenInUpload.has(key)) {
+            duplicatesSkipped++;
+            continue;
+          }
           seenInUpload.add(key);
-          if (seen.has(key)) continue;
+
+          if (seen.has(key)) {
+            duplicatesSkipped++;
+            continue;
+          }
           seen.add(key);
-          registrations.push({ cmName, paper: course.paper_code, courseId: course.id, programId: program.id });
+
+          validRegistrations.push({
+            prn,
+            name,
+            cmName,
+            sem: semester,
+            paper: course.paper_code,
+            ay: academicYear,
+            ey: examYear,
+            courseId: course.id,
+            programId: program.id
+          });
         }
-        plan.push({ prn, name, semester, academicYear, examYear, registrations });
       }
 
-      let studentsImported = 0, registrationsCreated = 0;
-      for (const p of plan) {
-        const params = { prn: p.prn, name: p.name, sem: p.semester, ay: p.academicYear, ey: p.examYear };
-        let sql = `IF EXISTS(SELECT 1 FROM dbo.exam_students WHERE prn=@prn)
-          UPDATE dbo.exam_students SET student_name=@name, updated_at=SYSUTCDATETIME() WHERE prn=@prn;
-        ELSE INSERT INTO dbo.exam_students(prn,student_name) VALUES(@prn,@name);`;
-        p.registrations.forEach((r, i) => {
-          params[`cm${i}`] = r.cmName; params[`paper${i}`] = r.paper; params[`cid${i}`] = r.courseId; params[`pid${i}`] = r.programId;
-          sql += `
-        INSERT INTO dbo.exam_registrations(prn,student_name,cm_course_name,semester,paper_code,academic_year,exam_year,course_id,program_id)
-        VALUES(@prn,@name,@cm${i},@sem,@paper${i},@ay,@ey,@cid${i},@pid${i});`;
-        });
-        await executeSql(sql, params, 'execute');
-        studentsImported++;
-        registrationsCreated += p.registrations.length;
+      // Batch insert any newly provisioned courses
+      if (newCoursesToInsert.length > 0) {
+        for (let i = 0; i < newCoursesToInsert.length; i += 100) {
+          const chunk = newCoursesToInsert.slice(i, i + 100);
+          const params = {};
+          let sql = '';
+          chunk.forEach((c, idx) => {
+            params[`cid_${idx}`] = c.id;
+            params[`pcode_${idx}`] = c.program_code;
+            params[`cname_${idx}`] = c.cm_course_name;
+            params[`sem_${idx}`] = c.semester;
+            params[`paper_${idx}`] = c.paper_code;
+            params[`sname_${idx}`] = c.sm_subject_name;
+            params[`pid_${idx}`] = c.program_id;
+            sql += `
+              IF NOT EXISTS (SELECT 1 FROM dbo.course_master WHERE id = @cid_${idx} OR (program_code = @pcode_${idx} AND semester = @sem_${idx} AND paper_code = @paper_${idx}))
+              BEGIN
+                INSERT INTO dbo.course_master(id, program_code, cm_course_name, semester, paper_code, sm_subject_name)
+                VALUES (@cid_${idx}, @pcode_${idx}, @cname_${idx}, @sem_${idx}, @paper_${idx}, @sname_${idx});
+                INSERT INTO dbo.exam_course_settings(course_id, program_id, updated_at)
+                VALUES (@cid_${idx}, @pid_${idx}, SYSUTCDATETIME());
+              END;`;
+          });
+          await executeSql(sql, params, 'execute');
+        }
       }
 
-      await audit('STUDENTS_IMPORT', req.user.id, { studentsImported, registrationsCreated, duplicatesSkipped: seenInUpload.size - registrationsCreated });
-      res.json({ success: true, studentsImported, registrationsCreated, duplicatesSkipped: seenInUpload.size - registrationsCreated });
+      // Batch upsert unique students
+      const studentEntries = Array.from(uniqueStudentsMap.entries());
+      if (studentEntries.length > 0) {
+        for (let i = 0; i < studentEntries.length; i += 200) {
+          const chunk = studentEntries.slice(i, i + 200);
+          const params = {};
+          let sql = '';
+          chunk.forEach(([prn, name], idx) => {
+            params[`sprn_${idx}`] = prn;
+            params[`sname_${idx}`] = name;
+            sql += `
+              IF EXISTS (SELECT 1 FROM dbo.exam_students WHERE prn = @sprn_${idx})
+                UPDATE dbo.exam_students SET student_name = @sname_${idx}, updated_at = SYSUTCDATETIME() WHERE prn = @sprn_${idx};
+              ELSE
+                INSERT INTO dbo.exam_students(prn, student_name) VALUES (@sprn_${idx}, @sname_${idx});`;
+          });
+          await executeSql(sql, params, 'execute');
+        }
+      }
+
+      // Batch insert registrations
+      if (validRegistrations.length > 0) {
+        for (let i = 0; i < validRegistrations.length; i += 150) {
+          const chunk = validRegistrations.slice(i, i + 150);
+          const params = {};
+          let sql = 'INSERT INTO dbo.exam_registrations(prn, student_name, cm_course_name, semester, paper_code, academic_year, exam_year, course_id, program_id) VALUES ';
+          const valueClauses = chunk.map((reg, idx) => {
+            params[`rprn_${idx}`] = reg.prn;
+            params[`rname_${idx}`] = reg.name;
+            params[`rcm_${idx}`] = reg.cmName;
+            params[`rsem_${idx}`] = reg.sem;
+            params[`rpaper_${idx}`] = reg.paper;
+            params[`ray_${idx}`] = reg.ay;
+            params[`rey_${idx}`] = reg.ey;
+            params[`rcid_${idx}`] = reg.courseId;
+            params[`rpid_${idx}`] = reg.programId;
+            return `(@rprn_${idx}, @rname_${idx}, @rcm_${idx}, @rsem_${idx}, @rpaper_${idx}, @ray_${idx}, @rey_${idx}, @rcid_${idx}, @rpid_${idx})`;
+          });
+          sql += valueClauses.join(', ') + ';';
+          await executeSql(sql, params, 'execute');
+        }
+      }
+
+      await audit('STUDENTS_IMPORT', req.user.id, {
+        studentsImported: uniqueStudentsMap.size,
+        registrationsCreated: validRegistrations.length,
+        duplicatesSkipped,
+        coursesProvisioned: newCoursesToInsert.length,
+        mismatchesCount: mismatches.length
+      });
+
+      res.json({
+        success: true,
+        studentsImported: uniqueStudentsMap.size,
+        registrationsCreated: validRegistrations.length,
+        duplicatesSkipped,
+        coursesProvisioned: newCoursesToInsert.length,
+        mismatches
+      });
     } catch (err) {
       console.error('[Students Import Error]:', err);
-      res.status(500).json({ error: 'Student master import failed. No records were changed.' });
+      res.status(500).json({ error: 'Student master import failed. Check database connection and file data.' });
     }
   });
   app.put('/api/examination/courses/:id', admin, async (req,res) => {

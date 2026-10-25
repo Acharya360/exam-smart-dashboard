@@ -76,7 +76,10 @@ export const Header: React.FC<HeaderProps> = ({
   const getBreadcrumbTitle = (view: string) => {
     switch (view) {
       case 'timetable': return 'Examination planning / Timetable';
+      case 'timetableGenerator': return 'Examination Operations / Timetable Generator (EMS)';
       case 'users': return 'Governance / User management';
+      case 'passwords': return 'Governance / Staff Password Management';
+      case 'profile': return 'User Account / Profile & Exam Duties';
       case 'tng': return 'Results / TNG candidates';
       case 'trsheet': return 'Reports / Tabulation register';
       case 'students': return 'Student Registry / Programme & Subject Links';
@@ -85,6 +88,8 @@ export const Header: React.FC<HeaderProps> = ({
       case 'results': return 'Examination Processing / Eligibility & Results';
       case 'sgpa': return 'Semester Results / Credit-Weighted SGPA';
       case 'courseMaster': return 'Academic Registry / LTPS & Course Credits';
+      case 'classroomMaster': return 'Academic Registry / Classroom Master & Examination Venues';
+      case 'seatingMaster': return 'Operations & Timetable / Seating Master & Hall Plans';
       case 'facultyAllocation': return 'Academic Registry / Faculty Course Allocation & Teaching Staff';
       case 'studentMarks': return 'Examination Marks / Import & Review';
       case 'performanceReports': return 'Reports & Analytics / Institutional Examination Performance';

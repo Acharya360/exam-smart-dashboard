@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { randomBytes } from 'node:crypto';
 import { registerExamination } from './server/examination.js';
 import { registerTimetable } from './server/timetable.js';
+import { registerHallsAndSeating } from './server/hallsAndSeating.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -275,6 +276,7 @@ app.use('/api', async (req,res,next) => {
 });
 const examination = registerExamination(app, executeSql, requireSession);
 const timetable = registerTimetable(app, executeSql, requireSession);
+const hallsAndSeating = registerHallsAndSeating(app, executeSql, requireSession);
 app.get('/api/examination/template', (req, res) => {
   if (req.user.role === 'COORDINATOR') return res.status(403).json({ error: 'Super Admin access required.' });
   const filePath = path.join(__dirname, 'docs', 'Sample Templete.xlsx');
@@ -1077,6 +1079,317 @@ app.post('/api/course-master/bulk', async (req, res) => {
       scheme: scheme_json ? JSON.parse(scheme_json) : null
     }));
     res.json(all);
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// Helper for single course processing
+function prepareCourseRecord(c, existingId) {
+  const id = existingId || c.id || `cm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+  const grading_category = (c.grading_category === 'Architecture' ? 'Architecture' : 'Non-Architecture');
+  const passRate = grading_category === 'Architecture' ? 0.45 : 0.40;
+
+  const calcMin = (maxVal, explicitMin) => {
+    if (explicitMin !== undefined && explicitMin !== null && explicitMin !== '') {
+      const num = Number(explicitMin);
+      if (num >= 0) return num;
+    }
+    return maxVal > 0 ? Math.round(maxVal * passRate) : 0;
+  };
+
+  const cat1_max = Number(c.cat1_max || 0);
+  const cat1_min = calcMin(cat1_max, c.cat1_min);
+  const cat2_max = Number(c.cat2_max || 0);
+  const cat2_min = calcMin(cat2_max, c.cat2_min);
+  const cat3_max = Number(c.cat3_max || 0);
+  const cat3_min = calcMin(cat3_max, c.cat3_min);
+
+  const cap1_max = Number(c.cap1_max || 0);
+  const cap1_min = calcMin(cap1_max, c.cap1_min);
+  const cap2_max = Number(c.cap2_max || 0);
+  const cap2_min = calcMin(cap2_max, c.cap2_min);
+  const cap3_max = Number(c.cap3_max || 0);
+  const cap3_min = calcMin(cap3_max, c.cap3_min);
+
+  const cas1_max = Number(c.cas1_max || 0);
+  const cas1_min = calcMin(cas1_max, c.cas1_min);
+  const cas2_max = Number(c.cas2_max || 0);
+  const cas2_min = calcMin(cas2_max, c.cas2_min);
+  const cas3_max = Number(c.cas3_max || 0);
+  const cas3_min = calcMin(cas3_max, c.cas3_min);
+
+  const est_max_marks = Number(c.est_max_marks || 0);
+  const est_min_marks = calcMin(est_max_marks, c.est_min_marks);
+
+  const esp_max_marks = Number(c.esp_max_marks || 0);
+  const esp_min_marks = calcMin(esp_max_marks, c.esp_min_marks);
+
+  const ess_max_marks = Number(c.ess_max_marks || 0);
+  const ess_min_marks = calcMin(ess_max_marks, c.ess_min_marks);
+
+  const cat_max_marks = Number(c.cat_max_marks ?? (cat1_max + cat2_max + cat3_max));
+  const cat_min_marks = Number(c.cat_min_marks ?? (cat1_min + cat2_min + cat3_min));
+
+  const cap_max_marks = Number(c.cap_max_marks ?? (cap1_max + cap2_max + cap3_max));
+  const cap_min_marks = Number(c.cap_min_marks ?? (cap1_min + cap2_min + cap3_min));
+
+  const cas_max_marks = Number(c.cas_max_marks ?? (cas1_max + cas2_max + cas3_max));
+  const cas_min_marks = Number(c.cas_min_marks ?? (cas1_min + cas2_min + cas3_min));
+
+  const ia_max_marks = Number(c.ia_max_marks ?? (cat_max_marks + cap_max_marks + cas_max_marks));
+  const ia_min_marks = Number(c.ia_min_marks ?? (cat_min_marks + cap_min_marks + cas_min_marks));
+
+  const total_marks = Number(c.total_marks ?? (ia_max_marks + est_max_marks + esp_max_marks + ess_max_marks));
+  const total_marks_min = Number(c.total_marks_min ?? (ia_min_marks + est_min_marks + esp_min_marks + ess_min_marks));
+
+  return {
+    id,
+    params: {
+      id,
+      sr_no: c.sr_no ? Number(c.sr_no) : null,
+      academic_period: c.academic_period || null,
+      term: c.term || null,
+      program_code: c.program_code || null,
+      cm_course_name: String(c.cm_course_name || '').trim(),
+      regulation_group: c.regulation_group || null,
+      subject_type: c.subject_type || null,
+      semester: String(c.semester || '').trim(),
+      paper_code: String(c.paper_code || '').trim(),
+      sm_subject_name: String(c.sm_subject_name || '').trim(),
+      student_count: (c.student_count !== undefined && c.student_count !== null && c.student_count !== '') ? Number(c.student_count) : null,
+      l: Number(c.l || 0),
+      t: Number(c.t || 0),
+      p: Number(c.p || 0),
+      s: Number(c.s || 0),
+      total_credits: Number(c.total_credits || 0),
+      grading_category,
+      cat1_max, cat1_min,
+      cat2_max, cat2_min,
+      cat3_max, cat3_min,
+      cap1_max, cap1_min,
+      cap2_max, cap2_min,
+      cap3_max, cap3_min,
+      cas1_max, cas1_min,
+      cas2_max, cas2_min,
+      cas3_max, cas3_min,
+      cas_max_marks, cas_min_marks,
+      cat_max_marks, cat_min_marks,
+      est_max_marks, est_min_marks,
+      cap_max_marks, cap_min_marks,
+      esp_max_marks, esp_min_marks,
+      ess_max_marks, ess_min_marks,
+      ia_max_marks, ia_min_marks,
+      total_marks, total_marks_min
+    },
+    schemeData: {
+      grading_category,
+      total_credits: Number(c.total_credits || 0),
+      ia_max_marks, ia_min_marks,
+      total_marks, total_marks_min,
+      cat1_max, cat2_max, cat3_max, est_max_marks, est_min_marks,
+      cap1_max, cap2_max, cap3_max, esp_max_marks, esp_min_marks,
+      cas1_max, cas2_max, cas3_max, ess_max_marks, ess_min_marks,
+      customScheme: c.scheme
+    }
+  };
+}
+
+async function syncCourseSettings(courseId, cmCourseName, programCode, schemeData) {
+  const programs = (await executeSql('SELECT id, program_name, program_code FROM dbo.programs')).data || [];
+  const normStr = s => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const matchedProg = programs.find(p => 
+    (p.program_name && cmCourseName && normStr(p.program_name) === normStr(cmCourseName)) ||
+    (p.program_code && programCode && normStr(p.program_code) === normStr(programCode))
+  );
+  const programId = matchedProg ? matchedProg.id : null;
+
+  const {
+    grading_category, total_credits,
+    ia_max_marks, ia_min_marks, total_marks, total_marks_min,
+    cat1_max, cat2_max, cat3_max, est_max_marks, est_min_marks,
+    cap1_max, cap2_max, cap3_max, esp_max_marks, esp_min_marks,
+    cas1_max, cas2_max, cas3_max, ess_max_marks, ess_min_marks,
+    customScheme
+  } = schemeData;
+
+  const theoryActive = (cat1_max + cat2_max + cat3_max + est_max_marks) > 0;
+  const practicalActive = (cap1_max + cap2_max + cap3_max + esp_max_marks) > 0;
+  const skillsActive = (cas1_max + cas2_max + cas3_max + ess_max_marks) > 0;
+
+  const scheme = customScheme || {
+    category: grading_category,
+    credits: total_credits,
+    internalPass: ia_max_marks > 0 && ia_min_marks > 0 ? Math.round((ia_min_marks / ia_max_marks) * 100) : (grading_category === 'Architecture' ? 45 : 40),
+    overallPass: total_marks > 0 && total_marks_min > 0 ? Math.round((total_marks_min / total_marks) * 100) : (grading_category === 'Architecture' ? 45 : 40),
+    integerMarks: true,
+    approved: true,
+    approvalReference: 'University Board of Studies LTPS Scheme',
+    heads: {
+      theory: {
+        active: theoryActive,
+        ca: [cat1_max, cat2_max, cat3_max],
+        ese: est_max_marks,
+        pass: est_max_marks > 0 && est_min_marks > 0 ? Math.round((est_min_marks / est_max_marks) * 100) : (grading_category === 'Architecture' ? 45 : 40),
+      },
+      practical: {
+        active: practicalActive,
+        ca: [cap1_max, cap2_max, cap3_max],
+        ese: esp_max_marks,
+        pass: esp_max_marks > 0 && esp_min_marks > 0 ? Math.round((esp_min_marks / esp_max_marks) * 100) : (grading_category === 'Architecture' ? 45 : 40),
+      },
+      skills: {
+        active: skillsActive,
+        ca: [cas1_max, cas2_max, cas3_max],
+        ese: ess_max_marks,
+        pass: ess_max_marks > 0 && ess_min_marks > 0 ? Math.round((ess_min_marks / ess_max_marks) * 100) : (grading_category === 'Architecture' ? 45 : 40),
+      },
+    },
+  };
+
+  await executeSql(`
+    IF NOT EXISTS (SELECT 1 FROM dbo.exam_course_settings WHERE course_id = @course_id)
+      INSERT INTO dbo.exam_course_settings (course_id, program_id, scheme_json, updated_at)
+      VALUES (@course_id, @program_id, @scheme_json, SYSUTCDATETIME());
+    ELSE
+      UPDATE dbo.exam_course_settings
+      SET program_id = COALESCE(@program_id, program_id),
+          scheme_json = @scheme_json,
+          updated_at = SYSUTCDATETIME()
+      WHERE course_id = @course_id;
+  `, {
+    course_id: courseId,
+    program_id: programId,
+    scheme_json: JSON.stringify(scheme)
+  }, 'execute');
+}
+
+// PUT /api/course-master/:id - Update existing course master record
+app.put('/api/course-master/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const c = req.body;
+    if (!c) return res.status(400).json({ error: 'Course data is required.' });
+
+    const existing = (await executeSql('SELECT id FROM dbo.course_master WHERE id = @id', { id })).data[0];
+    if (!existing) return res.status(404).json({ error: 'Course not found.' });
+
+    const { params, schemeData } = prepareCourseRecord(c, id);
+
+    const updateSql = `
+      UPDATE dbo.course_master 
+      SET sr_no = COALESCE(@sr_no, sr_no),
+          academic_period = @academic_period,
+          term = @term,
+          program_code = @program_code,
+          cm_course_name = @cm_course_name,
+          regulation_group = @regulation_group,
+          subject_type = @subject_type,
+          semester = @semester,
+          paper_code = @paper_code,
+          sm_subject_name = @sm_subject_name,
+          student_count = @student_count,
+          l = @l, t = @t, p = @p, s = @s, total_credits = @total_credits,
+          grading_category = @grading_category,
+          cat1_max = @cat1_max, cat1_min = @cat1_min,
+          cat2_max = @cat2_max, cat2_min = @cat2_min,
+          cat3_max = @cat3_max, cat3_min = @cat3_min,
+          cap1_max = @cap1_max, cap1_min = @cap1_min,
+          cap2_max = @cap2_max, cap2_min = @cap2_min,
+          cap3_max = @cap3_max, cap3_min = @cap3_min,
+          cas1_max = @cas1_max, cas1_min = @cas1_min,
+          cas2_max = @cas2_max, cas2_min = @cas2_min,
+          cas3_max = @cas3_max, cas3_min = @cas3_min,
+          cas_max_marks = @cas_max_marks, cas_min_marks = @cas_min_marks,
+          cat_max_marks = @cat_max_marks, cat_min_marks = @cat_min_marks,
+          est_max_marks = @est_max_marks, est_min_marks = @est_min_marks,
+          cap_max_marks = @cap_max_marks, cap_min_marks = @cap_min_marks,
+          esp_max_marks = @esp_max_marks, esp_min_marks = @esp_min_marks,
+          ess_max_marks = @ess_max_marks, ess_min_marks = @ess_min_marks,
+          ia_max_marks = @ia_max_marks, ia_min_marks = @ia_min_marks,
+          total_marks = @total_marks, total_marks_min = @total_marks_min,
+          updated_at = GETDATE()
+      WHERE id = @id
+    `;
+
+    await executeSql(updateSql, params, 'execute');
+    await syncCourseSettings(id, params.cm_course_name, params.program_code, schemeData);
+    await examination.sync();
+
+    const fetchSql = `
+      SELECT c.*, s.program_id, s.scheme_json 
+      FROM dbo.course_master c 
+      LEFT JOIN dbo.exam_course_settings s ON c.id = s.course_id 
+      WHERE c.id = @id
+    `;
+    const updated = (await executeSql(fetchSql, { id })).data[0];
+
+    res.json({
+      ...updated,
+      scheme: updated?.scheme_json ? JSON.parse(updated.scheme_json) : null
+    });
+  } catch (err) {
+    serverError(res, err);
+  }
+});
+
+// POST /api/course-master - Create single course master record
+app.post('/api/course-master', async (req, res) => {
+  try {
+    const c = req.body;
+    if (!c) return res.status(400).json({ error: 'Course data is required.' });
+
+    const { id, params, schemeData } = prepareCourseRecord(c);
+
+    // If sr_no not provided, calculate max + 1
+    if (!params.sr_no) {
+      const maxSr = (await executeSql('SELECT ISNULL(MAX(sr_no), 0) + 1 AS next_sr FROM dbo.course_master')).data[0]?.next_sr || 1;
+      params.sr_no = maxSr;
+    }
+
+    const insertSql = `
+      INSERT INTO dbo.course_master (
+        id, sr_no, academic_period, term, program_code, cm_course_name, regulation_group, subject_type, semester, paper_code, sm_subject_name, student_count,
+        l, t, p, s, total_credits, grading_category,
+        cat1_max, cat1_min, cat2_max, cat2_min, cat3_max, cat3_min,
+        cap1_max, cap1_min, cap2_max, cap2_min, cap3_max, cap3_min,
+        cas1_max, cas1_min, cas2_max, cas2_min, cas3_max, cas3_min,
+        cas_max_marks, cas_min_marks,
+        cat_max_marks, cat_min_marks, est_max_marks, est_min_marks,
+        cap_max_marks, cap_min_marks, esp_max_marks, esp_min_marks,
+        ess_max_marks, ess_min_marks, ia_max_marks, ia_min_marks,
+        total_marks, total_marks_min, created_at, updated_at
+      )
+      VALUES (
+        @id, @sr_no, @academic_period, @term, @program_code, @cm_course_name, @regulation_group, @subject_type, @semester, @paper_code, @sm_subject_name, @student_count,
+        @l, @t, @p, @s, @total_credits, @grading_category,
+        @cat1_max, @cat1_min, @cat2_max, @cat2_min, @cat3_max, @cat3_min,
+        @cap1_max, @cap1_min, @cap2_max, @cap2_min, @cap3_max, @cap3_min,
+        @cas1_max, @cas1_min, @cas2_max, @cas2_min, @cas3_max, @cas3_min,
+        @cas_max_marks, @cas_min_marks,
+        @cat_max_marks, @cat_min_marks, @est_max_marks, @est_min_marks,
+        @cap_max_marks, @cap_min_marks, @esp_max_marks, @esp_min_marks,
+        @ess_max_marks, @ess_min_marks, @ia_max_marks, @ia_min_marks,
+        @total_marks, @total_marks_min, GETDATE(), GETDATE()
+      )
+    `;
+
+    await executeSql(insertSql, params, 'execute');
+    await syncCourseSettings(id, params.cm_course_name, params.program_code, schemeData);
+    await examination.sync();
+
+    const fetchSql = `
+      SELECT c.*, s.program_id, s.scheme_json 
+      FROM dbo.course_master c 
+      LEFT JOIN dbo.exam_course_settings s ON c.id = s.course_id 
+      WHERE c.id = @id
+    `;
+    const created = (await executeSql(fetchSql, { id })).data[0];
+
+    res.status(201).json({
+      ...created,
+      scheme: created?.scheme_json ? JSON.parse(created?.scheme_json) : null
+    });
   } catch (err) {
     serverError(res, err);
   }

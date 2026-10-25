@@ -18,7 +18,11 @@ import {
   Filter,
   ArrowUp,
   ArrowDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Armchair,
+  GraduationCap,
+  FileSpreadsheet,
+  ExternalLink
 } from 'lucide-react';
 
 interface TasksViewProps {
@@ -31,6 +35,45 @@ interface TasksViewProps {
   onAddTask: (task: ExamTask) => void;
   focusedScheduleId?: string | null;
   onClearScheduleFocus?: () => void;
+  onNavigate?: (view: string, params?: Record<string, string>) => void;
+}
+
+
+function getTaskWorkflowAction(title: string) {
+  const t = title.toLowerCase();
+  if (t.includes('seating') || t.includes('attendance') || t.includes('roll label')) {
+    return {
+      label: 'Open Seating Master',
+      view: 'seatingMaster',
+      icon: Armchair,
+      color: 'text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100',
+    };
+  }
+  if (t.includes('invigilation') || t.includes('duty')) {
+    return {
+      label: 'Faculty Invigilation',
+      view: 'facultyAllocation',
+      icon: GraduationCap,
+      color: 'text-violet-700 bg-violet-50 border-violet-200 hover:bg-violet-100',
+    };
+  }
+  if (t.includes('booklet') || t.includes('counterfoil')) {
+    return {
+      label: 'Marks & Booklet Verification',
+      view: 'studentMarks',
+      icon: FileSpreadsheet,
+      color: 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100',
+    };
+  }
+  if (t.includes('question paper') || t.includes('vault')) {
+    return {
+      label: 'Master Timetable',
+      view: 'timetable',
+      icon: Calendar,
+      color: 'text-sky-700 bg-sky-50 border-sky-200 hover:bg-sky-100',
+    };
+  }
+  return null;
 }
 
 function parseDueDate(dateStr: string): number {
@@ -73,6 +116,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
   onAddTask,
   focusedScheduleId,
   onClearScheduleFocus,
+  onNavigate,
 }) => {
   const { currentUser, isSuperAdmin, getUserPrograms } = useAuth();
   const [detailTask,setDetailTask]=useState<ExamTask|null>(null);
@@ -540,6 +584,27 @@ export const TasksView: React.FC<TasksViewProps> = ({
                               <span>Notes</span>
                             </button>
                           </div>
+
+                          
+                          {/* Dedicated Milestone Workflow Action Button */}
+                          {onNavigate && (() => {
+                            const wfAction = getTaskWorkflowAction(task.task_title);
+                            if (!wfAction) return null;
+                            const ActionIcon = wfAction.icon;
+                            return (
+                              <button
+                                onClick={() => onNavigate(wfAction.view)}
+                                className={`mt-2 w-full py-1.5 px-2.5 rounded-lg text-[10px] font-bold border transition-colors flex items-center justify-between ${wfAction.color}`}
+                                title={`Open ${wfAction.label} to complete this milestone`}
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <ActionIcon className="w-3 h-3" />
+                                  <span>{wfAction.label}</span>
+                                </span>
+                                <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                              </button>
+                            );
+                          })()}
 
                           {/* Action controls */}
                           <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-1">

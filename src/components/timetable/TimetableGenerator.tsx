@@ -70,7 +70,11 @@ import {
 import { db } from '../../services/db';
 import { useAuth } from '../../context/AuthContext';
 
-export function TimetableGenerator() {
+interface TimetableGeneratorProps {
+  onNavigate?: (view: string, params?: Record<string, string>) => void;
+}
+
+export function TimetableGenerator({ onNavigate }: TimetableGeneratorProps = {}) {
   const { isSuperAdmin, currentUser } = useAuth();
 
   // Navigation steps
@@ -2208,6 +2212,35 @@ export function TimetableGenerator() {
               </button>
             </div>
           </div>
+
+          {/* Next Stage Operational Flow Banner */}
+          {onNavigate && (
+            <div className="rounded-2xl bg-indigo-50 border border-indigo-200 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">Next Operational Stage</span>
+                <h4 className="text-base font-bold text-slate-900 mt-0.5">Automated Hall Seating & Desk Slips (Milestone 2)</h4>
+                <p className="text-xs text-slate-600 mt-1">
+                  Once published to official schedules, proceed to the Seating Master to pack halls and interleave seats against cheating.
+                </p>
+              </div>
+              <div className="flex items-center gap-2.5 shrink-0">
+                <button
+                  onClick={() => onNavigate('timetable')}
+                  className="px-4 py-2 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-sm"
+                >
+                  View Master Timetable
+                </button>
+                <button
+                  onClick={() => onNavigate('seatingMaster')}
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-sm flex items-center gap-1.5"
+                >
+                  <span>Open Seating Master</span>
+                  <ArrowRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 

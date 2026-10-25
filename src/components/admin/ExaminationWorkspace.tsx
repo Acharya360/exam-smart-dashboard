@@ -1,12 +1,13 @@
 import { RegistrationReview } from './RegistrationReview';
 import { AssessmentSimulator } from './AssessmentSimulator';
+import { StudentMasterUploadModal } from './StudentMasterUploadModal';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { RefreshCw, Download, GraduationCap, Save, AlertTriangle, Upload, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
 import { localRequest } from '../../services/localDb';
 import { HEADS, calculateSGPA } from '../../services/resultEngine';
-import type { AssessmentScheme, ExaminationData, ExaminationCourse, RegistrationResult } from '../../types';
+import type { AssessmentScheme, ExaminationData, ExaminationCourse, RegistrationResult, StudentImportRow } from '../../types';
 
 const input = 'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500';
 const button = 'inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:opacity-50';
@@ -15,7 +16,7 @@ function draftScheme(c: ExaminationCourse): AssessmentScheme {
   return c.scheme ?? { category: 'Non-Architecture', internalPass: 40, overallPass: 40, integerMarks: true, approved: false, approvalReference: '', credits: c.total_credits,
     heads: { theory: {active:true,ca:[0,0,0],ese:c.est_max_marks,pass:40}, practical:{active:c.cap_max_marks>0,ca:[0,0,0],ese:c.esp_max_marks,pass:40}, skills:{active:false,ca:[0,0,0],ese:0,pass:40} } };
 }
-type StudentImportRow = { prn: string; student_name: string; program_code: string; semester: string; academic_year: string; exam_year: string; paper_codes: string };
+// StudentImportRow is imported from StudentMasterUploadModal
 function mapStudentRow(raw: Record<string, unknown>): StudentImportRow {
   const norm = (s: string) => s.trim().toLowerCase().replace(/[\s_-]/g, '');
   const get = (...names: string[]) => {
@@ -43,6 +44,7 @@ export function ExaminationWorkspace({ view }: {view: 'students' | 'assessment' 
   const [page,setPage]=useState(0), [pageSize,setPageSize]=useState<number | 'all'>(50), [selected,setSelected]=useState(''), [scheme,setScheme]=useState<AssessmentScheme|null>(null), [mapping,setMapping]=useState('');
   const [detail,setDetail]=useState<RegistrationResult|null>(null);
   const fileInput=useRef<HTMLInputElement>(null);
+  const [isUploadModalOpen,setIsUploadModalOpen]=useState(false);
   async function run(path='',method='GET',body?:unknown) {
     setBusy(true);setError('');setNotice('');
     try {setData(await localRequest<ExaminationData>(`/examination${path}`,method,body));if(method!=='GET')setNotice(path==='/sync'?'Student registrations synchronized. Existing marks preserved.':'Changes saved to the local database.');}
@@ -108,13 +110,14 @@ export function ExaminationWorkspace({ view }: {view: 'students' | 'assessment' 
     </div>:view==='marksMatrix'?<RegistrationReview data={data} mode="marks"/>:view==='students'?<><div className="space-y-3">
       <div className="flex flex-wrap gap-3">
         {isSuperAdmin&&<>
-          <button disabled={busy} className={button} onClick={()=>fileInput.current?.click()}><Upload size={16}/>Upload student master</button>
+          <button disabled={busy} className={button} onClick={()=>setIsUploadModalOpen(true)}><Upload size={16}/>Upload student master</button>
           <button className={`${button} bg-slate-100 text-slate-700 hover:bg-slate-200`} onClick={downloadStudentTemplate}><FileSpreadsheet size={16}/>Download template</button>
-          <input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" aria-label="Student master file" onChange={e=>{const f=e.target.files?.[0];if(f)void uploadStudents(f);e.target.value='';}}/>
+
           <button disabled={busy} className={button} onClick={()=>{if(window.confirm('Synchronize registrations from imported marks using exact programme, semester and paper matches? Existing marks are preserved.'))void run('/sync','POST');}}>Synchronize registrations</button>
+          <StudentMasterUploadModal isOpen={isUploadModalOpen} onClose={()=>setIsUploadModalOpen(false)} onSuccess={(summary)=>{setIsUploadModalOpen(false);setNotice(summary);void run();}} programs={data.programs}/>
         </>}
       </div>
-      {isSuperAdmin&&<p className="text-xs text-slate-500">Excel columns: PRN, Student Name, Program Code, Semester, Academic Year, Exam Year, Paper Codes (comma separated). Every row is validated against the programme registry and Course Master before anything is written; existing registrations are skipped.</p>}
+      {isSuperAdmin&&<p className="text-xs text-slate-500">Excel columns: PRN, Student Name, Program Code, Semester, Academic Year, Exam Year, Paper Codes, Course Name. Mismatched programmes are reported with selective import, and missing courses are auto-provisioned.</p>}
     </div><RegistrationReview data={data}/></>:<>
       <div className="flex flex-wrap gap-3">{isSuperAdmin&&<button disabled={busy} className={button} onClick={()=>void run('/process','POST')}><RefreshCw size={16}/>Recalculate preview</button>}<button disabled={busy||!list.length} className={button} onClick={exportRows}><Download size={16}/>Export preview</button></div>
       <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-3 xl:grid-cols-6">
