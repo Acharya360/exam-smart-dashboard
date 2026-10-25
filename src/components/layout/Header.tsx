@@ -81,6 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'trsheet': return 'Reports / Tabulation register';
       case 'students': return 'Student Registry / Programme & Subject Links';
       case 'assessment': return 'Assessment Schemes / CA, EST, ESP & ESS';
+      case 'marksMatrix': return 'Examination Marks / Component Marks Matrix';
       case 'results': return 'Examination Processing / Eligibility & Results';
       case 'sgpa': return 'Semester Results / Credit-Weighted SGPA';
       case 'courseMaster': return 'Academic Registry / LTPS & Course Credits';

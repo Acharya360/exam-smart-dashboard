@@ -315,6 +315,7 @@ CREATE TABLE public.timetable_student_records (
     student_name TEXT NOT NULL,
     official_email TEXT,
     course_code TEXT NOT NULL,
+    student_count INT NOT NULL DEFAULT 1,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

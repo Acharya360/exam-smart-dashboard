@@ -46,6 +46,7 @@ import {
   TimetableClashInfo,
   ProgramStream,
   Program,
+  CourseMaster,
 } from '../../types';
 import {
   DEFAULT_SLOT_MASTER,
@@ -57,6 +58,8 @@ import {
   detectFuzzyElectives,
   formatDateString,
   getDayName,
+  toIsoDate,
+  isEstEligible,
 } from '../../utils/timetableEngine';
 import {
   downloadStudentMasterTemplate,
@@ -127,12 +130,24 @@ export function TimetableGenerator() {
   const [overrideSlotName, setOverrideSlotName] = useState('Slot 1');
   const [overrideSlotTime, setOverrideSlotTime] = useState('08:00 am to 09:30 am');
 
+  // Course Master Picker (build session input from existing system data)
+  const [courseMaster, setCourseMaster] = useState<CourseMaster[]>([]);
+  const [showCoursePicker, setShowCoursePicker] = useState(false);
+  const [pickerProgramCode, setPickerProgramCode] = useState('');
+  const [pickerSemester, setPickerSemester] = useState('');
+  const [pickerEstOnly, setPickerEstOnly] = useState(true);
+  const [pickerSelected, setPickerSelected] = useState<Set<string>>(new Set());
+
   // Printable Notice Modal
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [signatureMode, setSignatureMode] = useState<'4 Signatures' | 'COE Only' | 'No Signatures'>('4 Signatures');
 
   // File input ref
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // True row count held by the session on the server; the state endpoint returns at
+  // most 5000 records, and a truncated page must never drive a replace-write.
+  const serverRecordsTotal = useRef(0);
 
   // 1. Initial State Loading from Database
   const loadState = async () => {
@@ -141,8 +156,19 @@ export function TimetableGenerator() {
       setStatusMessage(null);
       const data = await db.getTimetableState();
 
+      // setConfig is asynchronous, so the first generation must use the config
+      // parsed from this response rather than the component's mount-time state.
+      let loadedConfig: ScheduleConfig | null = null;
+
       if (data.programs && data.programs.length > 0) {
         setPrograms(data.programs);
+      }
+
+      try {
+        const cm = await db.getCourseMaster();
+        setCourseMaster(cm || []);
+      } catch (cmErr) {
+        console.error('Failed to load course master for picker:', cmErr);
       }
 
       if (data.activeSession) {
@@ -161,20 +187,21 @@ export function TimetableGenerator() {
           parsedStreams = DEFAULT_PROGRAM_STREAMS;
         }
 
-        setConfig({
+        loadedConfig = {
           useCalendarDates: data.activeSession.use_calendar_dates,
           hasBreakDay: data.activeSession.has_break_day,
-          oddStartDate1: data.activeSession.odd_start_date_1 || '2026-11-16',
-          oddStartDate2: data.activeSession.odd_start_date_2 || '2026-11-17',
-          evenStartDate1: data.activeSession.even_start_date_1 || '2026-11-16',
-          evenStartDate2: data.activeSession.even_start_date_2 || '2026-11-17',
+          oddStartDate1: toIsoDate(data.activeSession.odd_start_date_1) || '2026-11-16',
+          oddStartDate2: toIsoDate(data.activeSession.odd_start_date_2) || '2026-11-17',
+          evenStartDate1: toIsoDate(data.activeSession.even_start_date_1) || '2026-11-16',
+          evenStartDate2: toIsoDate(data.activeSession.even_start_date_2) || '2026-11-17',
           holidays: data.activeSession.holidays_json
             ? JSON.parse(data.activeSession.holidays_json)
             : ['2026-11-20', '2026-11-25'],
           examinationBasis: data.activeSession.basis || 'Both',
           schedulingStrategy: data.activeSession.scheduling_strategy || 'PROGRAM_STREAMS',
           programStreams: parsedStreams,
-        });
+        };
+        setConfig(loadedConfig);
       }
 
       if (data.slots && data.slots.length > 0) {
@@ -187,6 +214,7 @@ export function TimetableGenerator() {
       // Load records directly from database
       const recs = data.records || [];
       setRecords(recs);
+      serverRecordsTotal.current = data.recordsCount || recs.length;
 
       if (data.manualOverrides) {
         setManualOverrides(data.manualOverrides);
@@ -196,12 +224,18 @@ export function TimetableGenerator() {
       } else if (recs.length > 0) {
         const gen = generateSchedule(
           recs,
-          config,
+          loadedConfig ?? config,
           data.slots?.length ? data.slots : DEFAULT_SLOT_MASTER,
           data.electives?.length ? data.electives : DEFAULT_ELECTIVES,
           data.manualOverrides || {}
         );
         setSchedule(gen);
+      }
+      if (recs.length < serverRecordsTotal.current) {
+        setStatusMessage({
+          type: 'info',
+          text: `Only ${recs.length} of ${serverRecordsTotal.current} stored student records were loaded for this session, so record-replacing imports and Course Master merges are blocked to protect the unloaded rows.`,
+        });
       }
     } catch (err) {
       console.error('Failed to load timetable state:', err);
@@ -310,6 +344,17 @@ export function TimetableGenerator() {
     }
   };
 
+  // Both session writes are full replaces, so they must be refused while the page
+  // holds only part of the stored records — the rest would be deleted server-side.
+  const isReplaceBlocked = () => {
+    if (records.length >= serverRecordsTotal.current) return false;
+    setStatusMessage({
+      type: 'error',
+      text: `This session stores ${serverRecordsTotal.current} records but only ${records.length} could be loaded. Replacing session records is blocked to protect the unloaded rows — clear the session or work in a new one.`,
+    });
+    return true;
+  };
+
   // Handle Excel Upload
   const handleExcelUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -318,6 +363,7 @@ export function TimetableGenerator() {
     setIsLoading(true);
     setStatusMessage(null);
     try {
+      if (isReplaceBlocked()) return;
       const buffer = await file.arrayBuffer();
       const parsed = parseStudentExcel(buffer);
 
@@ -325,10 +371,22 @@ export function TimetableGenerator() {
         throw new Error('No valid student course records found in the Excel file.');
       }
 
+      // Validate uploaded course codes against the system Course Master
+      let validationNote = '';
+      if (courseMaster.length > 0) {
+        const knownCodes = new Set(courseMaster.map((c) => (c.paper_code || '').toUpperCase()));
+        const unknownCodes = Array.from(
+          new Set(parsed.map((r) => (r.courseCode || '').toUpperCase()).filter((code) => code && !knownCodes.has(code)))
+        );
+        if (unknownCodes.length > 0) {
+          validationNote = ` Warning: ${unknownCodes.length} course code(s) not found in Course Master (${unknownCodes.slice(0, 5).join(', ')}${unknownCodes.length > 5 ? '…' : ''}).`;
+        }
+      }
+
       setRecords(parsed);
       setStatusMessage({
-        type: 'success',
-        text: `Loaded ${parsed.length} student registration entries across ${Array.from(new Set(parsed.map((r) => r.courseCode))).length} distinct courses!`,
+        type: validationNote ? 'info' : 'success',
+        text: `Loaded ${parsed.length} student registration entries across ${Array.from(new Set(parsed.map((r) => r.courseCode))).length} distinct courses!${validationNote}`,
       });
 
       // Persist to SQL database if session exists
@@ -344,6 +402,84 @@ export function TimetableGenerator() {
     } finally {
       setIsLoading(false);
       if (e.target) e.target.value = '';
+    }
+  };
+
+  // Course Master Picker: derive selectable courses & semesters
+  const pickerBaseCourses = useMemo(() => {
+    let list = courseMaster;
+    if (pickerProgramCode) {
+      list = list.filter((c) => (c.program_code || '').toUpperCase() === pickerProgramCode.toUpperCase());
+    }
+    if (pickerEstOnly) {
+      list = list.filter((c) => isEstEligible(c.regulation_group));
+    }
+    return list;
+  }, [courseMaster, pickerProgramCode, pickerEstOnly]);
+
+  const pickerSemesters = useMemo(
+    () => Array.from(new Set(pickerBaseCourses.map((c) => String(c.semester)))).sort(),
+    [pickerBaseCourses]
+  );
+
+  const pickerCourses = useMemo(
+    () => (pickerSemester ? pickerBaseCourses.filter((c) => String(c.semester) === pickerSemester) : pickerBaseCourses),
+    [pickerBaseCourses, pickerSemester]
+  );
+
+  const handleAddFromCoursePicker = async () => {
+    const selected = pickerCourses.filter((c) => pickerSelected.has(c.id));
+    if (!selected.length) {
+      setStatusMessage({ type: 'info', text: 'Select at least one course from the Course Master list.' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (isReplaceBlocked()) return;
+      const program = programs.find((p) => p.program_code.toUpperCase() === pickerProgramCode.toUpperCase());
+      const newRecs: StudentRecord[] = selected.map((c) => ({
+        centre: program?.school_name || c.cm_course_name || 'Main Campus',
+        program: program?.program_name || c.program_name || pickerProgramCode,
+        semester: String(c.semester),
+        prn: `COHORT-${c.paper_code}`,
+        studentName: `Cohort (${c.student_count || 0} students)`,
+        courseCode: c.paper_code,
+        courseTitle: c.sm_subject_name,
+        isApplied: true,
+        studentCount: c.student_count || 0,
+      }));
+
+      // Keep real student records; replace previously added cohort rows for the same courses
+      const merged = [
+        ...records.filter(
+          (r) =>
+            !(
+              (r.prn || '').startsWith('COHORT-') &&
+              newRecs.some((n) => n.courseCode === r.courseCode && n.program === r.program)
+            )
+        ),
+        ...newRecs,
+      ];
+
+      setRecords(merged);
+      if (session?.id) {
+        await db.uploadTimetableRecords(session.id, merged, false);
+      }
+
+      const gen = generateSchedule(merged, config, slots, electives, manualOverrides);
+      setSchedule(gen);
+      setPickerSelected(new Set());
+
+      const totalStudents = newRecs.reduce((sum, r) => sum + (r.studentCount || 0), 0);
+      setStatusMessage({
+        type: 'success',
+        text: `Added ${selected.length} course(s) from Course Master covering ${totalStudents} student(s). Preliminary schedule generated.`,
+      });
+    } catch (err: any) {
+      setStatusMessage({ type: 'error', text: err.message || 'Failed to add courses from Course Master.' });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -389,7 +525,7 @@ export function TimetableGenerator() {
   // Open Manual Override Modal
   const handleOpenOverride = (row: ScheduleRow) => {
     setOverrideModalRow(row);
-    setOverrideDateInput(row.date === 'Unassigned' ? config.oddStartDate1 : row.date);
+    setOverrideDateInput(toIsoDate(row.date === 'Unassigned' ? config.oddStartDate1 : row.date));
     setOverrideSlotName(row.slotName);
     setOverrideSlotTime(row.slotTime);
   };
@@ -397,6 +533,10 @@ export function TimetableGenerator() {
   // Apply Manual Override
   const handleSaveOverride = async () => {
     if (!overrideModalRow) return;
+    if (!overrideDateInput) {
+      setStatusMessage({ type: 'error', text: 'Please pick a valid exam date before applying the override.' });
+      return;
+    }
     const key = `${overrideModalRow.schoolName}:::${overrideModalRow.programName}:::${overrideModalRow.semester}:::${overrideModalRow.courseCode}`;
 
     let dayName = '-';
@@ -426,9 +566,30 @@ export function TimetableGenerator() {
       await db.saveGeneratedTimetable(session.id, gen, updatedOverrides);
     }
 
+    // Cascade the new date/time to the published exam schedule & pending tasks (if already published)
+    let syncNote = '';
+    try {
+      const updatedRow = gen.find(
+        (r) =>
+          r.schoolName === overrideModalRow.schoolName &&
+          r.programName === overrideModalRow.programName &&
+          r.semester === overrideModalRow.semester &&
+          r.courseCode === overrideModalRow.courseCode
+      );
+      if (updatedRow && updatedRow.date !== 'Unassigned') {
+        const sync = await db.syncPublishedScheduleDate(updatedRow);
+        if (sync.synced) {
+          syncNote = ` Published exam records updated${sync.tasksUpdated ? ` (${sync.tasksUpdated} pending task due dates shifted)` : ''}.`;
+        }
+      }
+    } catch (syncErr) {
+      console.error('[Timetable] Failed to sync override to published schedules:', syncErr);
+      syncNote = ' Warning: published exam records could not be updated automatically.';
+    }
+
     setStatusMessage({
       type: 'success',
-      text: `Manual slot & date override applied for ${overrideModalRow.courseCode}.`,
+      text: `Manual slot & date override applied for ${overrideModalRow.courseCode}.${syncNote}`,
     });
   };
 
@@ -875,6 +1036,176 @@ export function TimetableGenerator() {
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Course Master Picker */}
+          <div className="rounded-2xl bg-white border border-slate-200 shadow-sm">
+            <button
+              onClick={() => setShowCoursePicker((v) => !v)}
+              className="w-full flex items-center justify-between p-5 cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-700">
+                  <Layers size={20} />
+                </div>
+                <div className="text-left">
+                  <h3 className="font-semibold text-slate-900">Build from Course Master</h3>
+                  <p className="text-xs text-slate-500">
+                    Select existing program &amp; courses from the system registry — no Excel required. Student counts are taken from Course Master.
+                  </p>
+                </div>
+              </div>
+              <ChevronRight size={18} className={`text-slate-400 transition-transform ${showCoursePicker ? 'rotate-90' : ''}`} />
+            </button>
+
+            {showCoursePicker && (
+              <div className="px-5 pb-5 space-y-4 border-t border-slate-100 pt-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div className="min-w-56">
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Program</label>
+                    <select
+                      value={pickerProgramCode}
+                      onChange={(e) => {
+                        setPickerProgramCode(e.target.value);
+                        setPickerSemester('');
+                        setPickerSelected(new Set());
+                      }}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white"
+                    >
+                      <option value="">All Programs</option>
+                      {programs.map((p) => (
+                        <option key={p.id} value={p.program_code}>
+                          {p.program_name} ({p.program_code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="min-w-32">
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Semester</label>
+                    <select
+                      value={pickerSemester}
+                      onChange={(e) => {
+                        setPickerSemester(e.target.value);
+                        setPickerSelected(new Set());
+                      }}
+                      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white"
+                    >
+                      <option value="">All Semesters</option>
+                      {pickerSemesters.map((s) => (
+                        <option key={s} value={s}>
+                          Semester {s}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <label className="flex items-center gap-2 text-xs font-medium text-slate-700 pb-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pickerEstOnly}
+                      onChange={(e) => {
+                        setPickerEstOnly(e.target.checked);
+                        setPickerSelected(new Set());
+                      }}
+                      className="rounded border-slate-300 text-violet-600"
+                    />
+                    End Semester Theory (EST) courses only
+                  </label>
+
+                  <div className="ml-auto flex items-center gap-3 pb-1">
+                    <span className="text-xs text-slate-500">
+                      {pickerSelected.size} selected · {pickerCourses.length} shown
+                    </span>
+                    {isSuperAdmin && (
+                      <button
+                        onClick={handleAddFromCoursePicker}
+                        disabled={pickerSelected.size === 0}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed text-white px-4 py-2 text-xs font-semibold shadow-sm transition cursor-pointer"
+                      >
+                        <PlusCircle size={14} />
+                        Add to Session
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="max-h-80 overflow-auto rounded-xl border border-slate-200">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50 sticky top-0">
+                      <tr className="text-left text-slate-600">
+                        <th className="p-2.5 w-8">
+                          <input
+                            type="checkbox"
+                            className="rounded border-slate-300 text-violet-600 cursor-pointer"
+                            checked={pickerCourses.length > 0 && pickerSelected.size === pickerCourses.length}
+                            onChange={(e) =>
+                              setPickerSelected(e.target.checked ? new Set(pickerCourses.map((c) => c.id)) : new Set())
+                            }
+                          />
+                        </th>
+                        <th className="p-2.5 font-semibold">Paper Code</th>
+                        <th className="p-2.5 font-semibold">Subject Name</th>
+                        <th className="p-2.5 font-semibold">Program</th>
+                        <th className="p-2.5 font-semibold">Sem</th>
+                        <th className="p-2.5 font-semibold">Regulation Group</th>
+                        <th className="p-2.5 font-semibold text-right">Students</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pickerCourses.length === 0 && (
+                        <tr>
+                          <td colSpan={7} className="p-6 text-center text-slate-400">
+                            {courseMaster.length === 0
+                              ? 'Course Master is empty. Import courses first from the Course Master screen.'
+                              : 'No courses match the selected filters.'}
+                          </td>
+                        </tr>
+                      )}
+                      {pickerCourses.map((c) => {
+                        const est = isEstEligible(c.regulation_group);
+                        return (
+                          <tr key={c.id} className="border-t border-slate-100 hover:bg-violet-50/40">
+                            <td className="p-2.5">
+                              <input
+                                type="checkbox"
+                                className="rounded border-slate-300 text-violet-600 cursor-pointer"
+                                checked={pickerSelected.has(c.id)}
+                                onChange={(e) => {
+                                  const next = new Set(pickerSelected);
+                                  if (e.target.checked) next.add(c.id);
+                                  else next.delete(c.id);
+                                  setPickerSelected(next);
+                                }}
+                              />
+                            </td>
+                            <td className="p-2.5 font-mono font-semibold text-slate-800">{c.paper_code}</td>
+                            <td className="p-2.5 text-slate-700">{c.sm_subject_name}</td>
+                            <td className="p-2.5 text-slate-500">{c.program_code || c.program_name || '—'}</td>
+                            <td className="p-2.5 text-slate-600">{c.semester}</td>
+                            <td className="p-2.5">
+                              <span className={est ? 'text-emerald-700' : 'text-amber-700'}>
+                                {c.regulation_group || '(not set)'}
+                              </span>
+                              {est && (
+                                <span className="ml-1.5 inline-flex items-center rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  EST
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-2.5 text-right font-semibold text-slate-700">{Number(c.student_count) || 0}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <p className="text-[11px] text-slate-400">
+                  Only courses whose Regulation Group contains the <strong>EST</strong> token on the end-semester side (right of “|”) generate End Semester Theory timetable entries. Courses with no Regulation Group recorded are treated as eligible so missing data never silently drops papers.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Records Table Preview */}

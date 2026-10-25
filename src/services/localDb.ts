@@ -177,6 +177,14 @@ export class LocalDBService {
     );
   }
 
+  async syncPublishedScheduleDate(row: ScheduleRow) {
+    return localRequest<{ success: boolean; synced: boolean; scheduleId?: string; tasksUpdated?: number; reason?: string; message?: string }>(
+      '/timetable/sync-schedule-date',
+      'POST',
+      { row }
+    );
+  }
+
   // ============================================================================
   // Faculty Course Allocations (Teaching Staff against Course Master)
   // ============================================================================

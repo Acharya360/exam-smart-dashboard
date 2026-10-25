@@ -209,9 +209,74 @@ export function formatDateString(d: Date): string {
   return `${day}-${monthNames[d.getMonth()]}-${d.getFullYear()}`;
 }
 
+/**
+ * Builds a yyyy-MM-dd key from local date parts. toISOString() must never be used
+ * for this: in UTC+ zones it reports the previous calendar day for a local midnight.
+ */
+export function toLocalDayKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Parses yyyy-MM-dd into a local-midnight Date (new Date('2026-11-18') is UTC-based
+ * and shifts the weekday in non-UTC zones).
+ */
+export function parseIsoLocal(val: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(val || '');
+  if (!m) return null;
+  const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Normalises a stored override to the engine's display contract (dd-MMM-yyyy) so
+ * override dates collide with generated dates in the clash maps instead of hiding
+ * beside them in a different string format.
+ */
+export function normalizeOverrideDate(val: string): { date: string; day: string } | null {
+  if (!val || val === 'Unassigned') return null;
+  if (/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(val)) return null;
+  const d = parseIsoLocal(val);
+  if (!d) return null;
+  return { date: formatDateString(d), day: getDayName(d) };
+}
+
 export function getDayName(d: Date): string {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   return days[d.getDay()];
+}
+
+/**
+ * Converts engine display dates (dd-MMM-yyyy), ISO timestamps, or Date-parseable
+ * strings to the yyyy-MM-dd format required by <input type="date">.
+ */
+export function toIsoDate(val: string): string {
+  if (!val || val === 'Unassigned') return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const m = val.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/);
+  if (m) {
+    const idx = monthNames.findIndex((x) => x.toLowerCase() === m[2].toLowerCase());
+    if (idx >= 0) return `${m[3]}-${String(idx + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  }
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? '' : d.toISOString().split('T')[0];
+}
+
+/**
+ * A course is eligible for the End Semester Theory (EST) timetable only if the
+ * end-semester side of its Regulation Group (right of '|') contains the EST token.
+ * Courses with no regulation group recorded are treated as eligible so that
+ * missing data does not silently drop papers from the timetable.
+ */
+export function isEstEligible(regulationGroup?: string | null): boolean {
+  if (!regulationGroup || !regulationGroup.trim()) return true;
+  const endSemPart = regulationGroup.includes('|') ? regulationGroup.split('|')[1] : regulationGroup;
+  return endSemPart
+    .toUpperCase()
+    .split(/[+,/]/)
+    .map((t) => t.trim())
+    .includes('EST');
 }
 
 /**
@@ -270,6 +335,14 @@ export function generateSchedule(
   manualOverrides: Record<string, ManualOverride> = {}
 ): ScheduleRow[] {
   if (!records || records.length === 0) return [];
+
+  // Overrides may be stored as yyyy-MM-dd by the picker while every generated date
+  // is dd-MMM-yyyy; unify them so clash detection and display share one format.
+  const overrides: Record<string, ManualOverride> = {};
+  for (const [key, ov] of Object.entries(manualOverrides)) {
+    const normalized = normalizeOverrideDate(ov.date);
+    overrides[key] = normalized ? { ...ov, date: normalized.date, day: normalized.day } : ov;
+  }
 
   // 1. Enrich records with semester number and slot info
   const enriched = records
@@ -345,7 +418,7 @@ export function generateSchedule(
   const centreGroupOffsets = new Map<string, number>();
 
   // Process manual overrides first
-  for (const [key, ov] of Object.entries(manualOverrides)) {
+  for (const [key, ov] of Object.entries(overrides)) {
     const parts = key.split(':::');
     if (parts.length >= 4) {
       const [centre, , , code] = parts;
@@ -406,7 +479,7 @@ export function generateSchedule(
           // Skip Sundays and holidays
           while (
             testDate.getDay() === 0 ||
-            holidaysSet.has(testDate.toISOString().split('T')[0])
+            holidaysSet.has(toLocalDayKey(testDate))
           ) {
             currentOffset++;
             testDate.setTime(baseDate.getTime());
@@ -510,7 +583,16 @@ export function generateSchedule(
 
     for (const c of sortedCourses) {
       const cacheKey = `${centre}:::${c.slot}:::${c.code}`;
-      if (globalCourseCache.has(cacheKey)) continue;
+      const forced = globalCourseCache.get(cacheKey);
+      if (forced) {
+        // An overridden paper keeps its fixed date, but its students still occupy
+        // that centre/slot/day, so later papers must not be booked against them.
+        const overrideKey = `${centre}:::${c.slot}:::${forced.date}`;
+        const booked = bookedStudentsBySlotDay.get(overrideKey) || new Set<string>();
+        for (const prn of c.students) booked.add(prn);
+        bookedStudentsBySlotDay.set(overrideKey, booked);
+        continue;
+      }
 
       let baseDate: Date | null = null;
       let groupStateKey = '';
@@ -547,7 +629,7 @@ export function generateSchedule(
 
           while (
             testDate.getDay() === 0 ||
-            holidaysSet.has(testDate.toISOString().split('T')[0])
+            holidaysSet.has(toLocalDayKey(testDate))
           ) {
             currentOffset++;
             testDate.setTime(baseDate.getTime());
@@ -591,7 +673,7 @@ export function generateSchedule(
   for (const r of filtered) {
     const semStr = String(r.semester);
     const key = `${r.centre}:::${r.program}:::${semStr}:::${r.courseCode}`;
-    const override = manualOverrides[key];
+    const override = overrides[key];
 
     let assignedDate = 'Unassigned';
     let assignedDay = '-';
@@ -632,12 +714,13 @@ export function generateSchedule(
     }
 
     const row = rowsMap.get(key)!;
+    const headcount = r.studentCount && r.studentCount > 0 ? r.studentCount : 1;
     if (r.isApplied !== false) {
-      row.appliedStudents++;
+      row.appliedStudents += headcount;
     } else {
-      row.notAppliedStudents++;
+      row.notAppliedStudents += headcount;
     }
-    row.totalStudents++;
+    row.totalStudents += headcount;
   }
 
   return Array.from(rowsMap.values()).sort((a, b) => {
@@ -776,7 +859,7 @@ export function detectFuzzyElectives(
     if (currentGroup.length > 1) {
       visited.add(c1);
       groups.push({
-        id: `auto-eg-${groupId++}`,
+        id: `auto-eg-${Date.now()}-${groupId++}`,
         name: `Auto Group: ${t1.slice(0, 30)}...`,
         courseCodes: currentGroup,
         isFuzzy: true,

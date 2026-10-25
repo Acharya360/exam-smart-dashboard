@@ -732,6 +732,61 @@ export class SupabaseDBService {
     };
   }
 
+  async syncPublishedScheduleDate(row: ScheduleRow) {
+    const programs = await this.getPrograms();
+    const prog = programs.find(
+      (p) =>
+        (row.programName &&
+          (p.program_name.toLowerCase() === row.programName.toLowerCase() ||
+            p.program_code.toLowerCase() === row.programName.toLowerCase())) ||
+        (row.schoolName && p.school_name.toLowerCase() === row.schoolName.toLowerCase())
+    );
+    if (!prog) return { success: true, synced: false, reason: 'PROGRAM_NOT_FOUND', tasksUpdated: 0 };
+
+    const { data: match } = await supabase
+      .from('exam_schedules')
+      .select('id, exam_time')
+      .eq('program_code', prog.program_code)
+      .eq('paper_code', row.courseCode)
+      .limit(1)
+      .maybeSingle();
+    if (!match) return { success: true, synced: false, reason: 'SCHEDULE_NOT_FOUND', tasksUpdated: 0 };
+
+    const period = row.slotTime?.toLowerCase().includes('pm') ? 'PM' : 'AM';
+    const { error: schedErr } = await supabase
+      .from('exam_schedules')
+      .update({
+        exam_date: row.date,
+        exam_time: row.slotTime || match.exam_time,
+        am_pm: period,
+        date_odd_even: `${row.date}_${row.oddEven || ''}`.replace(/_$/, ''),
+      })
+      .eq('id', match.id);
+    if (schedErr) throw new Error(schedErr.message);
+
+    const { data: pendingTasks } = await supabase
+      .from('exam_tasks')
+      .select('id')
+      .eq('schedule_id', match.id)
+      .neq('status', 'COMPLETED');
+    const taskIds = (pendingTasks || []).map((t: { id: string }) => t.id);
+    if (taskIds.length > 0) {
+      const { error: taskErr } = await supabase
+        .from('exam_tasks')
+        .update({ due_date: row.date, updated_at: new Date().toISOString() })
+        .in('id', taskIds);
+      if (taskErr) throw new Error(taskErr.message);
+    }
+
+    return {
+      success: true,
+      synced: true,
+      scheduleId: match.id,
+      tasksUpdated: taskIds.length,
+      message: `Exam schedule for ${row.courseCode} moved to ${row.date}${taskIds.length > 0 ? ` and ${taskIds.length} pending task due date(s) updated.` : '.'}`,
+    };
+  }
+
   // ============================================================================
   // Faculty Allocations
   // ============================================================================

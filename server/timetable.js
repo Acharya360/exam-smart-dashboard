@@ -6,6 +6,22 @@ export function registerTimetable(app, executeSql, requireSession) {
       ? res.status(403).json({ error: 'Super Admin access required for timetable operations.' })
       : next();
 
+  function serverError(res, err) {
+    console.error('[Timetable API Error]', err);
+    if (!res.headersSent) res.status(500).json({ error: 'An unexpected server error occurred.' });
+  }
+
+  // Schedule rows may carry 'Semester 4', '4' or 'IV'; exam_schedules.semester is an
+  // integer, so a Roman-numeral row must not silently publish as semester 1.
+  const ROMAN_SEMESTERS = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10, XI: 11, XII: 12 };
+  function semesterNumber(val) {
+    const text = String(val ?? '');
+    const digits = text.replace(/\D/g, '');
+    if (digits) return digits;
+    const roman = ROMAN_SEMESTERS[text.toUpperCase().replace(/[^IVX]/g, '')];
+    return roman ? String(roman) : '1';
+  }
+
   // Helper to ensure default session exists
   async function ensureDefaultSession() {
     const existing = (await executeSql('SELECT TOP 1 * FROM dbo.timetable_sessions WHERE is_active = 1')).data;
@@ -71,7 +87,12 @@ export function registerTimetable(app, executeSql, requireSession) {
   app.get('/api/timetable/state', requireSession, async (req, res) => {
     try {
       const activeSession = await ensureDefaultSession();
-      const sessionId = req.query.session_id || activeSession.id;
+      // A session id is chosen by super admins from the session picker; letting a
+      // coordinator address any session would expose another programme's student
+      // records (PRNs, names, emails) held in that session.
+      const sessionId = req.user.role === 'COORDINATOR'
+        ? activeSession.id
+        : (req.query.session_id || activeSession.id);
 
       const [sessionsRes, slotsRes, electivesRes, recordsCountRes, scheduleRes, overridesRes, programsRes] =
         await Promise.all([
@@ -101,9 +122,12 @@ export function registerTimetable(app, executeSql, requireSession) {
         alternate_coordinator_id: p.alternate_coordinator_id,
       }));
 
-      // If active session streams_json is empty, dynamically derive streams from database programs
-      if (!activeSession.streams_json && programs.length > 0) {
-        const uniqueSchools = Array.from(new Set(programs.map((p) => p.school_name))).filter(Boolean);
+      // If active session streams_json is empty, dynamically derive streams from database programs.
+      // Derived from the full programme list (stream layout is shared schedule configuration, not
+      // per-user data) and only persisted for super admins, so a coordinator viewing the page
+      // cannot overwrite the institution-wide stream split with their scoped subset.
+      if (!activeSession.streams_json && allPrograms.length > 0) {
+        const uniqueSchools = Array.from(new Set(allPrograms.map((p) => p.school_name))).filter(Boolean);
         const stream1Schools = [];
         const stream2Schools = [];
         for (const s of uniqueSchools) {
@@ -143,11 +167,13 @@ export function registerTimetable(app, executeSql, requireSession) {
         ];
         activeSession.streams_json = JSON.stringify(dynamicStreams);
         // Persist to database
-        await executeSql(
-          'UPDATE dbo.timetable_sessions SET streams_json = @streams WHERE id = @id',
-          { streams: activeSession.streams_json, id: activeSession.id },
-          'execute'
-        );
+        if (req.user.role !== 'COORDINATOR') {
+          await executeSql(
+            'UPDATE dbo.timetable_sessions SET streams_json = @streams WHERE id = @id',
+            { streams: activeSession.streams_json, id: activeSession.id },
+            'execute'
+          );
+        }
       }
 
       // Format electives course_codes from JSON
@@ -156,6 +182,16 @@ export function registerTimetable(app, executeSql, requireSession) {
         name: e.group_name,
         courseCodes: JSON.parse(e.course_codes || '[]'),
         isFuzzy: Boolean(e.is_fuzzy),
+      }));
+
+      // Convert slot rows to frontend camelCase (SlotMaster contract used by
+      // POST /api/timetable/slots and getSlotInfo in the engine)
+      const slots = (slotsRes.data || []).map((s) => ({
+        id: s.id,
+        semester: String(s.semester),
+        slotName: s.slot_name,
+        slotTime: s.slot_time,
+        oddEven: s.odd_even,
       }));
 
       // Format manual overrides map
@@ -209,16 +245,24 @@ export function registerTimetable(app, executeSql, requireSession) {
         internalExternal: r.internal_external,
         applicationStatus: r.application_status,
         isApplied: Boolean(r.is_applied),
+        studentCount: r.student_count > 0 ? r.student_count : 1,
       }));
+
+      // A timetable session covers the whole university, so a coordinator must not
+      // receive another programme's rows (AGENTS.md scoped visibility).
+      const isCoordinator = req.user.role === 'COORDINATOR';
+      const visibleProgramNames = new Set(scopedPrograms.map((p) => p.program_name));
+      const visibleRecords = isCoordinator ? records.filter((r) => visibleProgramNames.has(r.program)) : records;
+      const visibleSchedule = isCoordinator ? schedule.filter((s) => visibleProgramNames.has(s.programName)) : schedule;
 
       res.json({
         sessions: sessionsRes.data || [],
         activeSession,
-        slots: slotsRes.data || [],
+        slots,
         electives,
-        recordsCount: recordsCountRes.data?.[0]?.total || 0,
-        records,
-        schedule,
+        recordsCount: isCoordinator ? visibleRecords.length : (recordsCountRes.data?.[0]?.total || 0),
+        records: visibleRecords,
+        schedule: visibleSchedule,
         manualOverrides: overridesMap,
         programs,
       });
@@ -387,9 +431,9 @@ export function registerTimetable(app, executeSql, requireSession) {
         for (const r of chunk) {
           await executeSql(
             `INSERT INTO dbo.timetable_student_records 
-              (id, session_id, centre, program, specialization, semester, prn, student_name, official_email, course_code, course_title, course_type, internal_external, application_status, is_applied)
+              (id, session_id, centre, program, specialization, semester, prn, student_name, official_email, course_code, course_title, course_type, internal_external, application_status, is_applied, student_count)
              VALUES 
-              (@id, @sessionId, @centre, @program, @spec, @sem, @prn, @name, @email, @code, @title, @ctype, @ie, @status, @applied)`,
+              (@id, @sessionId, @centre, @program, @spec, @sem, @prn, @name, @email, @code, @title, @ctype, @ie, @status, @applied, @count)`,
             {
               id: r.id || randomUUID(),
               sessionId,
@@ -406,6 +450,7 @@ export function registerTimetable(app, executeSql, requireSession) {
               ie: r.internalExternal || 'EXTERNAL',
               status: r.applicationStatus || 'APPLIED',
               applied: r.isApplied !== false ? 1 : 0,
+              count: r.studentCount > 0 ? r.studentCount : 1,
             },
             'execute'
           );
@@ -451,13 +496,13 @@ export function registerTimetable(app, executeSql, requireSession) {
           {
             id: randomUUID(),
             sessionId,
-            school: s.schoolName,
-            prog: s.programName,
+            school: s.schoolName || null,
+            prog: s.programName || null,
             spec: s.specialization || null,
-            sem: String(s.semester),
+            sem: String(s.semester || '1'),
             oe: s.oddEven || 'Odd',
-            slot: s.slotName,
-            time: s.slotTime,
+            slot: s.slotName || s.slot || null,
+            time: s.slotTime || s.time || null,
             code: s.courseCode,
             name: s.courseName,
             date: s.date,
@@ -481,10 +526,10 @@ export function registerTimetable(app, executeSql, requireSession) {
               id: randomUUID(),
               sessionId,
               key,
-              date: ov.date,
-              day: ov.day,
-              slot: ov.slotName,
-              time: ov.slotTime,
+              date: ov.date || null,
+              day: ov.day || null,
+              slot: ov.slotName || ov.slot || null,
+              time: ov.slotTime || ov.time || null,
             },
             'execute'
           );
@@ -513,6 +558,7 @@ export function registerTimetable(app, executeSql, requireSession) {
 
       let publishedCount = 0;
       let tasksCreated = 0;
+      let skippedNoDate = 0;
 
       for (let i = 0; i < scheduleRows.length; i++) {
         const row = scheduleRows[i];
@@ -530,8 +576,15 @@ export function registerTimetable(app, executeSql, requireSession) {
         // exam_schedules.program_code foreign key.
         if (!prog) continue;
 
+        // Rows still carrying a 'Day N' / 'Unassigned' placeholder have no calendar
+        // date; writing them would corrupt exam_date and fail on task due_date.
+        if (!/^\d{1,2}-[A-Za-z]{3}-\d{4}$/.test(String(row.date || ''))) {
+          skippedNoDate++;
+          continue;
+        }
+
         const programCode = prog.program_code;
-        const semDigits = row.semester.replace(/\D/g, '') || '1';
+        const semDigits = semesterNumber(row.semester);
         const isPM = (row.slotTime || '').toLowerCase().includes('pm');
         const period = isPM ? 'PM' : 'AM';
         const examType = row.notAppliedStudents > 0 && row.appliedStudents > 0 ? 'Both' : (row.notAppliedStudents > 0 ? 'Backlog' : 'Regular');
@@ -552,11 +605,11 @@ export function registerTimetable(app, executeSql, requireSession) {
             {
               id: scheduleId,
               date: row.date,
-              time: row.slotTime,
+              time: row.slotTime || row.time || match.exam_time || '',
               amPm: period,
-              tot: row.totalStudents,
-              reg: row.appliedStudents,
-              back: row.notAppliedStudents,
+              tot: row.totalStudents || 0,
+              reg: row.appliedStudents || 0,
+              back: row.notAppliedStudents || 0,
               type: examType,
               dayNum: i + 1,
             },
@@ -587,12 +640,20 @@ export function registerTimetable(app, executeSql, requireSession) {
               date: row.date,
               dateOE: `${row.date}_${row.oddEven}`,
               amPm: period,
-              time: row.slotTime,
+              time: row.slotTime || '',
               type: examType,
               year: '2026',
             },
             'execute'
           );
+          // Register the row just written so a second schedule row for the same
+          // programme/paper updates it instead of inserting a duplicate.
+          currentSchedules.push({
+            id: scheduleId,
+            program_code: programCode,
+            paper_code: row.courseCode,
+            exam_time: row.slotTime || '',
+          });
         }
 
         publishedCount++;
@@ -629,6 +690,7 @@ export function registerTimetable(app, executeSql, requireSession) {
                 'execute'
               );
               tasksCreated++;
+              currentTasks.push({ schedule_id: scheduleId, task_title: `${title} (${row.courseCode})` });
             }
           }
         }
@@ -640,7 +702,7 @@ export function registerTimetable(app, executeSql, requireSession) {
          VALUES ('TIMETABLE_PUBLISHED', @actor, @detail)`,
         {
           actor: req.user.email || req.user.id,
-          detail: JSON.stringify({ publishedCount, tasksCreated, timestamp: new Date().toISOString() }),
+          detail: JSON.stringify({ publishedCount, tasksCreated, skippedNoDate, timestamp: new Date().toISOString() }),
         },
         'execute'
       );
@@ -649,11 +711,111 @@ export function registerTimetable(app, executeSql, requireSession) {
         success: true,
         publishedCount,
         tasksCreated,
-        message: `Successfully synchronized ${publishedCount} timetable courses to Exam Schedules and generated ${tasksCreated} operational tasks!`,
+        skippedNoDate,
+        message: `Successfully synchronized ${publishedCount} timetable courses to Exam Schedules and generated ${tasksCreated} operational tasks!${skippedNoDate ? ` ${skippedNoDate} course(s) were skipped for having no calendar exam date.` : ''}`,
       });
     } catch (err) {
       console.error('[Publish to Schedules Error]:', err);
       res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Sync a manual timetable date/time override to the already-published
+  // exam_schedules row and shift due_date on its pending exam_tasks.
+  app.post('/api/timetable/sync-schedule-date', requireSession, admin, async (req, res) => {
+    try {
+      const { row } = req.body;
+      if (!row || !row.date || !row.courseCode) {
+        return res.status(400).json({ error: 'row with date and courseCode is required' });
+      }
+
+      const programs = (await executeSql('SELECT * FROM dbo.programs')).data || [];
+      const prog = programs.find(
+        (p) =>
+          (row.programName &&
+            (p.program_name.toLowerCase() === row.programName.toLowerCase() ||
+              p.program_code.toLowerCase() === row.programName.toLowerCase())) ||
+          (row.schoolName && p.school_name.toLowerCase() === row.schoolName.toLowerCase())
+      );
+
+      if (!prog) {
+        return res.json({ success: true, synced: false, reason: 'PROGRAM_NOT_FOUND', tasksUpdated: 0 });
+      }
+
+      const match =
+        (
+          await executeSql(
+            'SELECT TOP 1 * FROM dbo.exam_schedules WHERE program_code = @progCode AND paper_code = @paper',
+            { progCode: prog.program_code, paper: row.courseCode }
+          )
+        ).data?.[0];
+
+      if (!match) {
+        return res.json({ success: true, synced: false, reason: 'SCHEDULE_NOT_FOUND', tasksUpdated: 0 });
+      }
+
+      const isPM = (row.slotTime || '').toLowerCase().includes('pm');
+      const period = isPM ? 'PM' : 'AM';
+
+      await executeSql(
+        `UPDATE dbo.exam_schedules
+         SET exam_date = @date, exam_time = @time, am_pm = @amPm, date_odd_even = @dateOE
+         WHERE id = @id`,
+        {
+          id: match.id,
+          date: row.date,
+          time: row.slotTime || row.time || match.exam_time || '',
+          amPm: period,
+          dateOE: `${row.date}_${row.oddEven || ''}`.replace(/_$/, ''),
+        },
+        'execute'
+      );
+
+      const pending =
+        (
+          await executeSql(
+            `SELECT COUNT(*) AS n FROM dbo.exam_tasks
+             WHERE schedule_id = @sid AND status <> 'COMPLETED'`,
+            { sid: match.id }
+          )
+        ).data?.[0]?.n || 0;
+
+      if (pending > 0) {
+        await executeSql(
+          `UPDATE dbo.exam_tasks
+           SET due_date = @due, updated_at = SYSUTCDATETIME()
+           WHERE schedule_id = @sid AND status <> 'COMPLETED'`,
+          { due: row.date, sid: match.id },
+          'execute'
+        );
+      }
+
+      await executeSql(
+        `INSERT INTO dbo.exam_processing_audit (action, actor, detail)
+         VALUES ('TIMETABLE_DATE_SYNCED', @actor, @detail)`,
+        {
+          actor: req.user.email || req.user.id,
+          detail: JSON.stringify({
+            scheduleId: match.id,
+            programCode: prog.program_code,
+            paperCode: row.courseCode,
+            newDate: row.date,
+            tasksUpdated: pending,
+            timestamp: new Date().toISOString(),
+          }),
+        },
+        'execute'
+      );
+
+      res.json({
+        success: true,
+        synced: true,
+        scheduleId: match.id,
+        tasksUpdated: pending,
+        message: `Exam schedule for ${row.courseCode} moved to ${row.date}${pending > 0 ? ` and ${pending} pending task due date(s) updated.` : '.'}`,
+      });
+    } catch (err) {
+      serverError(res, err);
     }
   });
 }

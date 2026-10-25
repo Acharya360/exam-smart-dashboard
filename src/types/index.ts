@@ -546,6 +546,7 @@ export interface StudentRecord {
   internalExternal?: 'INTERNAL' | 'EXTERNAL' | 'BOTH';
   applicationStatus?: string;
   isApplied?: boolean;
+  studentCount?: number;
 }
 
 export interface SlotMaster {

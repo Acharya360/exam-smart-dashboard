@@ -156,7 +156,26 @@ function executeSql(sql, params = {}, type = 'query') {
       }
     });
 
-    const payload = JSON.stringify({ id, sql, params, type });
+    // Sanitize parameters: replace undefined with null so JSON.stringify doesn't drop them
+    const sanitizedParams = {};
+    if (params && typeof params === 'object') {
+      for (const [k, v] of Object.entries(params)) {
+        sanitizedParams[k] = v === undefined ? null : v;
+      }
+    }
+    // Also guarantee any scalar parameter @paramName referenced in the SQL statement
+    // exists in sanitizedParams with at least null, preventing SQL Server "Must declare scalar variable" errors
+    const paramMatches = sql.match(/@([a-zA-Z0-9_]+)/g);
+    if (paramMatches) {
+      for (const m of paramMatches) {
+        const paramName = m.slice(1);
+        if (sanitizedParams[paramName] === undefined) {
+          sanitizedParams[paramName] = null;
+        }
+      }
+    }
+
+    const payload = JSON.stringify({ id, sql, params: sanitizedParams, type });
     psProcess.stdin.write(payload + '\n');
   });
 }
@@ -245,16 +264,26 @@ app.use('/api', async (req,res,next) => {
       const task=(await executeSql('SELECT * FROM dbo.exam_tasks WHERE id=@id',{id:req.path.split('/').pop()})).data[0];
       if (!task || !codes.has(task.program_code)) return res.status(403).json({error:'Task is outside your assigned programmes.'});
     }
+    // req.path is only stripped by Express while this layer runs; once next() is
+    // called the router restores '/api/...' before an async handler resolves, so
+    // the response filter must close over the value captured here.
+    const scopePath = req.path;
     const json = res.json.bind(res);
-    res.json = data => json(Array.isArray(data) ? data.filter(r => req.path === '/profiles' || (r.program_code ? codes.has(r.program_code) : names.has(r.cm_course_name))) : data);
+    res.json = data => json(Array.isArray(data) ? data.filter(r => scopePath === '/profiles' || (r.program_code ? codes.has(r.program_code) : names.has(r.cm_course_name))) : data);
     next();
   } catch { res.status(503).json({error:'Unable to verify programme access.'}); }
 });
 const examination = registerExamination(app, executeSql, requireSession);
 const timetable = registerTimetable(app, executeSql, requireSession);
-app.get('/api/examination/template',(req,res)=>{
-  if(req.user.role==='COORDINATOR')return res.status(403).json({error:'Super Admin access required.'});
-  res.download(path.join(__dirname,'docs','Sample Templete.xlsx'),'Examination_Marks_Template.xlsx');
+app.get('/api/examination/template', (req, res) => {
+  if (req.user.role === 'COORDINATOR') return res.status(403).json({ error: 'Super Admin access required.' });
+  const filePath = path.join(__dirname, 'docs', 'Sample Templete.xlsx');
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Examination Marks Template file not found.' });
+  }
+  res.download(filePath, 'Examination_Marks_Template.xlsx', (err) => {
+    if (err && !res.headersSent) res.status(500).json({ error: 'Failed to download template.' });
+  });
 });
 
 // 3. Change Password
@@ -760,7 +789,12 @@ app.patch('/api/tasks/:id', async (req, res) => {
 // 8. Course Master
 app.get('/api/course-master/template', (req, res) => {
   const filePath = path.join(__dirname, 'docs', 'Course_Master_LTPS_Template.xlsx');
-  res.download(filePath, 'Course_Master_LTPS_Template.xlsx');
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Course Master Template file not found.' });
+  }
+  res.download(filePath, 'Course_Master_LTPS_Template.xlsx', (err) => {
+    if (err && !res.headersSent) res.status(500).json({ error: 'Failed to download template.' });
+  });
 });
 
 app.get('/api/course-master', async (req, res) => {
@@ -1145,7 +1179,12 @@ app.delete('/api/student-marks/:id', async (req, res) => {
 // 10. Faculty Course Allocations (Teaching Staff against Course Master)
 app.get('/api/faculty-allocations/template', (req, res) => {
   const filePath = path.join(__dirname, 'docs', 'Faculty_Allocation_Template.xlsx');
-  res.download(filePath, 'Faculty_Allocation_Template.xlsx');
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: 'Faculty Allocation Template file not found.' });
+  }
+  res.download(filePath, 'Faculty_Allocation_Template.xlsx', (err) => {
+    if (err && !res.headersSent) res.status(500).json({ error: 'Failed to download template.' });
+  });
 });
 
 app.get('/api/faculty-allocations', async (req, res) => {
@@ -1348,14 +1387,19 @@ app.get('/api/performance-reports/summary', async (req, res) => {
     const faculty = (await executeSql('SELECT * FROM dbo.faculty_course_allocations')).data || [];
     const marks = (await executeSql('SELECT * FROM dbo.student_marks')).data || [];
 
+    // The /api response filter only handles flat arrays, so scope this nested
+    // payload here: coordinators must not receive institution-wide analytics.
+    const scoped = req.allowedProgrammeNames ? new Set(req.allowedProgrammeNames) : null;
+    const inScope = (name) => !scoped || scoped.has(name);
+
     res.json({
       success: true,
       data: {
-        programs,
-        courses,
-        schedules,
-        faculty,
-        marksCount: marks.length
+        programs: programs.filter(p => inScope(p.program_name)),
+        courses: courses.filter(c => inScope(c.cm_course_name)),
+        schedules: schedules.filter(s => inScope(s.cm_course_name)),
+        faculty: faculty.filter(f => inScope(f.program_name)),
+        marksCount: marks.filter(m => inScope(m.cm_course_name)).length
       }
     });
   } catch (err) {

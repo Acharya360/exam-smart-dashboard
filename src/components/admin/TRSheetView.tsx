@@ -182,7 +182,7 @@ export const TRSheetView: React.FC<TRSheetViewProps> = ({
       else if (rows.some(r => r.status === 'TNG')) finalRemark = 'TNG';
       else if (rows.some(r => r.status === 'FAIL' || r.status === 'ABSENT')) finalRemark = 'FAIL';
 
-      const category = (first.grading_category || prog?.program_name.toLowerCase().includes('arch') ? 'Architecture' : 'Non-Architecture') as 'Architecture' | 'Non-Architecture';
+      const category = (first.grading_category || (prog?.program_name.toLowerCase().includes('arch') ? 'Architecture' : 'Non-Architecture')) as 'Architecture' | 'Non-Architecture';
 
       records.push({
         prn: first.prn,

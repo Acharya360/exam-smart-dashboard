@@ -28,6 +28,8 @@ import {
   Sparkles,
   BarChart3,
   UserCheck,
+  UploadCloud,
+  Table,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { VIEW_TO_PATH } from '../../utils/routes';
@@ -60,6 +62,7 @@ const groups: NavGroupDef[] = [
     name: 'Command Center',
     items: [
       { id: 'dashboard', label: 'Overview', icon: LayoutDashboard },
+      { id: 'upload', label: 'Master Data Ingestion (Excel)', icon: UploadCloud, superAdminOnly: true },
     ],
   },
   {
@@ -84,6 +87,7 @@ const groups: NavGroupDef[] = [
       { id: 'students', label: 'Students & Registrations', icon: Users },
       { id: 'assessment', label: 'Assessment & Grading', icon: SlidersHorizontal },
       { id: 'studentMarks', label: 'Student Marks Import', icon: FileSpreadsheet },
+      { id: 'marksMatrix', label: 'Component Marks Matrix', icon: Table },
     ],
   },
   {
@@ -118,6 +122,7 @@ const groups: NavGroupDef[] = [
     items: [
       { id: 'users', label: 'User Management', icon: UserCog, superAdminOnly: true },
       { id: 'passwords', label: 'Staff Passwords', icon: KeyRound, superAdminOnly: true },
+      { id: 'profile', label: 'My Profile & Exam Duties', icon: UserCheck },
       { id: 'schema', label: 'Database Reference', icon: Database },
     ],
   },
@@ -267,6 +272,7 @@ export function Sidebar({
 
   const handleItemClick = (id: string) => {
     if (id === 'passwords') onOpenPasswordModal();
+    else if (id === 'profile') onOpenProfileModal('profile');
     else if (gazetteRoutes[id]) window.location.href = gazetteRoutes[id];
     else onNavigate(id);
     if (autoHide) setCollapsed(true);

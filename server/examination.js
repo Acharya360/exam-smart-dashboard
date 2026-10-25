@@ -1,4 +1,5 @@
 import { calculateResult, validateScheme, HEADS } from '../src/services/resultEngine.ts';
+import { canonicalSemester } from '../src/utils/validation/normalizer.ts';
 
 // Examination DDL lives in migrations/NNN_*.sql and is applied by scripts/migrate.mjs with a verified backup.
 
@@ -58,6 +59,87 @@ export function registerExamination(app, executeSql, requireSession) {
   app.post('/api/examination/sync', admin, async (req,res) => {
     try { await sync(); await audit('SYNC', req.user.id, { source: 'student_marks', mode: 'Preserve marks; exact program/semester/subject matching' }); res.json(await load(req.user)); }
     catch { res.status(500).json({ error: 'Synchronization failed. Existing marks have been preserved.' }); }
+  });
+  app.post('/api/examination/students/bulk', admin, async (req,res) => {
+    try {
+      const students = req.body.students;
+      if (!Array.isArray(students) || !students.length || students.length > 5000) {
+        return res.status(400).json({ error: 'Upload between 1 and 5,000 student rows at a time.' });
+      }
+      const programs = (await executeSql('SELECT * FROM dbo.programs')).data;
+      const courses = (await executeSql('SELECT * FROM dbo.course_master')).data;
+      const existingRegs = (await executeSql('SELECT prn,cm_course_name,semester,paper_code,academic_year,exam_year FROM dbo.exam_registrations')).data;
+      const regKey = r => JSON.stringify([r.prn, r.cm_course_name, r.semester, r.paper_code, r.academic_year, r.exam_year]);
+      const seen = new Set(existingRegs.map(regKey));
+
+      // Validate every row against programs + course_master before writing anything
+      const plan = [];
+      const seenInUpload = new Set();
+      for (const [index, s] of students.entries()) {
+        const rowNo = index + 1;
+        const str = v => (v === null || v === undefined ? '' : String(v).trim());
+        const prn = str(s.prn), name = str(s.student_name), semester = str(s.semester);
+        const academicYear = str(s.academic_year), examYear = str(s.exam_year);
+        if (!prn) return res.status(400).json({ error: `Row ${rowNo}: PRN is required.` });
+        if (!name) return res.status(400).json({ error: `Row ${rowNo}: Student name is required.` });
+        if (!semester) return res.status(400).json({ error: `Row ${rowNo}: Semester is required.` });
+        if (!academicYear || !examYear) return res.status(400).json({ error: `Row ${rowNo}: Academic year and exam session are required.` });
+        const program = programs.find(p => p.program_code.toUpperCase() === str(s.program_code).toUpperCase());
+        if (!program) return res.status(400).json({ error: `Row ${rowNo}: Program code "${str(s.program_code)}" does not exist in the programme registry.` });
+        let papers = s.paper_codes;
+        if (typeof papers === 'string') papers = papers.split(/[,;]/);
+        if (!Array.isArray(papers) || !papers.length) return res.status(400).json({ error: `Row ${rowNo}: At least one mapped paper code is required.` });
+        const registrations = [];
+        const sameProg = c => (c.program_code || '').toUpperCase() === program.program_code.toUpperCase();
+        const normCode = v => String(v).toUpperCase().replace(/\s+/g, '');
+        for (const raw of papers) {
+          const paper = str(raw).toUpperCase();
+          if (!paper) continue;
+          let matches = courses.filter(c => sameProg(c) && (c.paper_code || '').toUpperCase() === paper);
+          // Course Master codes are inconsistently spaced ("BW101" vs "BW 108"); fall back to space-insensitive match.
+          if (!matches.length) matches = courses.filter(c => sameProg(c) && normCode(c.paper_code || '') === normCode(paper));
+          if (!matches.length) return res.status(400).json({ error: `Row ${rowNo}: Paper code "${paper}" is not mapped to ${program.program_name} in Course Master.` });
+          // Semester text arrives as "3", "Sem 3" or "III" while Course Master stores an
+          // integer; compare canonically so a paper offered in several semesters cannot be
+          // silently linked to the wrong one (which would apply the wrong scheme).
+          const wantSem = canonicalSemester(semester);
+          const course = matches.find(c => canonicalSemester(c.semester) === wantSem)
+            || (matches.length === 1 ? matches[0] : null);
+          if (!course) return res.status(400).json({ error: `Row ${rowNo}: Paper "${paper}" has no semester-${wantSem} course in Course Master for ${program.program_name} (mapped semesters: ${matches.map(m => m.semester).join(', ')}).` });
+          const cmName = course.cm_course_name || program.program_name;
+          const key = regKey({ prn, cm_course_name: cmName, semester, paper_code: course.paper_code, academic_year: academicYear, exam_year: examYear });
+          if (seenInUpload.has(key)) return res.status(400).json({ error: `Row ${rowNo}: Duplicate registration for ${prn} / ${course.paper_code} within the uploaded file.` });
+          seenInUpload.add(key);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          registrations.push({ cmName, paper: course.paper_code, courseId: course.id, programId: program.id });
+        }
+        plan.push({ prn, name, semester, academicYear, examYear, registrations });
+      }
+
+      let studentsImported = 0, registrationsCreated = 0;
+      for (const p of plan) {
+        const params = { prn: p.prn, name: p.name, sem: p.semester, ay: p.academicYear, ey: p.examYear };
+        let sql = `IF EXISTS(SELECT 1 FROM dbo.exam_students WHERE prn=@prn)
+          UPDATE dbo.exam_students SET student_name=@name, updated_at=SYSUTCDATETIME() WHERE prn=@prn;
+        ELSE INSERT INTO dbo.exam_students(prn,student_name) VALUES(@prn,@name);`;
+        p.registrations.forEach((r, i) => {
+          params[`cm${i}`] = r.cmName; params[`paper${i}`] = r.paper; params[`cid${i}`] = r.courseId; params[`pid${i}`] = r.programId;
+          sql += `
+        INSERT INTO dbo.exam_registrations(prn,student_name,cm_course_name,semester,paper_code,academic_year,exam_year,course_id,program_id)
+        VALUES(@prn,@name,@cm${i},@sem,@paper${i},@ay,@ey,@cid${i},@pid${i});`;
+        });
+        await executeSql(sql, params, 'execute');
+        studentsImported++;
+        registrationsCreated += p.registrations.length;
+      }
+
+      await audit('STUDENTS_IMPORT', req.user.id, { studentsImported, registrationsCreated, duplicatesSkipped: seenInUpload.size - registrationsCreated });
+      res.json({ success: true, studentsImported, registrationsCreated, duplicatesSkipped: seenInUpload.size - registrationsCreated });
+    } catch (err) {
+      console.error('[Students Import Error]:', err);
+      res.status(500).json({ error: 'Student master import failed. No records were changed.' });
+    }
   });
   app.put('/api/examination/courses/:id', admin, async (req,res) => {
     try {

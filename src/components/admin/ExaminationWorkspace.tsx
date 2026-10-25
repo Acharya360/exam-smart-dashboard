@@ -1,7 +1,7 @@
 import { RegistrationReview } from './RegistrationReview';
 import { AssessmentSimulator } from './AssessmentSimulator';
-import { useEffect, useMemo, useState } from 'react';
-import { RefreshCw, Download, GraduationCap, Save, AlertTriangle } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { RefreshCw, Download, GraduationCap, Save, AlertTriangle, Upload, FileSpreadsheet } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { useAuth } from '../../context/AuthContext';
 import { localRequest } from '../../services/localDb';
@@ -15,13 +15,34 @@ function draftScheme(c: ExaminationCourse): AssessmentScheme {
   return c.scheme ?? { category: 'Non-Architecture', internalPass: 40, overallPass: 40, integerMarks: true, approved: false, approvalReference: '', credits: c.total_credits,
     heads: { theory: {active:true,ca:[0,0,0],ese:c.est_max_marks,pass:40}, practical:{active:c.cap_max_marks>0,ca:[0,0,0],ese:c.esp_max_marks,pass:40}, skills:{active:false,ca:[0,0,0],ese:0,pass:40} } };
 }
-export function ExaminationWorkspace({ view }: {view: 'students' | 'assessment' | 'results' | 'sgpa'}) {
+type StudentImportRow = { prn: string; student_name: string; program_code: string; semester: string; academic_year: string; exam_year: string; paper_codes: string };
+function mapStudentRow(raw: Record<string, unknown>): StudentImportRow {
+  const norm = (s: string) => s.trim().toLowerCase().replace(/[\s_-]/g, '');
+  const get = (...names: string[]) => {
+    for (const n of names) {
+      const key = Object.keys(raw).find(k => norm(k) === n);
+      if (key !== undefined) { const v = raw[key]; if (v !== null && v !== undefined && String(v).trim() !== '') return String(v).trim(); }
+    }
+    return '';
+  };
+  return {
+    prn: get('prn', 'studentid', 'studentprn', 'enrollmentno'),
+    student_name: get('studentname', 'name', 'fullname'),
+    program_code: get('programcode', 'programmecode', 'program', 'coursecode'),
+    semester: get('semester', 'sem'),
+    academic_year: get('academicyear', 'ay'),
+    exam_year: get('examyear', 'examsession', 'session', 'examinationyear'),
+    paper_codes: get('papercodes', 'papercode', 'subjectcodes', 'subjectcode', 'mappedpapers', 'mappedsubjects', 'papers', 'subjects')
+  };
+}
+export function ExaminationWorkspace({ view }: {view: 'students' | 'assessment' | 'results' | 'sgpa' | 'marksMatrix'}) {
   const { isSuperAdmin } = useAuth();
   const [data,setData]=useState<ExaminationData>(empty);
   const [busy,setBusy]=useState(false), [error,setError]=useState(''), [notice,setNotice]=useState('');
   const [search,setSearch]=useState(''), [program,setProgram]=useState(''), [semester,setSemester]=useState(''), [year,setYear]=useState(''), [session,setSession]=useState(''), [status,setStatus]=useState('');
   const [page,setPage]=useState(0), [pageSize,setPageSize]=useState<number | 'all'>(50), [selected,setSelected]=useState(''), [scheme,setScheme]=useState<AssessmentScheme|null>(null), [mapping,setMapping]=useState('');
   const [detail,setDetail]=useState<RegistrationResult|null>(null);
+  const fileInput=useRef<HTMLInputElement>(null);
   async function run(path='',method='GET',body?:unknown) {
     setBusy(true);setError('');setNotice('');
     try {setData(await localRequest<ExaminationData>(`/examination${path}`,method,body));if(method!=='GET')setNotice(path==='/sync'?'Student registrations synchronized. Existing marks preserved.':'Changes saved to the local database.');}
@@ -41,15 +62,31 @@ export function ExaminationWorkspace({ view }: {view: 'students' | 'assessment' 
     return [...groups.values()].map(rows=>({...rows[0],courses:rows.length,credits:rows.reduce((s,r)=>s+r.credits,0),earned:rows.reduce((s,r)=>s+r.earnedCredits,0),points:rows.reduce((s,r)=>s+r.creditPoints,0),sgpa:calculateSGPA(rows)}));
   },[data,program,semester,year,session,search]);
   function choose(id:string){setSelected(id);const c=data.courses.find(c=>c.id===id);setScheme(c?structuredClone(draftScheme(c)):null);setMapping(c?.program_id||'');}
+  function downloadStudentTemplate(){
+    const sample=[{PRN:'PRN12345678','Student Name':'Sample Student','Program Code':'B.SC. NSD',Semester:'1','Academic Year':'2026-27','Exam Year':'MAY2027','Paper Codes':'BW101, BW 107'}];
+    const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(sample),'Students');XLSX.writeFile(wb,'student_master_template.xlsx');
+  }
+  async function uploadStudents(file:File){
+    setBusy(true);setError('');setNotice('');
+    try {
+      const wb=XLSX.read(await file.arrayBuffer());
+      const sheet=wb.Sheets[wb.SheetNames[0]];
+      const rows=(XLSX.utils.sheet_to_json(sheet,{defval:''}) as Record<string,unknown>[]).map(mapStudentRow);
+      if(!rows.length)throw new Error('No data rows found in the first sheet of the file.');
+      const result=await localRequest<{studentsImported:number;registrationsCreated:number;duplicatesSkipped:number}>('/examination/students/bulk','POST',{students:rows});
+      setData(await localRequest<ExaminationData>('/examination'));
+      setNotice(`Student master imported: ${result.studentsImported} student(s), ${result.registrationsCreated} new registration(s)${result.duplicatesSkipped?`, ${result.duplicatesSkipped} existing registration(s) skipped`:''}.`);
+    } catch(e){setError(e instanceof Error?e.message:'Student master import failed.');} finally{setBusy(false);}
+  }
   function exportRows(){const rows=view==='sgpa'?semesterRows.map(r=>({PRN:r.prn,Student:r.student_name,Programme:r.cm_course_name,Semester:r.semester,Academic_Year:r.academic_year,Session:r.exam_year,Credits:r.credits,Credit_Points:r.points,SGPA:r.sgpa===null?'WITHHELD':Number(r.sgpa.toFixed(2))})):filtered.map(r=>({PRN:r.prn,Student:r.student_name,Programme:r.cm_course_name,Semester:r.semester,Academic_Year:r.academic_year,Session:r.exam_year,PaperCode:r.paper_code,Internal:r.internalStatus,Total:r.total,Maximum:r.maximum,Percentage:r.percentage,Status:r.status,Grade:r.grade,Grade_Point:r.gradePoint,Credits:r.credits,Credit_Points:r.creditPoints,Issues:r.reasons.join(' ')}));const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),'Preview');XLSX.writeFile(wb,`Examination_${view}_preview.xlsx`);}
-  const titles={students:'Students & subject registrations',assessment:'Assessment schemes & programme links',results:'Eligibility & course results',sgpa:'Semester grade point average'};
+  const titles={students:'Students & subject registrations',assessment:'Assessment schemes & programme links',results:'Eligibility & course results',sgpa:'Semester grade point average',marksMatrix:'Component Marks Matrix (CAT / CAP / CAS / ESE)'};
   const list=view==='sgpa'?semesterRows:filtered;
   return <section className="space-y-5">
     <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-semibold uppercase tracking-wider text-indigo-600">Examination registry</p><h1 className="mt-1 text-2xl font-bold">{titles[view]}</h1><p className="mt-1 text-sm text-slate-500">Local database records · Exact programme, semester and subject relationships</p></div><button className={button} onClick={()=>void run()} disabled={busy}><RefreshCw size={16}/>Refresh</button></div>
     {error&&<div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-700">{error}</div>}
     {notice&&<div role="status" className="rounded-xl bg-emerald-50 p-4 text-emerald-800">{notice}</div>}
     {busy&&<p role="status" className="text-sm text-indigo-700">Loading examination records…</p>}
-    {view!=='assessment'&&<div className="grid grid-cols-2 gap-4 xl:grid-cols-4">{[['Students',new Set(data.registrations.map(r=>r.prn)).size],['Registrations',data.registrations.length],['Unlinked records',data.registrations.filter(r=>!r.course_id||!r.program_id).length],['Needs review',data.registrations.filter(r=>r.status==='WITHHELD').length]].map(([label,n])=><div key={label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-xs text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold">{n}</p></div>)}</div>}
+    {view!=='assessment'&&view!=='marksMatrix'&&<div className="grid grid-cols-2 gap-4 xl:grid-cols-4">{[['Students',new Set(data.registrations.map(r=>r.prn)).size],['Registrations',data.registrations.length],['Unlinked records',data.registrations.filter(r=>!r.course_id||!r.program_id).length],['Needs review',data.registrations.filter(r=>r.status==='WITHHELD').length]].map(([label,n])=><div key={label} className="rounded-2xl border border-slate-200 bg-white p-5"><p className="text-xs text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold">{n}</p></div>)}</div>}
     {view==='assessment'?<div className="rounded-2xl border border-slate-200 bg-white p-5 space-y-5">
       <label className="block text-sm font-semibold">Subject<select aria-label="Subject" className={`${input} mt-2`} value={selected} onChange={e=>choose(e.target.value)}><option value="">Select a database subject</option>{data.courses.map(c=><option key={c.id} value={c.id}>{c.paper_code} · {c.sm_subject_name} · {c.semester}</option>)}</select></label>
       <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900">CA maxima must be entered from the approved assessment scheme. Legacy aggregate maxima do not define a CA1/CA2/CA3 split. Architecture grade E uses 45–49.999… provisionally; approval must explicitly confirm it.</p>
@@ -68,7 +105,17 @@ export function ExaminationWorkspace({ view }: {view: 'students' | 'assessment' 
         <label className="flex gap-2 text-sm"><input type="checkbox" checked={scheme.approved} onChange={e=>setScheme({...scheme,approved:e.target.checked})}/>I confirm this scheme and grading boundaries are approved. TNG/incomplete results withhold SGPA; failed/absent courses count with zero points; zero-credit courses do not affect SGPA.</label>
         {isSuperAdmin&&<button className={button} type="submit"><Save size={16}/>Save scheme & mapping</button>}
       </fieldset></form>}
-    </div>:view==='students'?<><div className="flex gap-3">{isSuperAdmin&&<button disabled={busy} className={button} onClick={()=>{if(window.confirm('Synchronize registrations from imported marks using exact programme, semester and paper matches? Existing marks are preserved.'))void run('/sync','POST');}}>Synchronize registrations</button>}</div><RegistrationReview data={data}/></>:<>
+    </div>:view==='marksMatrix'?<RegistrationReview data={data} mode="marks"/>:view==='students'?<><div className="space-y-3">
+      <div className="flex flex-wrap gap-3">
+        {isSuperAdmin&&<>
+          <button disabled={busy} className={button} onClick={()=>fileInput.current?.click()}><Upload size={16}/>Upload student master</button>
+          <button className={`${button} bg-slate-100 text-slate-700 hover:bg-slate-200`} onClick={downloadStudentTemplate}><FileSpreadsheet size={16}/>Download template</button>
+          <input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" className="hidden" aria-label="Student master file" onChange={e=>{const f=e.target.files?.[0];if(f)void uploadStudents(f);e.target.value='';}}/>
+          <button disabled={busy} className={button} onClick={()=>{if(window.confirm('Synchronize registrations from imported marks using exact programme, semester and paper matches? Existing marks are preserved.'))void run('/sync','POST');}}>Synchronize registrations</button>
+        </>}
+      </div>
+      {isSuperAdmin&&<p className="text-xs text-slate-500">Excel columns: PRN, Student Name, Program Code, Semester, Academic Year, Exam Year, Paper Codes (comma separated). Every row is validated against the programme registry and Course Master before anything is written; existing registrations are skipped.</p>}
+    </div><RegistrationReview data={data}/></>:<>
       <div className="flex flex-wrap gap-3">{isSuperAdmin&&<button disabled={busy} className={button} onClick={()=>void run('/process','POST')}><RefreshCw size={16}/>Recalculate preview</button>}<button disabled={busy||!list.length} className={button} onClick={exportRows}><Download size={16}/>Export preview</button></div>
       <div className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 md:grid-cols-3 xl:grid-cols-6">
         <input aria-label="Search student or subject" className={input} placeholder="Search PRN, name, subject…" value={search} onChange={e=>setSearch(e.target.value)}/>

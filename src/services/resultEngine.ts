@@ -175,16 +175,19 @@ export function calculateResult(records: AssessmentRecord[], scheme: AssessmentS
     out.components.remark = 'Pending';
     return out;
   }
+  // Float noise (72.8/80*100 === 90.99999999999999) must not cost a student the band
+  // their displayed percentage already reaches, so compare on a rounded value.
+  const passMark = Math.round(out.percentage * 1e6) / 1e6;
   if (out.internalStatus === 'TNG') { out.status = 'TNG'; out.reasons.push('Combined internal marks below eligibility threshold. ESE entry is blocked.'); }
   else if (caMissing || eseMissing) { out.status = 'PENDING'; out.reasons.push('Required marks are incomplete.'); }
   else if (absent) { out.status = 'ABSENT'; out.grade = 'Ab'; }
-  else if (eseFailed || out.percentage < scheme.overallPass) { out.status = 'FAIL'; out.grade = 'F'; if (!eseFailed) out.reasons.push('Overall percentage below passing cutoff.'); }
+  else if (eseFailed || passMark < scheme.overallPass) { out.status = 'FAIL'; out.grade = 'F'; if (!eseFailed) out.reasons.push('Overall percentage below passing cutoff.'); }
   else {
     out.status = 'PASS';
     const bands: [number, string, number][] = scheme.category === 'Architecture'
       ? [[90, 'O', 10], [80, 'A', 9], [70, 'B', 8], [60, 'C', 7], [50, 'D', 6], [45, 'E', 5]]
       : [[91, 'O', 10], [81, 'A+', 9], [71, 'A', 8], [61, 'B+', 7], [51, 'B', 6], [41, 'C', 5], [40, 'P', 4]];
-    const band = bands.find(([min]) => out.percentage >= min);
+    const band = bands.find(([min]) => passMark >= min);
     out.grade = band?.[1] ?? 'F'; out.gradePoint = band?.[2] ?? 0;
     out.creditPoints = scheme.credits * out.gradePoint; out.earnedCredits = scheme.credits;
   }

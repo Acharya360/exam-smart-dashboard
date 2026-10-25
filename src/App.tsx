@@ -25,6 +25,7 @@ const TRSheetView = lazy(() => import('./components/admin/TRSheetView').then(m =
 const TimetableGenerator = lazy(() => import('./components/timetable/TimetableGenerator').then(m => ({ default: m.TimetableGenerator })));
 const FacultyCourseAllocation = lazy(() => import('./components/faculty/FacultyCourseAllocation').then(m => ({ default: m.FacultyCourseAllocation })));
 const ExamPerformanceDashboard = lazy(() => import('./components/reports/ExamPerformanceDashboard').then(m => ({ default: m.ExamPerformanceDashboard })));
+const ExcelUploader = lazy(() => import('./components/upload/ExcelUploader').then(m => ({ default: m.ExcelUploader })));
 
 // The Sidebar hides Super-Admin-only links, but the active view is driven by the
 // URL hash, so a coordinator could otherwise navigate directly (e.g. #users).
@@ -369,6 +370,21 @@ function MainApp() {
             />
           )}
 
+          {/* VIEW: EXCEL DATA INGESTION (MASTER TIMETABLE & PROGRAM MAPPING) */}
+          {currentView === 'upload' && (
+            isSuperAdmin ? (
+              <Suspense fallback={<div className="flex items-center justify-center h-64 text-violet-600 font-medium">Loading Excel data ingestion hub…</div>}>
+                <ExcelUploader
+                  onCommitSchedules={handleCommitSchedules}
+                  onCommitPrograms={handleAddPrograms}
+                  onNavigate={handleNavigate}
+                />
+              </Suspense>
+            ) : (
+              <AccessDenied />
+            )
+          )}
+
           {currentView === 'tasks' && focusedTaskIds !== null && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 text-sm">
               <span>Command center selection · {focusedTaskIds.length} tasks</span>
@@ -484,7 +500,7 @@ function MainApp() {
               />
             </Suspense>
           )}
-          {(currentView === 'students' || currentView === 'assessment' || currentView === 'results' || currentView === 'sgpa') && (
+          {(currentView === 'students' || currentView === 'assessment' || currentView === 'results' || currentView === 'sgpa' || currentView === 'marksMatrix') && (
             <Suspense fallback={<div className="flex items-center justify-center h-64 text-violet-600">Loading examination workspace…</div>}>
               <ExaminationWorkspace view={currentView} />
             </Suspense>
