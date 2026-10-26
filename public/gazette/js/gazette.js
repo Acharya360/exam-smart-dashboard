@@ -26,20 +26,51 @@
     return s;
   }
 
-  /* ---------------- Credit Formatter (Theory + Practical Breakdown) ---------------- */
-  function formatSubjectCredits(sub, isElective = false) {
-    if (isElective) {
-      // University Tabulation Register standard: Elective group is 4 Credits (Theory 2 + Practical 2)
-      if (sub && (sub.crTh || sub.crPr)) {
-        const th = Number(sub.crTh) || 0;
-        const pr = Number(sub.crPr) || 0;
-        const tot = th + pr;
-        if (tot === 4) return 'CR : 2+2=4';
-        if (tot > 1) return `CR : ${th}+${pr}=${tot}`;
-      }
-      return 'CR : 2+2=4';
+  /* ---------------- Subject Maximum & Passing Marks Resolvers ---------------- */
+  function computeSubjectMaxMarks(sub) {
+    if (!sub) return 100;
+    const caThMax = Number(sub.caThMax) || 0;
+    const caPrMax = Number(sub.caPrMax) || 0;
+    const eseThMax = Number(sub.eseThMax) || 0;
+    const esePrMax = Number(sub.esePrMax) || 0;
+    const iaMax = Number(sub.iaMax) || 0;
+    const sumComponentMax = caThMax + caPrMax + eseThMax + esePrMax + iaMax;
+
+    if (sumComponentMax > 0) {
+      return sumComponentMax;
     }
 
+    const rawMax = Number(sub.maxMk);
+    if (!isNaN(rawMax) && rawMax > 0) {
+      return rawMax;
+    }
+
+    return 100;
+  }
+
+  function computeSubjectPassMarks(sub, maxMk) {
+    if (!sub) return 40;
+    const caThMin = Number(sub.caThMin) || 0;
+    const caPrMin = Number(sub.caPrMin) || 0;
+    const eseThMin = Number(sub.eseThMin) || 0;
+    const esePrMin = Number(sub.esePrMin) || 0;
+    const iaMin = Number(sub.iaMin) || 0;
+    const sumComponentMin = caThMin + caPrMin + eseThMin + esePrMin + iaMin;
+
+    if (sumComponentMin > 0) {
+      return sumComponentMin;
+    }
+
+    const rawPass = Number(sub.passMk);
+    if (!isNaN(rawPass) && rawPass > 0) {
+      return rawPass;
+    }
+
+    return Math.round((maxMk || 100) * 0.4);
+  }
+
+  /* ---------------- Credit Formatter (Theory + Practical Breakdown) ---------------- */
+  function formatSubjectCredits(sub, isElective = false) {
     if (!sub) return 'CR : 2+2=4';
     const thRaw = sub.crTh;
     const prRaw = sub.crPr;
@@ -488,6 +519,12 @@
 
   function pickCourseQuick(courseName) {
     userExplicitlyClearedCourse = false;
+    const courseToDeptMap = (typeof dataStore !== 'undefined' && dataStore.getCourseToDeptMap) ? dataStore.getCourseToDeptMap() : {};
+    const targetDept = courseToDeptMap[courseName];
+    const deptEl = document.getElementById('filterDept');
+    if (deptEl) {
+      deptEl.value = targetDept || '';
+    }
     const courseEl = document.getElementById('filterCourse');
     if (courseEl) courseEl.value = courseName;
     syncDropdowns();
@@ -611,6 +648,28 @@
       const markVal = dataStore.sanitizeMarkVal(row[colMap['Mark']]);
       const isCarriedForward = att > 1 && (markVal === null || markVal === '');
 
+      const caThMax = Number(row[colMap['CA_Theory_Max']]) || 0;
+      const caPrMax = Number(row[colMap['CA_Practical_Max']]) || 0;
+      const eseThMax = Number(row[colMap['ESE_Theory_Max']]) || 0;
+      const esePrMax = Number(row[colMap['ESE_Practical_Max']]) || 0;
+      const iaMax = Number(row[colMap['IA_Max']]) || 0;
+      const sumComponentMax = caThMax + caPrMax + eseThMax + esePrMax + iaMax;
+      const rawMaxMk = Number(row[colMap['MaxMk']]);
+      const resolvedMaxMk = sumComponentMax > 0 ? sumComponentMax : (!isNaN(rawMaxMk) && rawMaxMk > 0 ? rawMaxMk : 100);
+
+      const caThMin = Number(row[colMap['CA_Theory_Min']]) || 0;
+      const caPrMin = Number(row[colMap['CA_Practical_Min']]) || 0;
+      const eseThMin = Number(row[colMap['ESE_Theory_Min']]) || 0;
+      const esePrMin = Number(row[colMap['ESE_Practical_Min']]) || 0;
+      const iaMin = Number(row[colMap['IA_Min']]) || 0;
+      const sumComponentMin = caThMin + caPrMin + eseThMin + esePrMin + iaMin;
+      const rawPassMk = Number(row[colMap['PassMk']]);
+      const resolvedPassMk = sumComponentMin > 0 ? sumComponentMin : (!isNaN(rawPassMk) && rawPassMk > 0 ? rawPassMk : Math.round(resolvedMaxMk * 0.4));
+
+      const egIdx = colMap['Elective_Group'];
+      const egRaw = (egIdx !== undefined && row[egIdx] !== undefined && row[egIdx] !== null) ? String(row[egIdx]).trim() : '';
+      const electiveGroup = (egRaw && egRaw !== 'NULL' && egRaw !== 'null') ? egRaw : '';
+
       rec.subjects[subCode] = {
         code: subCode,
         name: row[colMap['SM_Subject_Name']] || '',
@@ -622,8 +681,19 @@
         eseTh: row[colMap['ESE_Theory']],
         esePr: row[colMap['ESE_Practical']],
         mark: markVal !== null ? markVal : '-',
-        maxMk: row[colMap['MaxMk']],
-        passMk: row[colMap['PassMk']],
+        maxMk: resolvedMaxMk,
+        passMk: resolvedPassMk,
+        caThMax,
+        caPrMax,
+        eseThMax,
+        esePrMax,
+        iaMax,
+        caThMin,
+        caPrMin,
+        eseThMin,
+        esePrMin,
+        iaMin,
+        electiveGroup,
         grd: cleanGradeVal(row[colMap['Grd']]),
         thGrd: cleanGradeVal(row[colMap['Theory_Grade']]),
         prGrd: cleanGradeVal(row[colMap['Practical_Grade']]),
@@ -641,13 +711,19 @@
           isElective: false,
           groupCode: row[colMap['GrpCd']] || '',
           mgp: row[colMap['MGP']] || '',
-          maxMk: row[colMap['MaxMk']] || 100,
-          passMk: row[colMap['PassMk']] || 40,
-          caThMax: row[colMap['CA_Theory_Max']],
-          caPrMax: row[colMap['CA_Practical_Max']],
-          iaMax: row[colMap['IA_Max']],
-          eseThMax: row[colMap['ESE_Theory_Max']],
-          esePrMax: row[colMap['ESE_Practical_Max']]
+          maxMk: resolvedMaxMk,
+          passMk: resolvedPassMk,
+          caThMax,
+          caPrMax,
+          iaMax,
+          eseThMax,
+          esePrMax,
+          caThMin,
+          caPrMin,
+          iaMin,
+          eseThMin,
+          esePrMin,
+          electiveGroup
         });
       }
     });
@@ -676,7 +752,7 @@
       return String(a.roll).localeCompare(String(b.roll), undefined, { numeric: true });
     });
 
-    // 3. Detect Elective Groups
+    // 3. Detect Elective Groups (Multi-Group Support from Elective_Group Column)
     const allSubjectsList = Array.from(subjectsMap.values());
     const rollToSubCount = new Map();
     appearancesList.forEach(app => {
@@ -686,31 +762,52 @@
     });
 
     const totalStudents = appearancesList.length;
+    const electiveGroupsMap = new Map(); // groupTitle -> Array<Subject>
     const coreSubjects = [];
-    const electiveSubjects = [];
 
     allSubjectsList.forEach(sub => {
       const appearanceCount = rollToSubCount.get(sub.code) || 0;
-      if (totalStudents > 2 && appearanceCount < totalStudents * 0.70) {
+      const explicitEg = sub.electiveGroup;
+
+      if (explicitEg) {
+        // Tagged explicitly with Elective_Group (e.g. 'IDSC - II', 'Elective 1', 'Elective', etc.)
         sub.isElective = true;
-        electiveSubjects.push(sub);
+        if (!electiveGroupsMap.has(explicitEg)) {
+          electiveGroupsMap.set(explicitEg, []);
+        }
+        electiveGroupsMap.get(explicitEg).push(sub);
+      } else if (totalStudents > 2 && appearanceCount < totalStudents * 0.70) {
+        // Heuristic fallback for legacy records without explicit Elective_Group
+        sub.isElective = true;
+        const fallbackTitle = 'ELECTIVE / OPTIONAL';
+        if (!electiveGroupsMap.has(fallbackTitle)) {
+          electiveGroupsMap.set(fallbackTitle, []);
+        }
+        electiveGroupsMap.get(fallbackTitle).push(sub);
       } else {
         coreSubjects.push(sub);
       }
     });
 
     const displayColumns = [];
-    if (electiveSubjects.length > 0) {
+    electiveGroupsMap.forEach((subs, groupTitle) => {
+      const s0 = subs[0] || {};
+      const maxMk = computeSubjectMaxMarks(s0);
       displayColumns.push({
         type: 'elective',
-        title: 'Elective',
-        subjects: electiveSubjects
+        title: groupTitle,
+        groupName: groupTitle,
+        subjects: subs,
+        maxMk: maxMk
       });
-    }
+    });
+
     coreSubjects.forEach(sub => {
+      sub.maxMk = computeSubjectMaxMarks(sub);
       displayColumns.push({
         type: 'core',
-        subject: sub
+        subject: sub,
+        maxMk: sub.maxMk
       });
     });
 
@@ -1070,8 +1167,10 @@
   /* ---------------- Single Gazette Page DOM Builder ---------------- */
   function buildSingleGazettePageElement(students, cols, pageNum, totalPages, startSr) {
     const templateType = (document.getElementById('gazetteTemplate')?.value) || 'template1';
+    const perPageVal = (document.getElementById('studentsPerPage')?.value) || '25';
+    const densityClass = perPageVal === '30' ? 'gazette-page-density-30' : (perPageVal === '35' ? 'gazette-page-density-35' : 'gazette-page-density-25');
     const pageDiv = document.createElement('div');
-    pageDiv.className = `gazette-page ${templateType === 'template2' ? 'gazette-template-2' : 'gazette-template-1'}`;
+    pageDiv.className = `gazette-page ${templateType === 'template2' ? 'gazette-template-2' : 'gazette-template-1'} ${densityClass}`;
     pageDiv.id = `gazettePage_${pageNum}`;
 
     const sample = students[0] || {};
@@ -1290,7 +1389,7 @@
       <div class="gazette-footer">
         <div class="footer-note">
           ${legendsText}
-          * Denotes Carried Forward / Earlier Passed Marks. Official Tabulation Register certified by Controller of Examinations, Symbiosis Skills and Professional University.
+          - Denotes Carried Forward / Earlier Passed Marks. Official Tabulation Register certified by Controller of Examinations, Symbiosis Skills and Professional University.
         </div>
         ${signaturesHtml}
         <div class="page-num-strip">
@@ -1388,12 +1487,13 @@
 
       if (col.type === 'elective') {
         const s0 = (col.subjects && col.subjects[0]) || {};
-        const maxMk = s0.maxMk || 100;
+        const maxMk = col.maxMk || computeSubjectMaxMarks(s0);
         const crStr = formatSubjectCredits(s0, true);
+        const groupTitle = escapeHtml(col.groupName || col.title || 'ELECTIVE / OPTIONAL');
         html += `<th colspan="${colspan}" class="th-subject elective-th ${narrowClass}">
-          <div class="th-sub-name elective-title">ELECTIVE / OPTIONAL</div>
+          <div class="th-sub-name elective-title">${groupTitle}</div>
           <div class="th-sub-code elective-code">${col.subjects.length} OFFERINGS</div>
-          <div class="th-sub-credits elective-cr" title="Elective Group (${col.subjects.length} Offerings Available) | Credits (Theory + Practical): 2+2=4">
+          <div class="th-sub-credits elective-cr" title="Elective Group: ${groupTitle} (${col.subjects.length} Offerings Available) | Maximum Marks: ${escapeHtml(maxMk)} | Credits: ${crStr}">
             <span class="sub-cr-max">M: ${escapeHtml(maxMk)}</span>
             <span class="sub-cr-div">|</span>
             <span class="sub-cr-val">${crStr}</span>
@@ -1401,12 +1501,13 @@
         </th>`;
       } else {
         const sub = col.subject;
+        const maxMk = col.maxMk || computeSubjectMaxMarks(sub);
         const crStr = formatSubjectCredits(sub, false);
         html += `<th colspan="${colspan}" class="th-subject ${narrowClass}">
           <div class="th-sub-name" title="${escapeHtml(sub.name)}">${escapeHtml(sub.name)}</div>
           <div class="th-sub-code">${escapeHtml(sub.code)}</div>
-          <div class="th-sub-credits" title="Maximum Marks: ${escapeHtml(sub.maxMk)} | Credits Breakdown (Theory + Practical): ${crStr}">
-            <span class="sub-cr-max">M: ${escapeHtml(sub.maxMk)}</span>
+          <div class="th-sub-credits" title="Maximum Marks: ${escapeHtml(maxMk)} | Credits Breakdown (Theory + Practical): ${crStr}">
+            <span class="sub-cr-max">M: ${escapeHtml(maxMk)}</span>
             <span class="sub-cr-div">|</span>
             <span class="sub-cr-val">${crStr}</span>
           </div>
@@ -1724,7 +1825,7 @@
 
     // Dynamic Subject Columns aligned with Active Sub-columns
     cachedDisplayColumns.forEach(col => {
-      const subTitle = col.type === 'elective' ? 'ELECTIVE' : (col.subject.code || col.subject.name);
+      const subTitle = col.type === 'elective' ? (col.groupName || col.title || 'ELECTIVE') : (col.subject.code || col.subject.name);
       (col.activeSubCols || []).forEach(sc => {
         const cleanLabel = sc.label.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
         headers.push(`${subTitle} [${cleanLabel}]`);

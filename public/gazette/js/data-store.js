@@ -89,7 +89,18 @@
       'Grd': ['grd', 'grade', 'final grade', 'letter grade', 'final_grd'],
       'Credit_Alloted_Theory': ['credit_alloted_theory', 'credit alloted theory', 'theory credit', 'cr_th', 'cr th', 'theory_credit'],
       'Credit_Alloted_Practical': ['credit_alloted_practical', 'credit alloted practical', 'practical credit', 'cr_pr', 'cr pr', 'practical_credit'],
-      'ExamYear': ['examyear', 'exam year', 'exam_year', 'exam session', 'exam date', 'examdate', 'session_date']
+      'ExamYear': ['examyear', 'exam year', 'exam_year', 'exam session', 'exam date', 'examdate', 'session_date'],
+      'CA_Theory_Min': ['ca_theory_min', 'ca theory min', 'ca_th_min', 'ca th min'],
+      'CA_Theory_Max': ['ca_theory_max', 'ca theory max', 'ca_th_max', 'ca th max'],
+      'CA_Practical_Min': ['ca_practical_min', 'ca practical min', 'ca_pr_min', 'ca pr min'],
+      'CA_Practical_Max': ['ca_practical_max', 'ca practical max', 'ca_pr_max', 'ca pr max'],
+      'IA_Min': ['ia_min', 'ia min', 'industry assessment min'],
+      'IA_Max': ['ia_max', 'ia max', 'industry assessment max'],
+      'ESE_Theory_Min': ['ese_theory_min', 'ese theory min', 'ese_th_min', 'ese th min'],
+      'ESE_Theory_Max': ['ese_theory_max', 'ese theory max', 'ese_th_max', 'ese th max'],
+      'ESE_Practical_Min': ['ese_practical_min', 'ese practical min', 'ese_pr_min', 'ese pr min'],
+      'ESE_Practical_Max': ['ese_practical_max', 'ese practical max', 'ese_pr_max', 'ese pr max'],
+      'Elective_Group': ['elective_group', 'elective group', 'electivegroup', 'elective_grp', 'elective grp', 'elective category', 'elective_category']
     };
 
     Object.keys(aliasDefinitions).forEach(canonKey => {

@@ -286,13 +286,17 @@
       margin-top: 2px;
     }
 
-    /* Gazette Viewport & Page Layout */
+    /* Gazette Viewport & Page Layout (Smooth Two-Axis Scrolling on Screen) */
     .gazette-viewport {
-      padding: 0 24px 40px 24px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 28px;
+      width: 100%;
+      max-width: 100vw;
+      box-sizing: border-box;
+      padding: 0 20px 40px 20px;
+      display: block;
+      overflow-x: auto;
+      overflow-y: visible;
+      -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
     }
 
     /* A3 Physical Dimensions: 420mm x 297mm Landscape */
@@ -306,9 +310,32 @@
       position: relative;
       display: flex;
       flex-direction: column;
-      justify-content: flex-start !important;
+      justify-content: space-between !important;
       border: 1px solid #cbd5e1;
       box-sizing: border-box;
+      margin: 0 auto 28px auto;
+      flex-shrink: 0;
+    }
+
+    /* Smooth Custom Scrollbar for Viewport and Tables */
+    .gazette-viewport::-webkit-scrollbar,
+    .matrix-table-wrap::-webkit-scrollbar {
+      height: 9px;
+      width: 9px;
+    }
+    .gazette-viewport::-webkit-scrollbar-track,
+    .matrix-table-wrap::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    .gazette-viewport::-webkit-scrollbar-thumb,
+    .matrix-table-wrap::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
+    .gazette-viewport::-webkit-scrollbar-thumb:hover,
+    .matrix-table-wrap::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
     }
 
     /* =====================================================================
@@ -1589,72 +1616,247 @@
         box-sizing: border-box !important;
         display: flex !important;
         flex-direction: column !important;
-        justify-content: flex-start !important;
+        justify-content: space-between !important;
+      }
+
+      /* Compact Official Header Block for Print */
+      .gazette-header-block {
+        width: 100% !important;
+        margin-bottom: 2mm !important;
+        border: 1px solid #000000 !important;
+        background: #ffffff !important;
+        box-sizing: border-box !important;
+      }
+
+      .univ-header-top {
+        display: grid !important;
+        grid-template-columns: 70px 1fr 70px !important;
+        align-items: center !important;
+        padding: 2px 8px !important;
+        background: #ffffff !important;
+        border-bottom: 1px solid #000000 !important;
+      }
+
+      .univ-logo-wrap {
+        max-width: 70px !important;
+        max-height: 38px !important;
+      }
+
+      .univ-logo-img {
+        max-width: 68px !important;
+        max-height: 36px !important;
+        object-fit: contain !important;
+        display: block !important;
+      }
+
+      .univ-title-center {
+        text-align: center !important;
+      }
+
+      .univ-title {
+        font-size: 11pt !important;
+        font-weight: 800 !important;
+        color: #000000 !important;
+        letter-spacing: 0.3px !important;
+        margin-bottom: 1px !important;
+        line-height: 1.15 !important;
+      }
+
+      .univ-sub {
+        font-size: 6.2pt !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+        letter-spacing: 0.2px !important;
+        margin-bottom: 2px !important;
+        line-height: 1.1 !important;
+      }
+
+      .univ-gazette-title {
+        font-size: 7.2pt !important;
+        font-weight: 800 !important;
+        color: #ffffff !important;
+        background: #000000 !important;
+        padding: 1px 6px !important;
+        letter-spacing: 0.3px !important;
+        line-height: 1.15 !important;
+        display: inline-block !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .univ-seal-wrap {
+        display: flex !important;
+        justify-content: center !important;
+        align-items: center !important;
+      }
+
+      .univ-seal-watermark {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        border: 1px dashed rgba(0, 0, 0, 0.5) !important;
+      }
+
+      .seal-watermark-inner {
+        width: 28px !important;
+        height: 28px !important;
+      }
+
+      .seal-watermark-text {
+        font-size: 5.5pt !important;
+        font-weight: 700 !important;
+      }
+
+      .gazette-meta-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+
+      .gazette-meta-table th,
+      .gazette-meta-table td {
+        padding: 1.5px 4px !important;
+        font-size: 6.5pt !important;
+        line-height: 1.15 !important;
+        border: 1px solid #000000 !important;
+        color: #000000 !important;
+      }
+
+      /* Matrix Table Print Layout */
+      .matrix-table-wrap {
+        width: 100% !important;
+        overflow: visible !important;
+        flex-grow: 0 !important;
       }
 
       table.gazette-matrix {
         font-size: 6.8pt !important;
         border-collapse: collapse !important;
+        width: 100% !important;
+        border: 1.5px solid #000000 !important;
       }
 
       table.gazette-matrix th,
       table.gazette-matrix td {
         border: 1px solid #000000 !important;
-        padding: 1.5px 2px !important;
       }
 
-      .gazette-template-2 table.gazette-matrix thead tr.subcol-row th {
+      table.gazette-matrix thead th {
+        border: 1px solid #000000 !important;
+        padding: 1px 1px !important;
+        font-size: 6pt !important;
+        line-height: 1.1 !important;
+        background-color: #f1f5f9 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      table.gazette-matrix thead tr.subcol-row th {
+        font-size: 5.5pt !important;
+        padding: 0.5px 0.5px !important;
+        letter-spacing: -0.2px !important;
+        line-height: 1.0 !important;
+      }
+
+      /* Uniform Row Heights for 25 Students: Fits 100% on Single A3 Sheet */
+      table.gazette-matrix tbody tr {
+        height: 25px !important;
+        min-height: 25px !important;
+        max-height: 26px !important;
+      }
+
+      table.gazette-matrix tbody td {
+        height: 25px !important;
+        min-height: 25px !important;
+        max-height: 26px !important;
+        padding: 0.5px 1px !important;
+        font-size: 6.8pt !important;
+        font-weight: normal !important;
+        color: #000000 !important;
+        vertical-align: middle !important;
+        line-height: 1.1 !important;
+        box-sizing: border-box !important;
+      }
+
+      /* Density Overrides for 30 and 35 Per Page */
+      .gazette-page-density-30 table.gazette-matrix tbody tr {
+        height: 21px !important;
+        min-height: 21px !important;
+        max-height: 22px !important;
+      }
+      .gazette-page-density-30 table.gazette-matrix tbody td {
+        height: 21px !important;
+        min-height: 21px !important;
+        max-height: 22px !important;
+        padding: 0px 1px !important;
+        font-size: 6.2pt !important;
+      }
+
+      .gazette-page-density-35 table.gazette-matrix tbody tr {
+        height: 18px !important;
+        min-height: 18px !important;
+        max-height: 19px !important;
+      }
+      .gazette-page-density-35 table.gazette-matrix tbody td {
+        height: 18px !important;
+        min-height: 18px !important;
+        max-height: 19px !important;
+        padding: 0px 0.5px !important;
         font-size: 5.8pt !important;
+      }
+
+      /* Template 2 Specific Print Adjustments */
+      .gazette-template-2 table.gazette-matrix thead tr.subcol-row th {
+        font-size: 5.5pt !important;
         padding: 0.5px 0.5px !important;
         letter-spacing: -0.2px !important;
       }
       .gazette-template-2 table.gazette-matrix tbody td {
-        font-size: 7.2pt !important;
+        font-size: 6.8pt !important;
         font-weight: normal !important;
         color: #000000 !important;
         padding: 0.5px 0.5px !important;
       }
       .gazette-template-2 th.subcol-comp {
         min-width: 19px !important;
-        font-size: 5.8pt !important;
+        font-size: 5.6pt !important;
         font-weight: 700 !important;
         padding: 0.5px 0.5px !important;
       }
       .gazette-template-2 td.col-comp {
         min-width: 19px !important;
-        font-size: 7pt !important;
+        font-size: 6.8pt !important;
         font-weight: normal !important;
         color: #000000 !important;
         padding: 0.5px 0.5px !important;
       }
       .gazette-template-2 th.subcol-tot {
-        min-width: 34px !important;
-        width: 34px !important;
-        max-width: 38px !important;
-        font-size: 6pt !important;
+        min-width: 32px !important;
+        width: 32px !important;
+        max-width: 36px !important;
+        font-size: 5.8pt !important;
         font-weight: 700 !important;
-        padding: 0px 2px !important;
+        padding: 0px 1px !important;
       }
       .gazette-template-2 td.col-tot {
-        min-width: 34px !important;
-        width: 34px !important;
-        max-width: 38px !important;
-        font-size: 7.2pt !important;
+        min-width: 32px !important;
+        width: 32px !important;
+        max-width: 36px !important;
+        font-size: 6.8pt !important;
         font-weight: normal !important;
         color: #000000 !important;
-        padding: 0px 2px !important;
+        padding: 0px 1px !important;
         overflow: visible !important;
         text-overflow: clip !important;
       }
       .gazette-template-2 th.subcol-grd {
         min-width: 20px !important;
-        font-size: 5.5pt !important;
+        font-size: 5.4pt !important;
         font-weight: 700 !important;
         line-height: 0.95 !important;
       }
       .gazette-template-2 td.col-grd {
         min-width: 20px !important;
-        font-size: 7pt !important;
+        font-size: 6.8pt !important;
         font-weight: normal !important;
         color: #000000 !important;
       }
@@ -1674,18 +1876,17 @@
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      /* Prevent clipping on Tot fail cells in print */
       td.col-tot.fail-mark,
       table.gazette-matrix tbody td.col-tot.fail-mark,
       .gazette-template-2 table.gazette-matrix tbody td.col-tot.fail-mark,
       .gazette-template-2 td.col-tot.fail-mark {
         font-weight: 700 !important;
-        font-size: 7pt !important;
+        font-size: 6.8pt !important;
         letter-spacing: -0.3px !important;
         overflow: visible !important;
         text-overflow: clip !important;
-        min-width: 34px !important;
-        width: 34px !important;
+        min-width: 32px !important;
+        width: 32px !important;
       }
 
       .badge-grade-f {
@@ -1694,10 +1895,10 @@
         color: #b91c1c !important;
         font-weight: 900 !important;
         border: 1px solid #f87171 !important;
-        border-radius: 3px !important;
-        padding: 0.5px 3.5px !important;
-        font-size: 7pt !important;
-        line-height: 1.15 !important;
+        border-radius: 2px !important;
+        padding: 0.5px 2.5px !important;
+        font-size: 6.5pt !important;
+        line-height: 1.1 !important;
         box-sizing: border-box !important;
         white-space: nowrap !important;
         -webkit-print-color-adjust: exact !important;
@@ -1708,16 +1909,6 @@
         border: none !important;
         background: transparent !important;
         padding: 0 !important;
-      }
-
-      .univ-title-block .gazette-heading {
-        background: #000000 !important;
-        color: #ffffff !important;
-      }
-
-      .matrix-table-wrap {
-        width: 100% !important;
-        overflow: visible !important;
       }
 
       col.col-roll {
@@ -1774,7 +1965,7 @@
         word-wrap: break-word !important;
         overflow-wrap: break-word !important;
         word-break: break-word !important;
-        line-height: 1.1 !important;
+        line-height: 1.05 !important;
       }
 
       table.gazette-matrix thead th.th-subject.elective-th {
@@ -1787,21 +1978,164 @@
         font-weight: 800 !important;
       }
 
-      .univ-seal-watermark {
-        border: 1.5px dashed rgba(0, 0, 0, 0.4) !important;
-        box-shadow: 0 0 0 1.5px rgba(0, 0, 0, 0.25) !important;
-        background: transparent !important;
+      /* Result Analysis Summary Block Print Formatting */
+      .result-analysis-summary-block {
+        margin-top: 2mm !important;
+        margin-bottom: 2mm !important;
+        border: 1px solid #000000 !important;
+        border-radius: 2px !important;
+        box-shadow: none !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
 
-      .seal-watermark-inner {
-        border-color: rgba(0, 0, 0, 0.3) !important;
-      }
-
-      .seal-watermark-text {
-        color: #000000 !important;
-        opacity: 0.4 !important;
+      .summary-block-header {
+        padding: 1.5px 6px !important;
+        font-size: 6.5pt !important;
+        background: #f1f5f9 !important;
+        border-bottom: 1px solid #000000 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
+      }
+
+      .summary-block-title {
+        font-size: 6.8pt !important;
+        font-weight: 700 !important;
+      }
+
+      .analysis-summary-table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+
+      .analysis-summary-table th {
+        padding: 1.5px 4px !important;
+        font-size: 5.8pt !important;
+        border: 1px solid #000000 !important;
+        background: #f8fafc !important;
+        color: #000000 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .analysis-summary-table td {
+        padding: 1.5px 4px !important;
+        font-size: 6.5pt !important;
+        border: 1px solid #000000 !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+      }
+
+      /* =====================================================================
+         PAGE FOOTER, SIGNATURES & PAGINATION PRINT SPECIFICATIONS
+         ===================================================================== */
+      .gazette-footer {
+        margin-top: auto !important;
+        border-top: 1.5px solid #000000 !important;
+        padding-top: 2mm !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .footer-note {
+        font-size: 5.6pt !important;
+        line-height: 1.2 !important;
+        margin-bottom: 2mm !important;
+        color: #000000 !important;
+        text-align: left !important;
+      }
+
+      .signatures-row {
+        width: 100% !important;
+        box-sizing: border-box !important;
+      }
+
+      .signatures-two-tier {
+        display: flex !important;
+        justify-content: space-around !important;
+        padding-top: 1.5mm !important;
+      }
+
+      .signatures-two-tier .sig-block {
+        min-width: 240px !important;
+        max-width: 340px !important;
+        text-align: center !important;
+      }
+
+      .signatures-four-tier {
+        display: grid !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 12px !important;
+        padding-top: 1.5mm !important;
+      }
+
+      .signatures-four-tier .sig-block {
+        text-align: center !important;
+      }
+
+      .sig-val-sd {
+        height: 15px !important;
+        display: flex !important;
+        align-items: flex-end !important;
+        justify-content: center !important;
+        font-size: 8.5pt !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+        font-family: 'Times New Roman', Times, serif !important;
+        letter-spacing: 0.6px !important;
+        margin-bottom: 1px !important;
+        border-bottom: 1px dashed #666666 !important;
+      }
+
+      .sig-line {
+        width: 80% !important;
+        height: 15px !important;
+        border-bottom: 1px solid #000000 !important;
+        margin: 0 auto 1px auto !important;
+      }
+
+      .sig-label {
+        font-size: 6.2pt !important;
+        line-height: 1.15 !important;
+        color: #000000 !important;
+        margin-top: 1px !important;
+      }
+
+      .sig-desig {
+        font-size: 5.8pt !important;
+        color: #222222 !important;
+      }
+
+      .page-num-strip {
+        display: flex !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        font-size: 6.8pt !important;
+        color: #000000 !important;
+        margin-top: 2mm !important;
+        border-top: 1px dotted #888888 !important;
+        padding-top: 1.5mm !important;
+      }
+
+      .footer-univ-tag {
+        font-size: 6.2pt !important;
+        color: #333333 !important;
+        font-style: italic !important;
+      }
+
+      .sheet-page-bottom {
+        font-size: 7.2pt !important;
+        font-weight: 700 !important;
+        color: #000000 !important;
+        letter-spacing: 0.25px !important;
+        margin-left: auto !important;
+      }
+
+      .sheet-page-bottom b {
+        color: #000000 !important;
+        font-weight: 800 !important;
       }
     }
   
@@ -2314,8 +2648,5 @@
       padding: 4px 12px;
     }
 
-  </style>
-  </style>
-  <!-- Dynamic Print Page Size Style (A4 Portrait for Cards, A3 Landscape for Matrix) -->
-  <style id="printPageSizeStyle">
+    /* Dynamic Print Page Size (A3 Landscape for Tabulation Matrix) */
     @page { size: A3 landscape; margin: 6mm 8mm 6mm 8mm; }

@@ -246,6 +246,24 @@
 
       const rec = appearancesMap.get(key);
       const markVal = dataStore.sanitizeMarkVal(row[colMap['Mark']]);
+      const caThMax = Number(row[colMap['CA_Theory_Max']]) || 0;
+      const caPrMax = Number(row[colMap['CA_Practical_Max']]) || 0;
+      const eseThMax = Number(row[colMap['ESE_Theory_Max']]) || 0;
+      const esePrMax = Number(row[colMap['ESE_Practical_Max']]) || 0;
+      const iaMax = Number(row[colMap['IA_Max']]) || 0;
+      const sumComponentMax = caThMax + caPrMax + eseThMax + esePrMax + iaMax;
+      const rawMaxMk = Number(row[colMap['MaxMk']]);
+      const resolvedMaxMk = sumComponentMax > 0 ? sumComponentMax : (!isNaN(rawMaxMk) && rawMaxMk > 0 ? rawMaxMk : 100);
+
+      const caThMin = Number(row[colMap['CA_Theory_Min']]) || 0;
+      const caPrMin = Number(row[colMap['CA_Practical_Min']]) || 0;
+      const eseThMin = Number(row[colMap['ESE_Theory_Min']]) || 0;
+      const esePrMin = Number(row[colMap['ESE_Practical_Min']]) || 0;
+      const iaMin = Number(row[colMap['IA_Min']]) || 0;
+      const sumComponentMin = caThMin + caPrMin + eseThMin + esePrMin + iaMin;
+      const rawPassMk = Number(row[colMap['PassMk']]);
+      const resolvedPassMk = sumComponentMin > 0 ? sumComponentMin : (!isNaN(rawPassMk) && rawPassMk > 0 ? rawPassMk : Math.round(resolvedMaxMk * 0.4));
+
       rec.subjects[subCode] = {
         code: subCode,
         name: row[colMap['SM_Subject_Name']] || subCode,
@@ -255,8 +273,8 @@
         eseTh: row[colMap['ESE_Theory']],
         esePr: row[colMap['ESE_Practical']],
         mark: markVal !== null ? markVal : '-',
-        maxMk: row[colMap['MaxMk']] || 100,
-        passMk: row[colMap['PassMk']] || 40,
+        maxMk: resolvedMaxMk,
+        passMk: resolvedPassMk,
         grd: row[colMap['Grd']],
         thGrd: row[colMap['Theory_Grade']],
         prGrd: row[colMap['Practical_Grade']],
